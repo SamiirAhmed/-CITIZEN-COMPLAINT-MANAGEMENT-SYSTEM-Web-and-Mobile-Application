@@ -9,6 +9,8 @@ import LoginPage from '../pages/LoginPage';
 import DashboardPage from '../pages/DashboardPage';
 import CitizensPage from '../pages/CitizensPage';
 import CitizenDetailsPage from '../pages/CitizenDetailsPage';
+import ComplaintsPage from '../pages/ComplaintsPage';
+import OBRecordsPage from '../pages/OBRecordsPage';
 import SettingsPage from '../pages/SettingsPage';
 import UsersPage from '../pages/UsersPage';
 import PermissionsPage from '../pages/PermissionsPage';
@@ -71,7 +73,7 @@ export default function AppRoutes() {
           path="/complaints"
           element={
             <ModuleRoute moduleKey="complaints">
-              <ComingSoonPage moduleKey="complaints" />
+              <ComplaintsPage />
             </ModuleRoute>
           }
         />
@@ -79,7 +81,7 @@ export default function AppRoutes() {
           path="/ob-records"
           element={
             <ModuleRoute moduleKey="ob-records">
-              <ComingSoonPage moduleKey="ob-records" />
+              <OBRecordsPage />
             </ModuleRoute>
           }
         />

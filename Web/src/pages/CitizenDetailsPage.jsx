@@ -102,12 +102,16 @@ export default function CitizenDetailsPage() {
         obRecords={data.obRecords || []}
       />
 
-      <Modal open={editing} title="Edit Citizen" onClose={() => setEditing(false)}>
+      <Modal open={editing} title="Edit Citizen" onClose={() => setEditing(false)} size="lg">
         <CitizenForm
+          mode="edit"
           initialValues={{
             name: citizen.name || '',
             phone: citizen.phone || '',
+            email: citizen.email || '',
+            niraId: citizen.niraId || '',
           }}
+          currentImage={citizen.profileImage || ''}
           submitting={submitting}
           onCancel={() => setEditing(false)}
           onSubmit={handleEditSubmit}
