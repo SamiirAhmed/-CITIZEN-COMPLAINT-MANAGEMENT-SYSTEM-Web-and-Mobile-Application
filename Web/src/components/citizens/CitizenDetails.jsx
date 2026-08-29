@@ -16,19 +16,24 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
 
   return (
     <div className="detail-stack">
-      <section className="profile-hero panel">
-        <ProfileAvatar name={citizen.name} src={citizen.profileImage} size={120} className="profile-avatar--ring profile-avatar--lg" />
+      <section className="profile-hero">
+        <ProfileAvatar
+          name={citizen.name}
+          src={citizen.profileImage}
+          size={120}
+          className="profile-avatar--ring profile-avatar--lg"
+        />
         <div>
           <h2>{citizen.name}</h2>
           <p className="muted">{citizen.email}</p>
-          <StatusBadge status={citizen.isActive !== false ? 'Active' : 'Inactive'} />
+          <div className="profile-hero__badges">
+            <StatusBadge status={citizen.isActive !== false ? 'Active' : 'Inactive'} />
+          </div>
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel__header">
-          <h3>Personal Information</h3>
-        </div>
+      <section className="detail-section">
+        <h3>Personal Information</h3>
         <div className="detail-grid">
           <div>
             <span className="detail-label">Name</span>
@@ -41,10 +46,8 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel__header">
-          <h3>Contact Information</h3>
-        </div>
+      <section className="detail-section">
+        <h3>Contact Information</h3>
         <div className="detail-grid">
           <div>
             <span className="detail-label">Phone</span>
@@ -57,10 +60,8 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel__header">
-          <h3>Account Information</h3>
-        </div>
+      <section className="detail-section">
+        <h3>Account Information</h3>
         <div className="detail-grid">
           <div>
             <span className="detail-label">Status</span>
@@ -77,10 +78,8 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel__header">
-          <h3>Related Complaints</h3>
-        </div>
+      <section className="detail-section">
+        <h3>Related Complaints</h3>
         {complaints.length ? (
           <div className="table-scroll">
             <table className="data-table">
@@ -111,10 +110,8 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
         )}
       </section>
 
-      <section className="panel">
-        <div className="panel__header">
-          <h3>Related OB Records</h3>
-        </div>
+      <section className="detail-section">
+        <h3>Related OB Records</h3>
         {obRecords.length ? (
           <div className="table-scroll">
             <table className="data-table">
@@ -141,7 +138,10 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
             </table>
           </div>
         ) : (
-          <EmptyState title="No OB records" description="No occurrence book records are linked to this citizen." />
+          <EmptyState
+            title="No OB records"
+            description="No occurrence book records are linked to this citizen."
+          />
         )}
       </section>
     </div>

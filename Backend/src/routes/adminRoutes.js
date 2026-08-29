@@ -8,6 +8,7 @@ import {
   listCitizens,
   listPoliceUsersForPermissions,
   listStaffUsers,
+  registerCitizen,
   registerPolice,
   setCitizenStatus,
   setStaffUserStatus,
@@ -32,6 +33,7 @@ router.use(...adminOnly);
 router.get('/dashboard', getAdminDashboard);
 
 router.get('/citizens', listCitizens);
+router.post('/citizens', uploadProfileImageOptional, registerCitizen);
 router.get('/citizens/:id', getCitizenById);
 router.put('/citizens/:id', uploadProfileImageOptional, updateCitizen);
 router.patch('/citizens/:id/status', setCitizenStatus);

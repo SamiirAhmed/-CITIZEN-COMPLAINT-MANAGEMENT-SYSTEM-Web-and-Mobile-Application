@@ -1,9 +1,11 @@
-import OBRecord from '../models/OBRecord.js';
+import OBRecord, { OB_STATUSES } from '../models/OBRecord.js';
 import Complaint from '../models/Complaint.js';
 import User from '../models/User.js';
 import {
   asyncHandler,
+  createAuditLog,
   createNotification,
+  getRequestIp,
 } from '../utils/helpers.js';
 import {
   evidencePublicPath,
@@ -45,6 +47,59 @@ const loadStaffOB = async (id, { withNotes = false } = {}) => {
   let query = OBRecord.findById(id);
   if (withNotes) query = query.select('+investigationNotes');
   return populateStaffOB(query);
+};
+
+const escapeRegex = (value = '') =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const mapUserRef = (user) => {
+  if (!user) return null;
+  if (typeof user === 'string') return { id: user };
+  return {
+    id: user._id?.toString?.() || user.id || String(user),
+    name: user.name || '',
+    email: user.email || '',
+    phone: user.phone || '',
+    niraId: user.niraId || '',
+    badgeNumber: user.badgeNumber || '',
+    station: user.station || '',
+  };
+};
+
+const mapComplaintRef = (complaint) => {
+  if (!complaint) return null;
+  if (typeof complaint === 'string') return { id: complaint };
+  return {
+    id: complaint._id?.toString?.() || complaint.id || String(complaint),
+    complaintNumber: complaint.complaintNumber || '',
+    category: complaint.category || '',
+    status: complaint.status || '',
+    description: complaint.description || '',
+    location: complaint.location || '',
+    incidentDate: complaint.incidentDate || null,
+  };
+};
+
+const toAdminOB = (record) => {
+  if (!record) return null;
+  const obj = typeof record.toObject === 'function' ? record.toObject({ getters: true }) : record;
+  return {
+    id: obj._id?.toString?.() || obj.id,
+    obNumber: obj.obNumber,
+    complaint: mapComplaintRef(obj.complaint),
+    citizen: mapUserRef(obj.citizen),
+    createdBy: mapUserRef(obj.createdBy),
+    assignedOfficer: mapUserRef(obj.assignedOfficer),
+    assignedAt: obj.assignedAt,
+    status: obj.status,
+    investigationNotes: obj.investigationNotes || '',
+    citizenSummary: obj.citizenSummary || '',
+    closureReason: obj.closureReason || '',
+    closedAt: obj.closedAt,
+    updates: obj.updates || [],
+    createdAt: obj.createdAt,
+    updatedAt: obj.updatedAt,
+  };
 };
 
 export const getMyOBRecords = asyncHandler(async (req, res) => {
@@ -430,10 +485,69 @@ export const policeAddEvidence = asyncHandler(async (req, res) => {
   });
 });
 
-export const staffGetOBById = asyncHandler(async (req, res) => {
-  const record = await loadStaffOB(req.params.id, { withNotes: true });
+export const staffListOBs = asyncHandler(async (req, res) => {
+  const { status, search = '' } = req.query;
+  const filter = {};
 
-  if (!record || !canAccessAssignedOB(record, req.user)) {
+  if (req.user.role === 'police') {
+    filter.assignedOfficer = req.user._id;
+  }
+
+  if (status) {
+    filter.status = status;
+  }
+
+  if (search.trim()) {
+    const regex = new RegExp(escapeRegex(search.trim()), 'i');
+    const matchingCitizens = await User.find({
+      role: 'citizen',
+      $or: [{ name: regex }, { email: regex }, { phone: regex }, { niraId: regex }],
+    }).select('_id');
+    const matchingComplaints = await Complaint.find({
+      $or: [{ complaintNumber: regex }, { category: regex }, { location: regex }],
+    }).select('_id');
+
+    filter.$or = [
+      { obNumber: regex },
+      { citizenSummary: regex },
+      { citizen: { $in: matchingCitizens.map((c) => c._id) } },
+      { complaint: { $in: matchingComplaints.map((c) => c._id) } },
+    ];
+  }
+
+  const records = await OBRecord.find(filter)
+    .populate('complaint')
+    .populate('citizen', 'name email phone niraId')
+    .populate('assignedOfficer', 'name badgeNumber station email')
+    .populate('createdBy', 'name email')
+    .sort({ updatedAt: -1 });
+
+  return res.json({
+    success: true,
+    data: {
+      records: records.map((item) =>
+        req.user.role === 'police'
+          ? item.toStaffObject(item.complaint, item.citizen)
+          : toAdminOB(item)
+      ),
+    },
+  });
+});
+
+export const staffGetOBById = asyncHandler(async (req, res) => {
+  const filter = { _id: req.params.id };
+  if (req.user.role === 'police') {
+    filter.assignedOfficer = req.user._id;
+  }
+
+  const record = await OBRecord.findOne(filter)
+    .select('+investigationNotes')
+    .populate('complaint')
+    .populate('citizen', 'name email phone niraId')
+    .populate('assignedOfficer', 'name badgeNumber station email')
+    .populate('createdBy', 'name email');
+
+  if (!record) {
     return res.status(404).json({
       success: false,
       message: 'OB record not found.',
@@ -442,10 +556,14 @@ export const staffGetOBById = asyncHandler(async (req, res) => {
 
   return res.json({
     success: true,
-    data: { record: record.toStaffObject(record.complaint, record.citizen) },
+    data: {
+      record:
+        req.user.role === 'police'
+          ? record.toStaffObject(record.complaint, record.citizen)
+          : toAdminOB(record),
+    },
   });
 });
-
 export const adminResolveCloseReopen = asyncHandler(async (req, res) => {
   const { action, note } = req.body;
   const ob = await OBRecord.findById(req.params.id);
@@ -537,23 +655,47 @@ export const adminResolveCloseReopen = asyncHandler(async (req, res) => {
   });
 });
 
-export const staffListOBs = asyncHandler(async (req, res) => {
-  const filter = {};
-  if (req.user.role === 'police') {
-    filter.assignedOfficer = req.user._id;
+export const adminDeleteOB = asyncHandler(async (req, res) => {
+  const ob = await OBRecord.findById(req.params.id);
+  if (!ob) {
+    return res.status(404).json({
+      success: false,
+      message: 'OB record not found.',
+    });
   }
 
-  const records = await populateStaffOB(OBRecord.find(filter)).sort({
-    updatedAt: -1,
+  const label = ob.obNumber;
+  const complaintId = ob.complaint;
+  await ob.deleteOne();
+
+  const complaint = await Complaint.findById(complaintId);
+  if (complaint && complaint.status === 'OB Created') {
+    complaint.status = 'Verified';
+    complaint.statusHistory.push({
+      status: 'Verified',
+      note: `OB ${label} deleted. Complaint returned to Verified.`,
+      changedBy: req.user._id,
+      changedAt: new Date(),
+    });
+    await complaint.save();
+  }
+
+  await createAuditLog({
+    actor: req.user,
+    action: 'DELETE',
+    recordType: 'OBRecord',
+    recordId: ob._id,
+    recordLabel: label,
+    previousValue: label,
+    newValue: '',
+    details: `OB record ${label} deleted.`,
+    ipAddress: getRequestIp(req),
   });
 
   return res.json({
     success: true,
-    data: {
-      records:
-        req.user.role === 'police'
-          ? records.map((item) => item.toStaffObject(item.complaint, item.citizen))
-          : records,
-    },
+    message: 'OB record deleted successfully.',
   });
 });
+
+export { OB_STATUSES };

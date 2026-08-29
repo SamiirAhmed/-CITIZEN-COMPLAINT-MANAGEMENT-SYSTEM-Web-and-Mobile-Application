@@ -33,6 +33,16 @@ export async function getCitizenById(id) {
   return response?.data || null;
 }
 
+export async function registerCitizen(payload) {
+  const { profileImageFile, ...fields } = payload;
+  const formData = toFormData(fields, profileImageFile);
+  const response = await apiRequest('/admin/citizens', {
+    method: 'POST',
+    formData,
+  });
+  return response?.data?.citizen;
+}
+
 export async function updateCitizen(id, payload) {
   const { profileImageFile, ...fields } = payload;
   if (profileImageFile) {

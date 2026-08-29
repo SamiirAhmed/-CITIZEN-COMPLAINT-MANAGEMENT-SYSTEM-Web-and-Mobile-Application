@@ -10,6 +10,8 @@ import PoliceLoginPage from '../pages/PoliceLoginPage';
 import DashboardPage from '../pages/DashboardPage';
 import CitizensPage from '../pages/CitizensPage';
 import CitizenDetailsPage from '../pages/CitizenDetailsPage';
+import ComplaintsPage from '../pages/ComplaintsPage';
+import OBRecordsPage from '../pages/OBRecordsPage';
 import SettingsPage from '../pages/SettingsPage';
 import UsersPage from '../pages/UsersPage';
 import PermissionsPage from '../pages/PermissionsPage';
@@ -74,7 +76,7 @@ function DashboardRoute() {
 function OBRecordsRoute() {
   const { user } = useAuth();
   if (user?.role === 'police') return <PoliceOBRecordsPage />;
-  return <ComingSoonPage moduleKey="ob-records" />;
+  return <OBRecordsPage />;
 }
 
 export default function AppRoutes() {
@@ -113,7 +115,7 @@ export default function AppRoutes() {
           path="/complaints"
           element={
             <ModuleRoute moduleKey="complaints">
-              <ComingSoonPage moduleKey="complaints" />
+              <ComplaintsPage />
             </ModuleRoute>
           }
         />

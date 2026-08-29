@@ -432,6 +432,90 @@ export const setCitizenStatus = asyncHandler(async (req, res) => {
   });
 });
 
+export const registerCitizen = asyncHandler(async (req, res) => {
+  const { name, niraId, phone, email, password, confirmPassword } = req.body;
+
+  const trimmedName = String(name ?? '').trim();
+  const trimmedNira = String(niraId ?? '').trim();
+  const trimmedPhone = String(phone ?? '').trim();
+  const trimmedEmail = String(email ?? '').trim().toLowerCase();
+  const rawPassword = String(password ?? '');
+  const uploadedPath = req.file ? profileImagePublicPath(req.file.filename) : '';
+
+  const fail = (status, message) => {
+    if (uploadedPath) removeProfileImageFile(uploadedPath);
+    return res.status(status).json({ success: false, message });
+  };
+
+  if (!trimmedName) {
+    return fail(400, 'Name is required.');
+  }
+  if (trimmedName.length > 30) {
+    return fail(400, 'Name must be at most 30 characters.');
+  }
+  if (!trimmedNira) {
+    return fail(400, 'NIRA ID is required.');
+  }
+  if (trimmedNira.length !== 11) {
+    return fail(400, 'NIRA ID must be exactly 11 characters.');
+  }
+  if (!trimmedPhone) {
+    return fail(400, 'Phone is required.');
+  }
+  if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
+    return fail(400, 'Please enter a valid email address.');
+  }
+  if (!rawPassword || rawPassword.length < 8) {
+    return fail(400, 'Password must be at least 8 characters.');
+  }
+  if (confirmPassword !== undefined && rawPassword !== confirmPassword) {
+    return fail(400, 'Password and confirm password do not match.');
+  }
+  if (!req.file) {
+    return fail(400, 'Profile image is required.');
+  }
+
+  const existingEmail = await User.findOne({ email: trimmedEmail });
+  if (existingEmail) {
+    return fail(409, 'An account with this email already exists.');
+  }
+
+  const existingNira = await User.findOne({ niraId: trimmedNira });
+  if (existingNira) {
+    return fail(409, 'An account with this NIRA ID already exists.');
+  }
+
+  const citizen = await User.create({
+    name: trimmedName,
+    niraId: trimmedNira,
+    phone: trimmedPhone,
+    tell: '',
+    email: trimmedEmail,
+    password: rawPassword,
+    role: 'citizen',
+    profileImage: uploadedPath,
+    isActive: true,
+  });
+
+  await createAuditLog({
+    actor: req.user,
+    action: 'CREATE',
+    recordType: 'Citizen',
+    recordId: citizen._id,
+    recordLabel: citizen.name,
+    previousValue: '',
+    newValue: citizen.profileImage || 'Citizen registered',
+    details: `Citizen ${citizen.email} registered by admin.`,
+    ipAddress: getRequestIp(req),
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: 'Citizen registered successfully.',
+    data: { citizen: citizen.toSafeObject() },
+  });
+});
+
 export const listStaffUsers = asyncHandler(async (req, res) => {
   const { search = '', role, status } = req.query;
   const filter = { role: { $in: ['admin', 'police'] } };

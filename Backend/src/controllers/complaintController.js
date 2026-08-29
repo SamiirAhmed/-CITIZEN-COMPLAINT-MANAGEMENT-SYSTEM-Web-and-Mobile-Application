@@ -1,13 +1,54 @@
-import Complaint from '../models/Complaint.js';
+import Complaint, { COMPLAINT_STATUSES } from '../models/Complaint.js';
 import Category from '../models/Category.js';
 import OBRecord from '../models/OBRecord.js';
+import User from '../models/User.js';
 import {
   asyncHandler,
+  createAuditLog,
   createNotification,
   generateComplaintNumber,
   generateOBNumber,
+  getRequestIp,
   notifyRole,
 } from '../utils/helpers.js';
+
+const escapeRegex = (value = '') =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const mapUserRef = (user) => {
+  if (!user) return null;
+  if (typeof user === 'string') return { id: user };
+  return {
+    id: user._id?.toString?.() || user.id || String(user),
+    name: user.name || '',
+    email: user.email || '',
+    phone: user.phone || '',
+    niraId: user.niraId || '',
+  };
+};
+
+const toAdminComplaint = (complaint) => {
+  if (!complaint) return null;
+  const obj = typeof complaint.toObject === 'function' ? complaint.toObject() : complaint;
+  return {
+    id: obj._id?.toString?.() || obj.id,
+    complaintNumber: obj.complaintNumber,
+    citizen: mapUserRef(obj.citizen),
+    category: obj.category,
+    description: obj.description,
+    incidentDate: obj.incidentDate,
+    location: obj.location,
+    relatedInformation: obj.relatedInformation || '',
+    evidenceNotes: obj.evidenceNotes || '',
+    status: obj.status,
+    statusHistory: obj.statusHistory || [],
+    reviewedBy: mapUserRef(obj.reviewedBy),
+    reviewedAt: obj.reviewedAt,
+    rejectionReason: obj.rejectionReason || '',
+    createdAt: obj.createdAt,
+    updatedAt: obj.updatedAt,
+  };
+};
 
 export const getCategories = asyncHandler(async (_req, res) => {
   const categories = await Category.find({ isActive: true }).sort({ name: 1 });
@@ -255,18 +296,344 @@ const pushComplaintStatus = async (complaint, status, note, userId) => {
 };
 
 export const adminListComplaints = asyncHandler(async (req, res) => {
+  const { status, search = '', category } = req.query;
   const filter = {};
-  if (req.query.status) {
-    filter.status = req.query.status;
+
+  if (status) {
+    filter.status = status;
+  }
+  if (category) {
+    filter.category = String(category).trim();
+  }
+
+  if (search.trim()) {
+    const regex = new RegExp(escapeRegex(search.trim()), 'i');
+    const matchingCitizens = await User.find({
+      role: 'citizen',
+      $or: [{ name: regex }, { email: regex }, { phone: regex }, { niraId: regex }],
+    }).select('_id');
+
+    filter.$or = [
+      { complaintNumber: regex },
+      { category: regex },
+      { location: regex },
+      { description: regex },
+      { citizen: { $in: matchingCitizens.map((c) => c._id) } },
+    ];
   }
 
   const complaints = await Complaint.find(filter)
     .populate('citizen', 'name email phone niraId')
+    .populate('reviewedBy', 'name email')
     .sort({ createdAt: -1 });
 
   return res.json({
     success: true,
-    data: { complaints },
+    data: { complaints: complaints.map(toAdminComplaint) },
+  });
+});
+
+export const adminGetComplaintById = asyncHandler(async (req, res) => {
+  const complaint = await Complaint.findById(req.params.id)
+    .populate('citizen', 'name email phone niraId')
+    .populate('reviewedBy', 'name email');
+
+  if (!complaint) {
+    return res.status(404).json({
+      success: false,
+      message: 'Complaint not found.',
+    });
+  }
+
+  const ob = await OBRecord.findOne({ complaint: complaint._id }).select(
+    'obNumber status createdAt'
+  );
+
+  return res.json({
+    success: true,
+    data: {
+      complaint: toAdminComplaint(complaint),
+      ob: ob
+        ? {
+            id: ob._id.toString(),
+            obNumber: ob.obNumber,
+            status: ob.status,
+            createdAt: ob.createdAt,
+          }
+        : null,
+    },
+  });
+});
+
+export const adminCreateComplaint = asyncHandler(async (req, res) => {
+  const {
+    citizenId,
+    category,
+    description,
+    incidentDate,
+    location,
+    relatedInformation,
+    evidenceNotes,
+    status,
+  } = req.body;
+
+  if (!citizenId || !category || !description || !incidentDate || !location) {
+    return res.status(400).json({
+      success: false,
+      message: 'Citizen, category, description, incident date, and location are required.',
+    });
+  }
+
+  const citizen = await User.findOne({ _id: citizenId, role: 'citizen', isActive: true });
+  if (!citizen) {
+    return res.status(404).json({
+      success: false,
+      message: 'Active citizen not found.',
+    });
+  }
+
+  const activeCategory = await Category.findOne({
+    name: String(category).trim(),
+    isActive: true,
+  });
+  if (!activeCategory) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid complaint category.',
+    });
+  }
+
+  const parsedDate = new Date(incidentDate);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid incident date.',
+    });
+  }
+
+  const initialStatus =
+    status && COMPLAINT_STATUSES.includes(status) ? status : 'Submitted';
+
+  const complaintNumber = await generateComplaintNumber();
+  const complaint = await Complaint.create({
+    complaintNumber,
+    citizen: citizen._id,
+    category: activeCategory.name,
+    description: String(description).trim(),
+    incidentDate: parsedDate,
+    location: String(location).trim(),
+    relatedInformation: relatedInformation ? String(relatedInformation).trim() : '',
+    evidenceNotes: evidenceNotes ? String(evidenceNotes).trim() : '',
+    status: initialStatus,
+    statusHistory: [
+      {
+        status: initialStatus,
+        note: 'Complaint created by admin.',
+        changedBy: req.user._id,
+        changedAt: new Date(),
+      },
+    ],
+  });
+
+  await createNotification({
+    userId: citizen._id,
+    title: 'Complaint Recorded',
+    message: `Complaint ${complaintNumber} has been recorded on your behalf.`,
+    type: 'complaint_submitted',
+    relatedComplaint: complaint._id,
+  });
+
+  await createAuditLog({
+    actor: req.user,
+    action: 'CREATE',
+    recordType: 'Complaint',
+    recordId: complaint._id,
+    recordLabel: complaintNumber,
+    previousValue: '',
+    newValue: initialStatus,
+    details: `Complaint created for citizen ${citizen.name}.`,
+    ipAddress: getRequestIp(req),
+  });
+
+  const populated = await Complaint.findById(complaint._id).populate(
+    'citizen',
+    'name email phone niraId'
+  );
+
+  return res.status(201).json({
+    success: true,
+    message: 'Complaint created successfully.',
+    data: { complaint: toAdminComplaint(populated) },
+  });
+});
+
+export const adminUpdateComplaint = asyncHandler(async (req, res) => {
+  const complaint = await Complaint.findById(req.params.id);
+  if (!complaint) {
+    return res.status(404).json({
+      success: false,
+      message: 'Complaint not found.',
+    });
+  }
+
+  const {
+    citizenId,
+    category,
+    description,
+    incidentDate,
+    location,
+    relatedInformation,
+    evidenceNotes,
+    status,
+    note,
+  } = req.body;
+
+  if (citizenId) {
+    const citizen = await User.findOne({ _id: citizenId, role: 'citizen' });
+    if (!citizen) {
+      return res.status(404).json({
+        success: false,
+        message: 'Citizen not found.',
+      });
+    }
+    complaint.citizen = citizen._id;
+  }
+
+  if (category !== undefined) {
+    const activeCategory = await Category.findOne({
+      name: String(category).trim(),
+      isActive: true,
+    });
+    if (!activeCategory) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid complaint category.',
+      });
+    }
+    complaint.category = activeCategory.name;
+  }
+
+  if (description !== undefined) {
+    const trimmed = String(description).trim();
+    if (!trimmed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Description is required.',
+      });
+    }
+    complaint.description = trimmed;
+  }
+
+  if (incidentDate !== undefined) {
+    const parsedDate = new Date(incidentDate);
+    if (Number.isNaN(parsedDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid incident date.',
+      });
+    }
+    complaint.incidentDate = parsedDate;
+  }
+
+  if (location !== undefined) {
+    const trimmed = String(location).trim();
+    if (!trimmed) {
+      return res.status(400).json({
+        success: false,
+        message: 'Location is required.',
+      });
+    }
+    complaint.location = trimmed;
+  }
+
+  if (relatedInformation !== undefined) {
+    complaint.relatedInformation = String(relatedInformation || '').trim();
+  }
+
+  if (evidenceNotes !== undefined) {
+    complaint.evidenceNotes = String(evidenceNotes || '').trim();
+  }
+
+  if (status !== undefined) {
+    if (!COMPLAINT_STATUSES.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid complaint status.',
+      });
+    }
+    if (status !== complaint.status) {
+      complaint.status = status;
+      complaint.statusHistory.push({
+        status,
+        note: note || `Status updated to ${status} by admin.`,
+        changedBy: req.user._id,
+        changedAt: new Date(),
+      });
+      if (status === 'Rejected') {
+        complaint.rejectionReason = note || complaint.rejectionReason || 'Complaint rejected.';
+      }
+    }
+  }
+
+  await complaint.save();
+
+  await createAuditLog({
+    actor: req.user,
+    action: 'UPDATE',
+    recordType: 'Complaint',
+    recordId: complaint._id,
+    recordLabel: complaint.complaintNumber,
+    previousValue: '',
+    newValue: complaint.status,
+    details: `Complaint ${complaint.complaintNumber} updated.`,
+    ipAddress: getRequestIp(req),
+  });
+
+  const populated = await Complaint.findById(complaint._id)
+    .populate('citizen', 'name email phone niraId')
+    .populate('reviewedBy', 'name email');
+
+  return res.json({
+    success: true,
+    message: 'Complaint updated successfully.',
+    data: { complaint: toAdminComplaint(populated) },
+  });
+});
+
+export const adminDeleteComplaint = asyncHandler(async (req, res) => {
+  const complaint = await Complaint.findById(req.params.id);
+  if (!complaint) {
+    return res.status(404).json({
+      success: false,
+      message: 'Complaint not found.',
+    });
+  }
+
+  const linkedOB = await OBRecord.findOne({ complaint: complaint._id });
+  if (linkedOB) {
+    await OBRecord.deleteOne({ _id: linkedOB._id });
+  }
+
+  const label = complaint.complaintNumber;
+  await complaint.deleteOne();
+
+  await createAuditLog({
+    actor: req.user,
+    action: 'DELETE',
+    recordType: 'Complaint',
+    recordId: complaint._id,
+    recordLabel: label,
+    previousValue: label,
+    newValue: '',
+    details: linkedOB
+      ? `Complaint deleted along with OB ${linkedOB.obNumber}.`
+      : 'Complaint deleted.',
+    ipAddress: getRequestIp(req),
+  });
+
+  return res.json({
+    success: true,
+    message: 'Complaint deleted successfully.',
   });
 });
 
@@ -343,7 +710,7 @@ export const adminReviewComplaint = asyncHandler(async (req, res) => {
   return res.json({
     success: true,
     message: 'Complaint updated successfully.',
-    data: { complaint },
+    data: { complaint: toAdminComplaint(complaint) },
   });
 });
 
@@ -425,3 +792,5 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
     data: { ob },
   });
 });
+
+export { COMPLAINT_STATUSES };
