@@ -50,6 +50,14 @@ export default function AdminHeader({ title, onToggleSidebar }) {
   const handleSearch = (event) => {
     event.preventDefault();
     const trimmed = query.trim();
+    if (user?.role === 'police') {
+      if (!trimmed) {
+        navigate('/ob-records');
+        return;
+      }
+      navigate(`/ob-records?search=${encodeURIComponent(trimmed)}`);
+      return;
+    }
     if (!trimmed) {
       navigate('/citizens');
       return;
@@ -93,8 +101,8 @@ export default function AdminHeader({ title, onToggleSidebar }) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search citizens…"
-          aria-label="Search citizens"
+          placeholder={user?.role === 'police' ? 'Search OB records…' : 'Search citizens…'}
+          aria-label={user?.role === 'police' ? 'Search OB records' : 'Search citizens'}
         />
         <kbd className="header-search__kbd">Ctrl K</kbd>
       </form>

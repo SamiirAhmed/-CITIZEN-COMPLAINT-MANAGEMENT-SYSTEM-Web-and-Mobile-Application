@@ -1,3 +1,5 @@
+import { policeNavigation } from './policeNavigation';
+
 export const adminNavigation = [
   {
     id: 'dashboard',
@@ -104,6 +106,13 @@ export function userHasModule(user, moduleKey) {
 }
 
 export function filterNavigationForUser(user) {
+  if (!user) return [];
+  if (user.role === 'police') {
+    return policeNavigation.filter((item) => {
+      if (!item.moduleKey) return true;
+      return userHasModule(user, item.moduleKey);
+    });
+  }
   return adminNavigation.filter((item) => userHasModule(user, item.moduleKey));
 }
 
@@ -117,7 +126,10 @@ export function getFirstAllowedPath(user) {
   return first.path;
 }
 
-export function resolveNotificationPath(notification) {
+export function resolveNotificationPath(notification, user) {
+  if (user?.role === 'police' && notification?.relatedOB) {
+    return `/ob-records/${notification.relatedOB}`;
+  }
   if (notification?.linkPath) return notification.linkPath;
   if (notification?.relatedUser && String(notification.type || '').includes('citizen')) {
     return `/citizens/${notification.relatedUser}`;

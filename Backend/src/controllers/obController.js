@@ -5,6 +5,47 @@ import {
   asyncHandler,
   createNotification,
 } from '../utils/helpers.js';
+import {
+  evidencePublicPath,
+  removeEvidenceFile,
+} from '../middleware/uploadEvidence.js';
+
+const COMPLETED_STATUSES = [
+  'Investigation Completed',
+  'Resolved',
+  'Closed',
+];
+
+const canAccessAssignedOB = (ob, user) => {
+  if (!ob || !user) return false;
+  if (user.role === 'admin') return true;
+  const officerId = ob.assignedOfficer?._id || ob.assignedOfficer;
+  return officerId && officerId.toString() === user._id.toString();
+};
+
+const appendInvestigationNote = (ob, note, userId) => {
+  const trimmed = String(note || '').trim();
+  if (!trimmed) return;
+  ob.investigationNotes = `${ob.investigationNotes || ''}\n${trimmed}`.trim();
+  ob.investigationNoteEntries = ob.investigationNoteEntries || [];
+  ob.investigationNoteEntries.push({
+    note: trimmed,
+    createdBy: userId,
+    createdAt: new Date(),
+  });
+};
+
+const populateStaffOB = (query) =>
+  query
+    .populate('complaint')
+    .populate('citizen', 'name email phone niraId')
+    .populate('assignedOfficer', 'name badgeNumber station');
+
+const loadStaffOB = async (id, { withNotes = false } = {}) => {
+  let query = OBRecord.findById(id);
+  if (withNotes) query = query.select('+investigationNotes');
+  return populateStaffOB(query);
+};
 
 export const getMyOBRecords = asyncHandler(async (req, res) => {
   const records = await OBRecord.find({ citizen: req.user._id })
@@ -120,7 +161,7 @@ export const adminAssignOfficer = asyncHandler(async (req, res) => {
     relatedComplaint: ob.complaint,
     relatedOB: ob._id,
     relatedUser: officer._id,
-    linkPath: '/ob-records',
+    linkPath: `/ob-records/${ob._id}`,
   });
 
   return res.json({
@@ -131,7 +172,8 @@ export const adminAssignOfficer = asyncHandler(async (req, res) => {
 });
 
 export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
-  const { action, note, citizenSummary } = req.body;
+  const { action, note, citizenSummary, title, progress, visibleToCitizen } =
+    req.body;
   const ob = await OBRecord.findById(req.params.id).select('+investigationNotes');
 
   if (!ob) {
@@ -141,12 +183,7 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
     });
   }
 
-  const isAssignedOfficer =
-    ob.assignedOfficer &&
-    ob.assignedOfficer.toString() === req.user._id.toString();
-  const isAdmin = req.user.role === 'admin';
-
-  if (!isAssignedOfficer && !isAdmin) {
+  if (!canAccessAssignedOB(ob, req.user)) {
     return res.status(403).json({
       success: false,
       message: 'Only the assigned officer or an admin can update this OB.',
@@ -154,9 +191,25 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
   }
 
   if (action === 'start') {
+    if (COMPLETED_STATUSES.includes(ob.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'A completed investigation cannot be started again.',
+      });
+    }
+    if (ob.status === 'Under Investigation' && ob.investigationStartedAt) {
+      return res.status(400).json({
+        success: false,
+        message: 'Investigation has already been started.',
+      });
+    }
     ob.status = 'Under Investigation';
+    if (!ob.investigationStartedAt) {
+      ob.investigationStartedAt = new Date();
+    }
+    ob.investigationCompletedAt = null;
     if (note) {
-      ob.investigationNotes = `${ob.investigationNotes || ''}\n${note}`.trim();
+      appendInvestigationNote(ob, note, req.user._id);
     }
     ob.updates.push({
       title: 'Investigation Started',
@@ -175,6 +228,32 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
       relatedComplaint: ob.complaint,
       relatedOB: ob._id,
     });
+  } else if (action === 'progress') {
+    if (ob.status !== 'Under Investigation') {
+      return res.status(400).json({
+        success: false,
+        message: 'Start the investigation before recording progress.',
+      });
+    }
+    const nextProgress = Number(progress);
+    if (Number.isNaN(nextProgress) || nextProgress < 0 || nextProgress > 100) {
+      return res.status(400).json({
+        success: false,
+        message: 'Progress must be a number between 0 and 100.',
+      });
+    }
+    ob.investigationProgress = nextProgress;
+    if (note) {
+      appendInvestigationNote(ob, note, req.user._id);
+    }
+    ob.updates.push({
+      title: 'Investigation Progress',
+      note: note || `Investigation progress updated to ${nextProgress}%.`,
+      visibleToCitizen: false,
+      createdBy: req.user._id,
+      createdAt: new Date(),
+    });
+    await ob.save();
   } else if (action === 'note') {
     if (!note) {
       return res.status(400).json({
@@ -182,30 +261,73 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
         message: 'Note is required.',
       });
     }
-    ob.investigationNotes = `${ob.investigationNotes || ''}\n${note}`.trim();
+    appendInvestigationNote(ob, note, req.user._id);
     if (citizenSummary) {
       ob.citizenSummary = citizenSummary;
+      ob.updates.push({
+        title: 'Investigation Update',
+        note: citizenSummary,
+        visibleToCitizen: true,
+        createdBy: req.user._id,
+        createdAt: new Date(),
+      });
+      await ob.save();
+      await createNotification({
+        userId: ob.citizen,
+        title: 'Case Update',
+        message: `There is a new update on OB ${ob.obNumber}.`,
+        type: 'investigation_update',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+      });
+    } else {
+      await ob.save();
     }
+  } else if (action === 'update') {
+    const updateNote = String(note || '').trim();
+    if (!updateNote) {
+      return res.status(400).json({
+        success: false,
+        message: 'Update note is required.',
+      });
+    }
+    const shareWithCitizen = Boolean(visibleToCitizen);
     ob.updates.push({
-      title: 'Investigation Update',
-      note: citizenSummary || 'An investigation update is available.',
-      visibleToCitizen: true,
+      title: String(title || 'Investigation Update').trim() || 'Investigation Update',
+      note: updateNote,
+      visibleToCitizen: shareWithCitizen,
       createdBy: req.user._id,
       createdAt: new Date(),
     });
     await ob.save();
-    await createNotification({
-      userId: ob.citizen,
-      title: 'Case Update',
-      message: `There is a new update on OB ${ob.obNumber}.`,
-      type: 'investigation_update',
-      relatedComplaint: ob.complaint,
-      relatedOB: ob._id,
-    });
+    if (shareWithCitizen) {
+      await createNotification({
+        userId: ob.citizen,
+        title: 'Case Update',
+        message: `There is a new update on OB ${ob.obNumber}.`,
+        type: 'investigation_update',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+      });
+    }
   } else if (action === 'complete') {
+    if (COMPLETED_STATUSES.includes(ob.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This investigation is already completed.',
+      });
+    }
+    if (ob.status !== 'Under Investigation' && ob.status !== 'Reopened') {
+      return res.status(400).json({
+        success: false,
+        message: 'Start the investigation before completing it.',
+      });
+    }
     ob.status = 'Investigation Completed';
+    ob.investigationCompletedAt = new Date();
+    ob.investigationProgress = 100;
     if (note) {
-      ob.investigationNotes = `${ob.investigationNotes || ''}\n${note}`.trim();
+      appendInvestigationNote(ob, note, req.user._id);
     }
     if (citizenSummary) {
       ob.citizenSummary = citizenSummary;
@@ -235,14 +357,92 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
   } else {
     return res.status(400).json({
       success: false,
-      message: 'Action must be start, note, or complete.',
+      message: 'Action must be start, progress, note, update, or complete.',
+    });
+  }
+
+  const updated = await loadStaffOB(ob._id, { withNotes: true });
+
+  return res.json({
+    success: true,
+    message: 'OB updated successfully.',
+    data: { ob: updated.toStaffObject(updated.complaint, updated.citizen) },
+  });
+});
+
+export const policeAddEvidence = asyncHandler(async (req, res) => {
+  const note = String(req.body?.note || '').trim();
+  const ob = await OBRecord.findById(req.params.id).select('+investigationNotes');
+
+  if (!ob) {
+    if (req.file?.filename) {
+      removeEvidenceFile(evidencePublicPath(req.file.filename));
+    }
+    return res.status(404).json({
+      success: false,
+      message: 'OB record not found.',
+    });
+  }
+
+  if (!canAccessAssignedOB(ob, req.user)) {
+    if (req.file?.filename) {
+      removeEvidenceFile(evidencePublicPath(req.file.filename));
+    }
+    return res.status(403).json({
+      success: false,
+      message: 'Only the assigned officer or an admin can update this OB.',
+    });
+  }
+
+  if (!req.file && !note) {
+    return res.status(400).json({
+      success: false,
+      message: 'Attach an evidence file or add an evidence note.',
+    });
+  }
+
+  const fileUrl = req.file ? evidencePublicPath(req.file.filename) : '';
+  ob.evidence = ob.evidence || [];
+  ob.evidence.push({
+    fileName: req.file?.filename || '',
+    originalName: req.file?.originalname || '',
+    mimeType: req.file?.mimetype || '',
+    url: fileUrl,
+    note,
+    createdBy: req.user._id,
+    createdAt: new Date(),
+  });
+  ob.updates.push({
+    title: 'Evidence Added',
+    note: note || (req.file ? `Evidence file added: ${req.file.originalname}` : 'Evidence added.'),
+    visibleToCitizen: false,
+    createdBy: req.user._id,
+    createdAt: new Date(),
+  });
+  await ob.save();
+
+  const updated = await loadStaffOB(ob._id, { withNotes: true });
+
+  return res.json({
+    success: true,
+    message: 'Evidence added successfully.',
+    data: { ob: updated.toStaffObject(updated.complaint, updated.citizen) },
+  });
+});
+
+export const staffGetOBById = asyncHandler(async (req, res) => {
+  const record = await loadStaffOB(req.params.id, { withNotes: true });
+
+  if (!record || !canAccessAssignedOB(record, req.user)) {
+    return res.status(404).json({
+      success: false,
+      message: 'OB record not found.',
     });
   }
 
   return res.json({
     success: true,
-    message: 'OB updated successfully.',
-    data: { ob },
+    data: { record: record.toStaffObject(record.complaint, record.citizen) },
   });
 });
 
@@ -343,14 +543,17 @@ export const staffListOBs = asyncHandler(async (req, res) => {
     filter.assignedOfficer = req.user._id;
   }
 
-  const records = await OBRecord.find(filter)
-    .populate('complaint')
-    .populate('citizen', 'name email phone niraId')
-    .populate('assignedOfficer', 'name badgeNumber station')
-    .sort({ updatedAt: -1 });
+  const records = await populateStaffOB(OBRecord.find(filter)).sort({
+    updatedAt: -1,
+  });
 
   return res.json({
     success: true,
-    data: { records },
+    data: {
+      records:
+        req.user.role === 'police'
+          ? records.map((item) => item.toStaffObject(item.complaint, item.citizen))
+          : records,
+    },
   });
 });

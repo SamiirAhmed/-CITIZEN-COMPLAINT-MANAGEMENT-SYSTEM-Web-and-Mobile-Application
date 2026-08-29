@@ -1,5 +1,10 @@
 import User from '../models/User.js';
 import {
+  databaseUnavailableMessage,
+  isDatabaseError,
+  isDbReady,
+} from '../config/db.js';
+import {
   asyncHandler,
   createAuditLog,
   getRequestIp,
@@ -102,9 +107,28 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!isDbReady()) {
+    return res.status(503).json({
+      success: false,
+      message: databaseUnavailableMessage(),
+    });
+  }
+
   const { email, password } = validation.data;
 
-  const user = await User.findOne({ email }).select('+password');
+  let user;
+  try {
+    user = await User.findOne({ email }).select('+password');
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      console.error('Login database error:', error.message);
+      return res.status(503).json({
+        success: false,
+        message: databaseUnavailableMessage(),
+      });
+    }
+    throw error;
+  }
 
   if (!user || !(await user.comparePassword(password))) {
     return res.status(401).json({
@@ -116,7 +140,7 @@ export const login = asyncHandler(async (req, res) => {
   if (!user.isActive) {
     return res.status(403).json({
       success: false,
-      message: 'This account has been deactivated.',
+      message: 'Your account is inactive. Please contact an administrator.',
     });
   }
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { resolveNotificationPath } from '../../navigation/adminNavigation';
 import { getNotifications, markNotificationRead } from '../../services/notificationService';
 
@@ -31,6 +32,7 @@ const BELL_ICON = (
 );
 
 export default function NotificationDropdown() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -86,7 +88,7 @@ export default function NotificationDropdown() {
   };
 
   const handleItemClick = async (notification) => {
-    const path = resolveNotificationPath(notification);
+    const path = resolveNotificationPath(notification, user);
 
     if (!notification.isRead) {
       try {
@@ -160,6 +162,18 @@ export default function NotificationDropdown() {
               </ul>
             )}
           </div>
+          {user?.role === 'police' ? (
+            <button
+              type="button"
+              className="notification-popover__footer"
+              onClick={() => {
+                setOpen(false);
+                navigate('/notifications');
+              }}
+            >
+              View all notifications
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

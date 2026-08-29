@@ -9,6 +9,10 @@ const STATUS_MAP = {
   open: { label: 'Open', tone: 'warning' },
   assigned: { label: 'Assigned', tone: 'info' },
   investigating: { label: 'Investigating', tone: 'warning' },
+  opened: { label: 'Opened', tone: 'info' },
+  'under investigation': { label: 'Under Investigation', tone: 'warning' },
+  'investigation completed': { label: 'Investigation Completed', tone: 'success' },
+  reopened: { label: 'Reopened', tone: 'warning' },
 };
 
 export default function StatusBadge({ status }) {

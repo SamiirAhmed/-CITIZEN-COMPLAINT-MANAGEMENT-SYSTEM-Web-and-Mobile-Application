@@ -1,0 +1,41 @@
+export const policeNavigation = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    path: '/dashboard',
+    icon: 'dashboard',
+    moduleKey: 'dashboard',
+    section: 'main',
+  },
+  {
+    id: 'ob-records',
+    label: 'My OB Records',
+    path: '/ob-records',
+    icon: 'ob',
+    moduleKey: 'ob-records',
+    section: 'main',
+  },
+  {
+    id: 'investigation',
+    label: 'Investigation',
+    path: '/investigation',
+    icon: 'complaints',
+    moduleKey: 'ob-records',
+    section: 'main',
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    path: '/notifications',
+    icon: 'notifications',
+    section: 'system',
+  },
+  {
+    id: 'profile',
+    label: 'Profile',
+    path: '/profile',
+    icon: 'profile',
+    moduleKey: 'profile',
+    section: 'system',
+  },
+];

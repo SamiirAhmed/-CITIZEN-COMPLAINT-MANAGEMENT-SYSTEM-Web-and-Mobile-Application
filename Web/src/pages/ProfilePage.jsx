@@ -111,8 +111,10 @@ export default function ProfilePage() {
           />
         </div>
         <div className="profile-hero-card__copy">
-          <p className="settings-hub__eyebrow">Admin Profile</p>
-          <h1>{profile.name || 'System Administrator'}</h1>
+          <p className="settings-hub__eyebrow">
+            {profile.role === 'police' ? 'Police Profile' : 'Admin Profile'}
+          </p>
+          <h1>{profile.name || (profile.role === 'police' ? 'Police Officer' : 'System Administrator')}</h1>
           <p className="profile-hero-card__role">{roleLabel}</p>
           <div className="profile-hero__badges">
             <StatusBadge status={active ? 'Active' : 'Inactive'} />
@@ -184,6 +186,18 @@ export default function ProfilePage() {
               <span className="detail-label">Updated</span>
               <strong>{formatDate(profile.updatedAt)}</strong>
             </div>
+            {profile.role === 'police' ? (
+              <>
+                <div>
+                  <span className="detail-label">Badge number</span>
+                  <strong>{profile.badgeNumber || '—'}</strong>
+                </div>
+                <div>
+                  <span className="detail-label">Station</span>
+                  <strong>{profile.station || '—'}</strong>
+                </div>
+              </>
+            ) : null}
           </div>
         </section>
       </div>
