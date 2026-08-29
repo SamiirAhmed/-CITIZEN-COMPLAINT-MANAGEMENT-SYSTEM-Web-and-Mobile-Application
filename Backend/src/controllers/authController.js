@@ -1,24 +1,44 @@
 import User from '../models/User.js';
-import { asyncHandler, signToken } from '../utils/helpers.js';
+import {
+  asyncHandler,
+  createAuditLog,
+  getRequestIp,
+  notifyRole,
+  signToken,
+} from '../utils/helpers.js';
 import {
   validateCitizenRegistration,
   validateLoginInput,
 } from '../utils/citizenValidation.js';
+import {
+  profileImagePublicPath,
+  removeProfileImageFile,
+} from '../middleware/uploadProfileImage.js';
 
 export const registerCitizen = asyncHandler(async (req, res) => {
   const validation = validateCitizenRegistration(req.body);
 
   if (!validation.ok) {
+    if (req.file?.path) removeProfileImageFile(profileImagePublicPath(req.file.filename));
     return res.status(400).json({
       success: false,
       message: validation.message,
     });
   }
 
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      message: 'Profile image is required.',
+    });
+  }
+
   const { name, niraId, phone, tell, email, password } = validation.data;
+  const profileImage = profileImagePublicPath(req.file.filename);
 
   const existingEmail = await User.findOne({ email });
   if (existingEmail) {
+    removeProfileImageFile(profileImage);
     return res.status(409).json({
       success: false,
       message: 'An account with this email already exists.',
@@ -27,6 +47,7 @@ export const registerCitizen = asyncHandler(async (req, res) => {
 
   const existingNira = await User.findOne({ niraId });
   if (existingNira) {
+    removeProfileImageFile(profileImage);
     return res.status(409).json({
       success: false,
       message: 'An account with this NIRA ID already exists.',
@@ -41,9 +62,18 @@ export const registerCitizen = asyncHandler(async (req, res) => {
     email,
     password,
     role: 'citizen',
+    profileImage,
   });
 
   const token = signToken(user._id, user.role);
+
+  await notifyRole('admin', {
+    title: 'Citizen Registered',
+    message: `${user.name} registered as a citizen.`,
+    type: 'citizen_registered',
+    relatedUser: user._id,
+    linkPath: `/citizens/${user._id}`,
+  });
 
   return res.status(201).json({
     success: true,
@@ -85,6 +115,19 @@ export const login = asyncHandler(async (req, res) => {
 
   const token = signToken(user._id, user.role);
 
+  if (user.role === 'admin' || user.role === 'police') {
+    await createAuditLog({
+      actor: user,
+      action: 'LOGIN',
+      recordType: 'Session',
+      recordId: user._id,
+      recordLabel: user.name,
+      newValue: 'Signed in',
+      details: `${user.role} signed in.`,
+      ipAddress: getRequestIp(req),
+    });
+  }
+
   return res.json({
     success: true,
     message: 'Login successful.',
@@ -105,17 +148,24 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone, tell } = req.body;
+  const { name, phone } = req.body;
+  const previousImage = req.user.profileImage || '';
 
   if (name !== undefined) {
     const trimmedName = String(name).trim();
     if (!trimmedName) {
+      if (req.file?.filename) {
+        removeProfileImageFile(profileImagePublicPath(req.file.filename));
+      }
       return res.status(400).json({
         success: false,
         message: 'Name is required.',
       });
     }
     if (trimmedName.length > 30) {
+      if (req.file?.filename) {
+        removeProfileImageFile(profileImagePublicPath(req.file.filename));
+      }
       return res.status(400).json({
         success: false,
         message: 'Name must be at most 30 characters.',
@@ -127,6 +177,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
   if (phone !== undefined) {
     const trimmedPhone = String(phone).trim();
     if (!trimmedPhone) {
+      if (req.file?.filename) {
+        removeProfileImageFile(profileImagePublicPath(req.file.filename));
+      }
       return res.status(400).json({
         success: false,
         message: 'Phone is required.',
@@ -135,18 +188,16 @@ export const updateProfile = asyncHandler(async (req, res) => {
     req.user.phone = trimmedPhone;
   }
 
-  if (tell !== undefined) {
-    const trimmedTell = String(tell).trim();
-    if (!trimmedTell) {
-      return res.status(400).json({
-        success: false,
-        message: 'Tell is required.',
-      });
-    }
-    req.user.tell = trimmedTell;
+  if (req.file) {
+    const nextImage = profileImagePublicPath(req.file.filename);
+    req.user.profileImage = nextImage;
   }
 
   await req.user.save();
+
+  if (req.file && previousImage && previousImage !== req.user.profileImage) {
+    removeProfileImageFile(previousImage);
+  }
 
   return res.json({
     success: true,

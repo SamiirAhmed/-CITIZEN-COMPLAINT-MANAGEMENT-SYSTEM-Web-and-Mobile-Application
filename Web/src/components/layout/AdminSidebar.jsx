@@ -1,6 +1,11 @@
-import { useEffect, useState } from 'react';
+import LOGO_SRC, { LOGO_MARK_SRC } from '../../assets/branding';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { adminNavigation, isSettingsPath } from '../../navigation/adminNavigation';
+import { useAuth } from '../../context/AuthContext';
+import {
+  filterNavigationForUser,
+  isSettingsPath,
+} from '../../navigation/adminNavigation';
 
 const ICONS = {
   dashboard: (
@@ -53,6 +58,11 @@ const ICONS = {
       <path d="M12 1 3 5v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V5l-9-4zm0 6a3 3 0 0 1 3 3v1h1v6H8v-6h1v-1a3 3 0 0 1 3-3zm0 2a1 1 0 0 0-1 1v1h2v-1a1 1 0 0 0-1-1z" />
     </svg>
   ),
+  categories: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z" />
+    </svg>
+  ),
   profile: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4zm0 2c-4.4 0-8 2.2-8 5v1h16v-1c0-2.8-3.6-5-8-5z" />
@@ -60,9 +70,90 @@ const ICONS = {
   ),
 };
 
-export default function AdminSidebar({ collapsed, mobileOpen, onNavigate }) {
+function NavItem({ item, collapsed, onNavigate, settingsOpen, onToggleSettings }) {
   const location = useLocation();
   const navigate = useNavigate();
+
+  if (item.expandable) {
+    const settingsActive = isSettingsPath(location.pathname);
+
+    return (
+      <div className="nav-group">
+        <button
+          type="button"
+          className={[
+            'nav-link',
+            'nav-link--parent',
+            settingsActive ? 'is-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          title={collapsed ? item.label : undefined}
+          onClick={() => {
+            if (collapsed) {
+              navigate('/settings');
+              onNavigate?.();
+              return;
+            }
+            if (!settingsOpen) {
+              onToggleSettings(true);
+              navigate('/settings');
+              onNavigate?.();
+            } else if (!settingsActive) {
+              navigate('/settings');
+              onNavigate?.();
+            } else {
+              onToggleSettings(false);
+            }
+          }}
+          aria-expanded={settingsOpen}
+        >
+          <span className="nav-link__icon">{ICONS[item.icon]}</span>
+          <span className="nav-link__label">{item.label}</span>
+          <span className={`nav-link__chevron ${settingsOpen ? 'is-open' : ''}`}>▾</span>
+          {collapsed ? <span className="nav-tooltip">{item.label}</span> : null}
+        </button>
+        {settingsOpen && !collapsed ? (
+          <div className="nav-group__children">
+            {item.children.map((child) => (
+              <NavLink
+                key={child.id}
+                to={child.path}
+                className={({ isActive }) =>
+                  `nav-link nav-link--child ${isActive ? 'is-active' : ''}`
+                }
+                onClick={onNavigate}
+              >
+                <span className="nav-link__icon">{ICONS[child.icon]}</span>
+                <span className="nav-link__label">{child.label}</span>
+              </NavLink>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <NavLink
+      to={item.path}
+      end={item.path === '/dashboard'}
+      title={collapsed ? item.label : undefined}
+      className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}
+      onClick={onNavigate}
+    >
+      <span className="nav-link__icon">{ICONS[item.icon]}</span>
+      <span className="nav-link__label">{item.label}</span>
+      {item.comingSoon ? <span className="nav-link__soon">Soon</span> : null}
+      {collapsed ? <span className="nav-tooltip">{item.label}</span> : null}
+    </NavLink>
+  );
+}
+
+export default function AdminSidebar({ collapsed, mobileOpen, onNavigate }) {
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigation = useMemo(() => filterNavigationForUser(user), [user]);
   const [settingsOpen, setSettingsOpen] = useState(() => isSettingsPath(location.pathname));
 
   useEffect(() => {
@@ -70,6 +161,9 @@ export default function AdminSidebar({ collapsed, mobileOpen, onNavigate }) {
       setSettingsOpen(true);
     }
   }, [location.pathname]);
+
+  const mainItems = navigation.filter((item) => item.section === 'main');
+  const systemItems = navigation.filter((item) => item.section !== 'main');
 
   return (
     <aside
@@ -82,73 +176,48 @@ export default function AdminSidebar({ collapsed, mobileOpen, onNavigate }) {
         .join(' ')}
     >
       <div className="admin-sidebar__brand">
-        <img src="/assets/branding/spo-logo.png" alt="SPO logo" />
+        <div className="admin-sidebar__logo-tile">
+          <img src={LOGO_MARK_SRC || LOGO_SRC} alt="SPO logo" />
+        </div>
         <div className="admin-sidebar__brand-text">
           <strong>SPO</strong>
           <span>Somali Police OBE</span>
+          <em className="admin-sidebar__portal">ADMIN PORTAL</em>
         </div>
       </div>
 
       <nav className="admin-sidebar__nav" aria-label="Admin navigation">
-        {adminNavigation.map((item) => {
-          if (item.expandable) {
-            return (
-              <div key={item.id} className="nav-group">
-                <button
-                  type="button"
-                  className={[
-                    'nav-link',
-                    'nav-link--parent',
-                    isSettingsPath(location.pathname) ? 'is-active' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  onClick={() => {
-                    setSettingsOpen(true);
-                    navigate('/settings');
-                    onNavigate?.();
-                  }}
-                  aria-expanded={settingsOpen}
-                >
-                  <span className="nav-link__icon">{ICONS[item.icon]}</span>
-                  <span className="nav-link__label">{item.label}</span>
-                  <span className={`nav-link__chevron ${settingsOpen ? 'is-open' : ''}`}>▾</span>
-                </button>
-                {settingsOpen ? (
-                  <div className="nav-group__children">
-                    {item.children.map((child) => (
-                      <NavLink
-                        key={child.id}
-                        to={child.path}
-                        className={({ isActive }) =>
-                          `nav-link nav-link--child ${isActive ? 'is-active' : ''}`
-                        }
-                        onClick={onNavigate}
-                      >
-                        <span className="nav-link__icon">{ICONS[child.icon]}</span>
-                        <span className="nav-link__label">{child.label}</span>
-                      </NavLink>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            );
-          }
+        {mainItems.length ? (
+          <div className="nav-section">
+            {!collapsed ? <p className="nav-section__label">MAIN MENU</p> : null}
+            {mainItems.map((item) => (
+              <NavItem
+                key={item.id}
+                item={item}
+                collapsed={collapsed}
+                onNavigate={onNavigate}
+                settingsOpen={settingsOpen}
+                onToggleSettings={setSettingsOpen}
+              />
+            ))}
+          </div>
+        ) : null}
 
-          return (
-            <NavLink
-              key={item.id}
-              to={item.path}
-              end={item.path === '/dashboard'}
-              className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}
-              onClick={onNavigate}
-            >
-              <span className="nav-link__icon">{ICONS[item.icon]}</span>
-              <span className="nav-link__label">{item.label}</span>
-              {item.comingSoon ? <span className="nav-link__soon">Soon</span> : null}
-            </NavLink>
-          );
-        })}
+        {systemItems.length ? (
+          <div className="nav-section">
+            {!collapsed ? <p className="nav-section__label">SYSTEM</p> : null}
+            {systemItems.map((item) => (
+              <NavItem
+                key={item.id}
+                item={item}
+                collapsed={collapsed}
+                onNavigate={onNavigate}
+                settingsOpen={settingsOpen}
+                onToggleSettings={setSettingsOpen}
+              />
+            ))}
+          </div>
+        ) : null}
       </nav>
     </aside>
   );

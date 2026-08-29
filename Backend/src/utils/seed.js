@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import { DEFAULT_POLICE_PERMISSIONS } from '../constants/menuModules.js';
 
 export const seedStaffUsers = async () => {
   const defaults = [
@@ -12,6 +13,7 @@ export const seedStaffUsers = async () => {
       badgeNumber: 'ADM-001',
       station: 'HQ Mogadishu',
       tell: '0610000001',
+      menuPermissions: [],
     },
     {
       name: 'Investigating Officer',
@@ -23,6 +25,7 @@ export const seedStaffUsers = async () => {
       badgeNumber: 'POL-101',
       station: 'Hodan Station',
       tell: '0610000002',
+      menuPermissions: DEFAULT_POLICE_PERMISSIONS,
     },
   ];
 
@@ -31,6 +34,13 @@ export const seedStaffUsers = async () => {
     if (!existing) {
       await User.create(item);
       console.log(`Seeded ${item.role} account: ${item.email}`);
+    } else if (
+      existing.role === 'police' &&
+      (!existing.menuPermissions || existing.menuPermissions.length === 0)
+    ) {
+      existing.menuPermissions = DEFAULT_POLICE_PERMISSIONS;
+      await existing.save();
+      console.log(`Updated police permissions for: ${item.email}`);
     }
   }
 };

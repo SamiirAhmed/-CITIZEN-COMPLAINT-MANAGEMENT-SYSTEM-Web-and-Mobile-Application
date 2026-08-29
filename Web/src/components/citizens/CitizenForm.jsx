@@ -1,21 +1,26 @@
 import { useEffect, useState } from 'react';
+import PhoneInput from '../common/PhoneInput';
+import ProfileImageField from '../common/ProfileImageField';
 import { validateCitizenEdit } from '../../validation/citizenValidation';
 
-const INITIAL = { name: '', phone: '', tell: '' };
+const INITIAL = { name: '', phone: '', email: '', niraId: '' };
 
 export default function CitizenForm({
   initialValues = INITIAL,
+  currentImage = '',
   onSubmit,
   onCancel,
   submitting = false,
   submitLabel = 'Save changes',
 }) {
   const [values, setValues] = useState({ ...INITIAL, ...initialValues });
+  const [profileImageFile, setProfileImageFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
     setValues({ ...INITIAL, ...initialValues });
+    setProfileImageFile(null);
     setErrors({});
     setFormError('');
   }, [initialValues]);
@@ -28,7 +33,7 @@ export default function CitizenForm({
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFormError('');
-    const validation = validateCitizenEdit(values);
+    const validation = validateCitizenEdit(values, { profileImageFile });
     setErrors(validation.errors);
     if (!validation.ok) return;
 
@@ -43,6 +48,15 @@ export default function CitizenForm({
     <form className="form-grid" onSubmit={handleSubmit} noValidate>
       {formError ? <div className="alert alert--error">{formError}</div> : null}
 
+      <ProfileImageField
+        name={values.name}
+        currentSrc={currentImage}
+        valueFile={profileImageFile}
+        onChange={setProfileImageFile}
+        error={errors.profileImage}
+        disabled={submitting}
+      />
+
       <label className="field">
         <span>Name</span>
         <input
@@ -56,25 +70,22 @@ export default function CitizenForm({
       </label>
 
       <label className="field">
-        <span>Phone</span>
-        <input
-          name="phone"
-          value={values.phone}
-          onChange={handleChange}
-          autoComplete="tel"
-        />
-        {errors.phone ? <em className="field-error">{errors.phone}</em> : null}
+        <span>NIRA ID</span>
+        <input name="niraId" value={values.niraId} onChange={handleChange} maxLength={11} />
+        {errors.niraId ? <em className="field-error">{errors.niraId}</em> : null}
       </label>
 
+      <PhoneInput
+        name="phone"
+        value={values.phone}
+        onChange={handleChange}
+        error={errors.phone}
+      />
+
       <label className="field">
-        <span>Tell</span>
-        <input
-          name="tell"
-          value={values.tell}
-          onChange={handleChange}
-          autoComplete="tel"
-        />
-        {errors.tell ? <em className="field-error">{errors.tell}</em> : null}
+        <span>Email</span>
+        <input name="email" type="email" value={values.email} onChange={handleChange} />
+        {errors.email ? <em className="field-error">{errors.email}</em> : null}
       </label>
 
       <div className="form-actions">

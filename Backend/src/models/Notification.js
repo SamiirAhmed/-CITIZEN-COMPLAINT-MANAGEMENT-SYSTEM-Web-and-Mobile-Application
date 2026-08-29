@@ -32,6 +32,16 @@ const notificationSchema = new mongoose.Schema(
       ref: 'OBRecord',
       default: null,
     },
+    relatedUser: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    linkPath: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     isRead: {
       type: Boolean,
       default: false,
@@ -46,13 +56,34 @@ const notificationSchema = new mongoose.Schema(
 );
 
 notificationSchema.methods.toClientObject = function toClientObject() {
+  const relatedComplaint = this.relatedComplaint
+    ? this.relatedComplaint.toString()
+    : null;
+  const relatedOB = this.relatedOB ? this.relatedOB.toString() : null;
+  const relatedUser = this.relatedUser ? this.relatedUser.toString() : null;
+
+  let resolvedPath = this.linkPath || '';
+  if (!resolvedPath) {
+    if (relatedUser && String(this.type || '').includes('citizen')) {
+      resolvedPath = `/citizens/${relatedUser}`;
+    } else if (relatedUser) {
+      resolvedPath = '/settings/users';
+    } else if (relatedOB) {
+      resolvedPath = '/ob-records';
+    } else if (relatedComplaint) {
+      resolvedPath = '/complaints';
+    }
+  }
+
   return {
     id: this._id.toString(),
     title: this.title,
     message: this.message,
     type: this.type,
-    relatedComplaint: this.relatedComplaint ? this.relatedComplaint.toString() : null,
-    relatedOB: this.relatedOB ? this.relatedOB.toString() : null,
+    relatedComplaint,
+    relatedOB,
+    relatedUser,
+    linkPath: resolvedPath,
     isRead: this.isRead,
     readAt: this.readAt,
     createdAt: this.createdAt,

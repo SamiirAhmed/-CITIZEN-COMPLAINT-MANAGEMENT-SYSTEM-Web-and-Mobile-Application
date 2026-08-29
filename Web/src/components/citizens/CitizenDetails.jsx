@@ -1,5 +1,6 @@
 import StatusBadge from '../common/StatusBadge';
 import EmptyState from '../common/EmptyState';
+import ProfileAvatar from '../common/ProfileAvatar';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -15,31 +16,63 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
 
   return (
     <div className="detail-stack">
+      <section className="profile-hero panel">
+        <ProfileAvatar name={citizen.name} src={citizen.profileImage} size={120} className="profile-avatar--ring profile-avatar--lg" />
+        <div>
+          <h2>{citizen.name}</h2>
+          <p className="muted">{citizen.email}</p>
+          <StatusBadge status={citizen.isActive !== false ? 'Active' : 'Inactive'} />
+        </div>
+      </section>
+
       <section className="panel">
         <div className="panel__header">
-          <div>
-            <h2>{citizen.name}</h2>
-            <p className="muted">{citizen.email}</p>
-          </div>
-          <StatusBadge status={citizen.isActive ? 'Active' : 'Inactive'} />
+          <h3>Personal Information</h3>
         </div>
-
         <div className="detail-grid">
+          <div>
+            <span className="detail-label">Name</span>
+            <strong>{citizen.name}</strong>
+          </div>
           <div>
             <span className="detail-label">NIRA ID</span>
             <strong>{citizen.niraId || '—'}</strong>
           </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel__header">
+          <h3>Contact Information</h3>
+        </div>
+        <div className="detail-grid">
           <div>
             <span className="detail-label">Phone</span>
             <strong>{citizen.phone || '—'}</strong>
           </div>
           <div>
-            <span className="detail-label">Tell</span>
-            <strong>{citizen.tell || '—'}</strong>
+            <span className="detail-label">Email</span>
+            <strong>{citizen.email || '—'}</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="panel__header">
+          <h3>Account Information</h3>
+        </div>
+        <div className="detail-grid">
+          <div>
+            <span className="detail-label">Status</span>
+            <StatusBadge status={citizen.isActive !== false ? 'Active' : 'Inactive'} />
           </div>
           <div>
-            <span className="detail-label">Registered</span>
+            <span className="detail-label">Registration Date</span>
             <strong>{formatDate(citizen.createdAt)}</strong>
+          </div>
+          <div>
+            <span className="detail-label">Updated</span>
+            <strong>{formatDate(citizen.updatedAt)}</strong>
           </div>
         </div>
       </section>
@@ -49,7 +82,7 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
           <h3>Related Complaints</h3>
         </div>
         {complaints.length ? (
-          <div className="table-wrap">
+          <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
@@ -83,7 +116,7 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
           <h3>Related OB Records</h3>
         </div>
         {obRecords.length ? (
-          <div className="table-wrap">
+          <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>

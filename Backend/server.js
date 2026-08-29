@@ -5,21 +5,28 @@ import morgan from 'morgan';
 import helmet from 'helmet';
 import { connectDB } from './src/config/db.js';
 import { seedStaffUsers } from './src/utils/seed.js';
+import { seedComplaintCategories } from './src/utils/seedCategories.js';
 import authRoutes from './src/routes/authRoutes.js';
 import complaintRoutes from './src/routes/complaintRoutes.js';
 import obRoutes from './src/routes/obRoutes.js';
 import notificationRoutes from './src/routes/notificationRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
+import { UPLOADS_ROOT } from './src/middleware/uploadProfileImage.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(UPLOADS_ROOT));
 
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
@@ -84,6 +91,7 @@ const startServer = async () => {
     const connected = await connectDB();
     if (connected) {
       await seedStaffUsers();
+      await seedComplaintCategories();
     }
 
     app.listen(PORT, () => {

@@ -2,6 +2,8 @@ import jwt from 'jsonwebtoken';
 import Complaint from '../models/Complaint.js';
 import OBRecord from '../models/OBRecord.js';
 import Notification from '../models/Notification.js';
+import AuditLog from '../models/AuditLog.js';
+import User from '../models/User.js';
 
 export const signToken = (userId, role) =>
   jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
@@ -15,6 +17,8 @@ export const createNotification = async ({
   type = 'general',
   relatedComplaint = null,
   relatedOB = null,
+  relatedUser = null,
+  linkPath = '',
 }) => {
   if (!userId) return null;
 
@@ -25,8 +29,57 @@ export const createNotification = async ({
     type,
     relatedComplaint,
     relatedOB,
+    relatedUser,
+    linkPath: linkPath || '',
   });
 };
+
+export const notifyRole = async (role, payload) => {
+  const users = await User.find({ role, isActive: true }).select('_id');
+  await Promise.all(users.map((user) => createNotification({ ...payload, userId: user._id })));
+};
+
+export const createAuditLog = async ({
+  actor = null,
+  action,
+  recordType = '',
+  recordId = '',
+  recordLabel = '',
+  previousValue = '',
+  newValue = '',
+  details = '',
+  ipAddress = '',
+}) => {
+  if (!action) return null;
+
+  try {
+    return await AuditLog.create({
+      actor: actor?._id || actor || null,
+      actorName: actor?.name || 'System',
+      actorRole: actor?.role || '',
+      action,
+      recordType,
+      recordId: recordId ? String(recordId) : '',
+      recordLabel,
+      previousValue:
+        previousValue === undefined || previousValue === null
+          ? ''
+          : String(previousValue),
+      newValue:
+        newValue === undefined || newValue === null ? '' : String(newValue),
+      details,
+      ipAddress: ipAddress || '',
+    });
+  } catch (error) {
+    console.error('Failed to create audit log:', error.message);
+    return null;
+  }
+};
+
+export const getRequestIp = (req) =>
+  req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
+  req.socket?.remoteAddress ||
+  '';
 
 export const generateComplaintNumber = async () => {
   const year = new Date().getFullYear();

@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { getStoredToken, getStoredUser } from '../services/apiClient';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { apiRequest, getStoredToken, getStoredUser, setSession } from '../services/apiClient';
 import { isStaffUser, login as loginRequest, logout as logoutRequest } from '../services/authService';
 
 const AuthContext = createContext(null);
@@ -10,6 +10,28 @@ export function AuthProvider({ children }) {
     const stored = getStoredUser();
     return isStaffUser(stored) ? stored : null;
   });
+
+  const refreshUser = useCallback(async () => {
+    if (!getStoredToken()) return null;
+    const response = await apiRequest('/auth/me');
+    const nextUser = response?.data?.user;
+    if (!isStaffUser(nextUser)) {
+      logoutRequest();
+      setToken(null);
+      setUser(null);
+      return null;
+    }
+    setSession(getStoredToken(), nextUser);
+    setUser(nextUser);
+    return nextUser;
+  }, []);
+
+  useEffect(() => {
+    if (!token) return;
+    refreshUser().catch(() => {
+      // Keep cached session if offline; API client handles 401.
+    });
+  }, [token, refreshUser]);
 
   const login = useCallback(async (email, password) => {
     const result = await loginRequest(email, password);
@@ -31,8 +53,9 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(token && isStaffUser(user)),
       login,
       logout,
+      refreshUser,
     }),
-    [token, user, login, logout]
+    [token, user, login, logout, refreshUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

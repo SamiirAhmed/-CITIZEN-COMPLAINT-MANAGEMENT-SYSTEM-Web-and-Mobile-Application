@@ -1,0 +1,126 @@
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import ConfirmDialog from '../common/ConfirmDialog';
+import ProfileAvatar from '../common/ProfileAvatar';
+import { useAuth } from '../../context/AuthContext';
+
+export default function AdminProfileMenu({ showMeta = false }) {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const rootRef = useRef(null);
+
+  const displayName = user?.name || 'System Administrator';
+  const roleLabel =
+    user?.role === 'admin'
+      ? 'Super Admin'
+      : user?.role === 'police'
+        ? 'Police'
+        : user?.role || 'Admin';
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    const onPointerDown = (event) => {
+      if (!rootRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [open]);
+
+  const handleSignOutClick = () => {
+    setOpen(false);
+    setSignOutOpen(true);
+  };
+
+  const confirmSignOut = () => {
+    setSignOutOpen(false);
+    logout();
+    navigate('/login', { replace: true });
+  };
+
+  return (
+    <div className="header-menu" ref={rootRef}>
+      <button
+        type="button"
+        className="profile-trigger"
+        aria-label={`Account menu for ${displayName}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <ProfileAvatar name={displayName} src={user?.profileImage} size={36} previewable={false} />
+        {showMeta ? (
+          <span className="profile-trigger__meta">
+            <strong>{displayName}</strong>
+            <span>{roleLabel}</span>
+          </span>
+        ) : null}
+        <span className="profile-trigger__chevron" aria-hidden="true">
+          ⌄
+        </span>
+      </button>
+
+      {open ? (
+        <div className="header-popover profile-popover" role="menu">
+          <div className="profile-popover__identity">
+            <ProfileAvatar name={displayName} src={user?.profileImage} size={44} previewable={false} />
+            <div>
+              <strong>{displayName}</strong>
+              <span>{roleLabel}</span>
+            </div>
+          </div>
+          <div className="header-popover__list">
+            <Link
+              to="/profile"
+              role="menuitem"
+              className="header-popover__item"
+              onClick={() => setOpen(false)}
+            >
+              Profile
+            </Link>
+            <Link
+              to="/profile"
+              role="menuitem"
+              className="header-popover__item"
+              onClick={() => setOpen(false)}
+            >
+              Change Password
+            </Link>
+            <button
+              type="button"
+              role="menuitem"
+              className="header-popover__item header-popover__item--danger"
+              onClick={handleSignOutClick}
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <ConfirmDialog
+        open={signOutOpen}
+        title="Sign out"
+        message="Are you sure you want to sign out?"
+        confirmLabel="Sign Out"
+        cancelLabel="Cancel"
+        tone="danger"
+        onCancel={() => setSignOutOpen(false)}
+        onConfirm={confirmSignOut}
+      />
+    </div>
+  );
+}

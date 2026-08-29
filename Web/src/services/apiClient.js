@@ -39,6 +39,7 @@ export async function apiRequest(path, options = {}) {
     body,
     headers = {},
     auth = true,
+    formData = null,
   } = options;
 
   const requestHeaders = {
@@ -46,7 +47,7 @@ export async function apiRequest(path, options = {}) {
     ...headers,
   };
 
-  if (body !== undefined) {
+  if (body !== undefined && !formData) {
     requestHeaders['Content-Type'] = 'application/json';
   }
 
@@ -62,7 +63,11 @@ export async function apiRequest(path, options = {}) {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: requestHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: formData
+        ? formData
+        : body !== undefined
+          ? JSON.stringify(body)
+          : undefined,
     });
   } catch {
     const error = new Error('Unable to reach the server. Please try again.');

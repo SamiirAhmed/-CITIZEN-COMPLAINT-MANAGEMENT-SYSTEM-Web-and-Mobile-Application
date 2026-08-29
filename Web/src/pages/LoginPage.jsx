@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import LOGO_SRC from '../assets/branding';
 import { useAuth } from '../context/AuthContext';
 import { validateLogin } from '../validation/authenticationValidation';
 
@@ -42,7 +43,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-page__panel">
         <div className="login-page__brand">
-          <img src="/assets/branding/spo-logo.png" alt="SPO logo" />
+          <img src={LOGO_SRC} alt="SPO logo" />
           <div>
             <p className="login-page__system">SPO — Somali Police OBE</p>
             <h1>Admin Portal</h1>

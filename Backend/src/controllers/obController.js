@@ -112,6 +112,17 @@ export const adminAssignOfficer = asyncHandler(async (req, res) => {
     relatedOB: ob._id,
   });
 
+  await createNotification({
+    userId: officer._id,
+    title: 'New OB Assignment',
+    message: `You have been assigned to OB ${ob.obNumber}.`,
+    type: 'ob_assigned_officer',
+    relatedComplaint: ob.complaint,
+    relatedOB: ob._id,
+    relatedUser: officer._id,
+    linkPath: '/ob-records',
+  });
+
   return res.json({
     success: true,
     message: 'Officer assigned successfully.',

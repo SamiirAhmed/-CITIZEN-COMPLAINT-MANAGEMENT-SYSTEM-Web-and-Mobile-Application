@@ -1,8 +1,13 @@
-export function validateCitizenEdit(values) {
+import { validateProfileImageFile } from './imageValidation';
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function validateCitizenEdit(values, { profileImageFile } = {}) {
   const errors = {};
   const name = String(values.name ?? '').trim();
   const phone = String(values.phone ?? '').trim();
-  const tell = String(values.tell ?? '').trim();
+  const email = String(values.email ?? '').trim().toLowerCase();
+  const niraId = String(values.niraId ?? '').trim();
 
   if (!name) {
     errors.name = 'Name is required.';
@@ -11,16 +16,33 @@ export function validateCitizenEdit(values) {
   }
 
   if (!phone) {
-    errors.phone = 'Phone is required.';
+    errors.phone = 'Phone Number is required.';
   }
 
-  if (!tell) {
-    errors.tell = 'Tell is required.';
+  if (niraId && niraId.length !== 11) {
+    errors.niraId = 'NIRA ID must be exactly 11 characters.';
+  }
+
+  if (email && !EMAIL_PATTERN.test(email)) {
+    errors.email = 'Please enter a valid email address.';
+  }
+
+  if (profileImageFile) {
+    const imageCheck = validateProfileImageFile(profileImageFile);
+    if (!imageCheck.ok) {
+      errors.profileImage = imageCheck.message;
+    }
   }
 
   return {
     ok: Object.keys(errors).length === 0,
     errors,
-    data: { name, phone, tell },
+    data: {
+      name,
+      phone,
+      email,
+      niraId,
+      profileImageFile: profileImageFile || null,
+    },
   };
 }

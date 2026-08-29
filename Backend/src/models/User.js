@@ -57,6 +57,16 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    /** Relative public path e.g. /uploads/profiles/profile-….jpg — empty for legacy records */
+    profileImage: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    menuPermissions: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
@@ -74,6 +84,22 @@ userSchema.methods.comparePassword = async function comparePassword(candidate) {
 };
 
 userSchema.methods.toSafeObject = function toSafeObject() {
+  const permissions =
+    this.role === 'admin'
+      ? [
+          'dashboard',
+          'citizens',
+          'complaints',
+          'ob-records',
+          'reports',
+          'audit-logs',
+          'settings',
+          'profile',
+        ]
+      : Array.isArray(this.menuPermissions)
+        ? this.menuPermissions
+        : [];
+
   return {
     id: this._id.toString(),
     name: this.name,
@@ -85,6 +111,8 @@ userSchema.methods.toSafeObject = function toSafeObject() {
     badgeNumber: this.badgeNumber || '',
     station: this.station || '',
     isActive: this.isActive !== false,
+    profileImage: this.profileImage || '',
+    menuPermissions: permissions,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };

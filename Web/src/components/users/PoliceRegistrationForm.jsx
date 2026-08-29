@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import PhoneInput from '../common/PhoneInput';
+import ProfileImageField from '../common/ProfileImageField';
 import { validatePoliceRegistration, validateStaffUserEdit } from '../../validation/userValidation';
 
 const REGISTER_INITIAL = {
   name: '',
   niraId: '',
   phone: '',
-  tell: '',
   email: '',
   password: '',
   confirmPassword: '',
@@ -16,7 +17,7 @@ const REGISTER_INITIAL = {
 const EDIT_INITIAL = {
   name: '',
   phone: '',
-  tell: '',
+  email: '',
   badgeNumber: '',
   station: '',
 };
@@ -24,6 +25,7 @@ const EDIT_INITIAL = {
 export default function PoliceRegistrationForm({
   mode = 'register',
   initialValues,
+  currentImage = '',
   onSubmit,
   onCancel,
   submitting = false,
@@ -32,6 +34,7 @@ export default function PoliceRegistrationForm({
   const [values, setValues] = useState(
     isEdit ? { ...EDIT_INITIAL, ...initialValues } : { ...REGISTER_INITIAL }
   );
+  const [profileImageFile, setProfileImageFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
 
@@ -41,6 +44,7 @@ export default function PoliceRegistrationForm({
     } else {
       setValues({ ...REGISTER_INITIAL });
     }
+    setProfileImageFile(null);
     setErrors({});
     setFormError('');
   }, [initialValues, isEdit]);
@@ -54,8 +58,8 @@ export default function PoliceRegistrationForm({
     event.preventDefault();
     setFormError('');
     const validation = isEdit
-      ? validateStaffUserEdit(values)
-      : validatePoliceRegistration(values);
+      ? validateStaffUserEdit(values, { profileImageFile })
+      : validatePoliceRegistration(values, { profileImageFile });
     setErrors(validation.errors);
     if (!validation.ok) return;
 
@@ -70,6 +74,16 @@ export default function PoliceRegistrationForm({
     <form className="form-grid" onSubmit={handleSubmit} noValidate>
       {formError ? <div className="alert alert--error">{formError}</div> : null}
 
+      <ProfileImageField
+        name={values.name}
+        currentSrc={currentImage}
+        required={!isEdit}
+        valueFile={profileImageFile}
+        onChange={setProfileImageFile}
+        error={errors.profileImage}
+        disabled={submitting}
+      />
+
       <label className="field">
         <span>Name</span>
         <input name="name" value={values.name} onChange={handleChange} maxLength={30} />
@@ -77,32 +91,31 @@ export default function PoliceRegistrationForm({
       </label>
 
       {!isEdit ? (
-        <>
-          <label className="field">
-            <span>NIRA ID</span>
-            <input name="niraId" value={values.niraId} onChange={handleChange} maxLength={11} />
-            {errors.niraId ? <em className="field-error">{errors.niraId}</em> : null}
-          </label>
-
-          <label className="field">
-            <span>Email</span>
-            <input name="email" type="email" value={values.email} onChange={handleChange} />
-            {errors.email ? <em className="field-error">{errors.email}</em> : null}
-          </label>
-        </>
+        <label className="field">
+          <span>NIRA ID</span>
+          <input name="niraId" value={values.niraId} onChange={handleChange} maxLength={11} />
+          {errors.niraId ? <em className="field-error">{errors.niraId}</em> : null}
+        </label>
       ) : null}
 
       <label className="field">
-        <span>Phone</span>
-        <input name="phone" value={values.phone} onChange={handleChange} />
-        {errors.phone ? <em className="field-error">{errors.phone}</em> : null}
+        <span>Email</span>
+        <input
+          name="email"
+          type="email"
+          value={values.email}
+          onChange={handleChange}
+          disabled={!isEdit && false}
+        />
+        {errors.email ? <em className="field-error">{errors.email}</em> : null}
       </label>
 
-      <label className="field">
-        <span>Tell</span>
-        <input name="tell" value={values.tell} onChange={handleChange} />
-        {errors.tell ? <em className="field-error">{errors.tell}</em> : null}
-      </label>
+      <PhoneInput
+        name="phone"
+        value={values.phone}
+        onChange={handleChange}
+        error={errors.phone}
+      />
 
       <label className="field">
         <span>Badge Number</span>

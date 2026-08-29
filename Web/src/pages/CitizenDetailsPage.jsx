@@ -107,7 +107,6 @@ export default function CitizenDetailsPage() {
           initialValues={{
             name: citizen.name || '',
             phone: citizen.phone || '',
-            tell: citizen.tell || '',
           }}
           submitting={submitting}
           onCancel={() => setEditing(false)}

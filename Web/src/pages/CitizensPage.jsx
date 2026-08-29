@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import CitizenForm from '../components/citizens/CitizenForm';
 import CitizenTable from '../components/citizens/CitizenTable';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import Modal from '../components/common/Modal';
@@ -13,8 +14,9 @@ import {
 
 export default function CitizensPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [citizens, setCitizens] = useState([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('search') || '');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -22,6 +24,12 @@ export default function CitizensPage() {
   const [editing, setEditing] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState('');
+  const [confirmTarget, setConfirmTarget] = useState(null);
+
+  useEffect(() => {
+    const fromQuery = searchParams.get('search') || '';
+    setSearch(fromQuery);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,15 +51,31 @@ export default function CitizensPage() {
     return () => clearTimeout(timer);
   }, [load]);
 
-  const handleToggleStatus = async (citizen) => {
+  const handleToggleStatus = (citizen) => {
+    const active = citizen.isActive !== false;
+    setConfirmTarget({
+      citizen,
+      active,
+      nextActive: !active,
+      label: active ? 'deactivate' : 'activate',
+      confirmLabel: active ? 'Deactivate' : 'Activate',
+      tone: active ? 'danger' : 'success',
+    });
+  };
+
+  const runStatusChange = async () => {
+    if (!confirmTarget) return;
+    const { citizen, nextActive } = confirmTarget;
     setBusyId(citizen.id);
     setNotice('');
     try {
-      const updated = await setCitizenStatus(citizen.id, !citizen.isActive);
+      const updated = await setCitizenStatus(citizen.id, nextActive);
       setCitizens((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       setNotice(updated.isActive ? 'Citizen activated.' : 'Citizen deactivated.');
+      setConfirmTarget(null);
     } catch (err) {
       setNotice(err.message || 'Unable to update status.');
+      setConfirmTarget(null);
     } finally {
       setBusyId(null);
     }
@@ -115,20 +139,39 @@ export default function CitizensPage() {
         open={Boolean(editing)}
         title="Edit Citizen"
         onClose={() => setEditing(null)}
+        size="lg"
       >
         {editing ? (
           <CitizenForm
             initialValues={{
               name: editing.name || '',
               phone: editing.phone || '',
-              tell: editing.tell || '',
+              email: editing.email || '',
+              niraId: editing.niraId || '',
             }}
+            currentImage={editing.profileImage || ''}
             submitting={submitting}
             onCancel={() => setEditing(null)}
             onSubmit={handleEditSubmit}
           />
         ) : null}
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(confirmTarget)}
+        title={confirmTarget?.confirmLabel || 'Confirm'}
+        message={
+          confirmTarget
+            ? `Are you sure you want to ${confirmTarget.label} ${confirmTarget.citizen.name}?`
+            : ''
+        }
+        confirmLabel={confirmTarget?.confirmLabel || 'Confirm'}
+        cancelLabel="Cancel"
+        tone={confirmTarget?.tone || 'danger'}
+        busy={Boolean(busyId)}
+        onCancel={() => setConfirmTarget(null)}
+        onConfirm={runStatusChange}
+      />
     </div>
   );
 }

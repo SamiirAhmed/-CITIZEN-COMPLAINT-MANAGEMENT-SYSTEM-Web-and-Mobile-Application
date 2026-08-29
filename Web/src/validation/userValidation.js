@@ -1,11 +1,12 @@
+import { validateProfileImageFile } from './imageValidation';
+
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function validatePoliceRegistration(values) {
+export function validatePoliceRegistration(values, { profileImageFile } = {}) {
   const errors = {};
   const name = String(values.name ?? '').trim();
   const niraId = String(values.niraId ?? '').trim();
   const phone = String(values.phone ?? '').trim();
-  const tell = String(values.tell ?? '').trim();
   const email = String(values.email ?? '').trim().toLowerCase();
   const password = String(values.password ?? '');
   const confirmPassword = String(values.confirmPassword ?? '');
@@ -25,11 +26,7 @@ export function validatePoliceRegistration(values) {
   }
 
   if (!phone) {
-    errors.phone = 'Phone is required.';
-  }
-
-  if (!tell) {
-    errors.tell = 'Tell is required.';
+    errors.phone = 'Phone Number is required.';
   }
 
   if (!email) {
@@ -50,6 +47,11 @@ export function validatePoliceRegistration(values) {
     errors.confirmPassword = 'Password and confirm password do not match.';
   }
 
+  const imageCheck = validateProfileImageFile(profileImageFile, { required: true });
+  if (!imageCheck.ok) {
+    errors.profileImage = imageCheck.message;
+  }
+
   return {
     ok: Object.keys(errors).length === 0,
     errors,
@@ -57,21 +59,21 @@ export function validatePoliceRegistration(values) {
       name,
       niraId,
       phone,
-      tell,
       email,
       password,
       confirmPassword,
       badgeNumber,
       station,
+      profileImageFile: profileImageFile || null,
     },
   };
 }
 
-export function validateStaffUserEdit(values) {
+export function validateStaffUserEdit(values, { profileImageFile } = {}) {
   const errors = {};
   const name = String(values.name ?? '').trim();
   const phone = String(values.phone ?? '').trim();
-  const tell = String(values.tell ?? '').trim();
+  const email = String(values.email ?? '').trim().toLowerCase();
   const badgeNumber = String(values.badgeNumber ?? '').trim();
   const station = String(values.station ?? '').trim();
 
@@ -82,12 +84,30 @@ export function validateStaffUserEdit(values) {
   }
 
   if (!phone) {
-    errors.phone = 'Phone is required.';
+    errors.phone = 'Phone Number is required.';
+  }
+
+  if (email && !EMAIL_PATTERN.test(email)) {
+    errors.email = 'Please enter a valid email address.';
+  }
+
+  if (profileImageFile) {
+    const imageCheck = validateProfileImageFile(profileImageFile);
+    if (!imageCheck.ok) {
+      errors.profileImage = imageCheck.message;
+    }
   }
 
   return {
     ok: Object.keys(errors).length === 0,
     errors,
-    data: { name, phone, tell, badgeNumber, station },
+    data: {
+      name,
+      phone,
+      email,
+      badgeNumber,
+      station,
+      profileImageFile: profileImageFile || null,
+    },
   };
 }

@@ -1,18 +1,21 @@
-import Complaint, {
-  COMPLAINT_CATEGORIES,
-} from '../models/Complaint.js';
+import Complaint from '../models/Complaint.js';
+import Category from '../models/Category.js';
 import OBRecord from '../models/OBRecord.js';
 import {
   asyncHandler,
   createNotification,
   generateComplaintNumber,
   generateOBNumber,
+  notifyRole,
 } from '../utils/helpers.js';
 
 export const getCategories = asyncHandler(async (_req, res) => {
+  const categories = await Category.find({ isActive: true }).sort({ name: 1 });
   return res.json({
     success: true,
-    data: { categories: COMPLAINT_CATEGORIES },
+    data: {
+      categories: categories.map((item) => item.name),
+    },
   });
 });
 
@@ -33,7 +36,12 @@ export const submitComplaint = asyncHandler(async (req, res) => {
     });
   }
 
-  if (!COMPLAINT_CATEGORIES.includes(category)) {
+  const activeCategory = await Category.findOne({
+    name: String(category).trim(),
+    isActive: true,
+  });
+
+  if (!activeCategory) {
     return res.status(400).json({
       success: false,
       message: 'Invalid complaint category.',
@@ -78,6 +86,15 @@ export const submitComplaint = asyncHandler(async (req, res) => {
     message: `Your complaint ${complaintNumber} has been submitted successfully.`,
     type: 'complaint_submitted',
     relatedComplaint: complaint._id,
+  });
+
+  await notifyRole('admin', {
+    title: 'New Complaint Submitted',
+    message: `${req.user.name} submitted complaint ${complaintNumber} (${activeCategory.name}).`,
+    type: 'complaint_submitted_admin',
+    relatedComplaint: complaint._id,
+    relatedUser: req.user._id,
+    linkPath: '/complaints',
   });
 
   return res.status(201).json({
