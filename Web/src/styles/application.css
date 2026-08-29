@@ -1657,6 +1657,14 @@ select:focus {
   box-shadow:
     0 0 0 1px rgba(15, 23, 42, 0.06),
     0 8px 18px rgba(15, 23, 42, 0.12);
+  padding: 0;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  line-height: 1;
+  cursor: default;
+  transition: transform 0.15s ease;
 }
 
 .profile-avatar--photo {
@@ -2236,20 +2244,6 @@ select:focus {
   font-variant-numeric: tabular-nums;
   color: var(--spo-primary);
   letter-spacing: 0.02em;
-}
-
-.profile-avatar {
-  padding: 0;
-  margin: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: default;
-  font: inherit;
-}
-
-button.profile-avatar:disabled {
-  cursor: default;
-  opacity: 1;
 }
 
 .profile-avatar--clickable {
