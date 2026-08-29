@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import ConfirmDialog from '../common/ConfirmDialog';
 import ProfileAvatar from '../common/ProfileAvatar';
 import { useAuth } from '../../context/AuthContext';
+import { getRoleDisplayLabel } from '../../validation/profileValidation';
 
 export default function AdminProfileMenu({ showMeta = false }) {
   const { user, logout } = useAuth();
@@ -12,12 +13,8 @@ export default function AdminProfileMenu({ showMeta = false }) {
   const rootRef = useRef(null);
 
   const displayName = user?.name || 'System Administrator';
-  const roleLabel =
-    user?.role === 'admin'
-      ? 'Super Admin'
-      : user?.role === 'police'
-        ? 'Police'
-        : user?.role || 'Admin';
+  const roleLabel = getRoleDisplayLabel(user?.role);
+  const active = user?.isActive !== false;
 
   useEffect(() => {
     if (!open) return undefined;
@@ -61,11 +58,15 @@ export default function AdminProfileMenu({ showMeta = false }) {
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <ProfileAvatar name={displayName} src={user?.profileImage} size={36} previewable={false} />
+        <ProfileAvatar
+          name={displayName}
+          src={user?.profileImage}
+          size={36}
+          previewable={false}
+        />
         {showMeta ? (
           <span className="profile-trigger__meta">
             <strong>{displayName}</strong>
-            <span>{roleLabel}</span>
           </span>
         ) : null}
         <span className="profile-trigger__chevron" aria-hidden="true">
@@ -76,10 +77,19 @@ export default function AdminProfileMenu({ showMeta = false }) {
       {open ? (
         <div className="header-popover profile-popover" role="menu">
           <div className="profile-popover__identity">
-            <ProfileAvatar name={displayName} src={user?.profileImage} size={44} previewable={false} />
+            <ProfileAvatar
+              name={displayName}
+              src={user?.profileImage}
+              size={52}
+              previewable={false}
+            />
             <div>
               <strong>{displayName}</strong>
               <span>{roleLabel}</span>
+              <span className={`profile-popover__status ${active ? 'is-active' : 'is-inactive'}`}>
+                <i aria-hidden="true" />
+                {active ? 'Active' : 'Inactive'}
+              </span>
             </div>
           </div>
           <div className="header-popover__list">
@@ -92,7 +102,7 @@ export default function AdminProfileMenu({ showMeta = false }) {
               Profile
             </Link>
             <Link
-              to="/profile"
+              to="/profile#password"
               role="menuitem"
               className="header-popover__item"
               onClick={() => setOpen(false)}

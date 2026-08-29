@@ -15,6 +15,7 @@ import PermissionsPage from '../pages/PermissionsPage';
 import CategoriesPage from '../pages/CategoriesPage';
 import AuditLogsPage from '../pages/AuditLogsPage';
 import ComingSoonPage from '../pages/ComingSoonPage';
+import ProfilePage from '../pages/ProfilePage';
 
 function ProtectedRoute() {
   const { isAuthenticated } = useAuth();
@@ -135,7 +136,7 @@ export default function AppRoutes() {
           path="/profile"
           element={
             <ModuleRoute moduleKey="profile">
-              <ComingSoonPage moduleKey="profile" />
+              <ProfilePage />
             </ModuleRoute>
           }
         />

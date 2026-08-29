@@ -87,7 +87,6 @@ export const adminNavigation = [
     label: 'Profile',
     path: '/profile',
     icon: 'profile',
-    comingSoon: true,
     moduleKey: 'profile',
     section: 'system',
   },

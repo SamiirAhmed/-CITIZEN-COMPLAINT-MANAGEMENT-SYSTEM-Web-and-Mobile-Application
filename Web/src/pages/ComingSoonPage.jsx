@@ -21,10 +21,6 @@ const TITLES = {
     title: 'Audit Logs',
     description: 'Administrative audit trail visibility will be available here soon.',
   },
-  profile: {
-    title: 'Profile',
-    description: 'Staff profile and password management will be available here soon.',
-  },
 };
 
 export default function ComingSoonPage({ moduleKey }) {

@@ -26,6 +26,12 @@ export function AuthProvider({ children }) {
     return nextUser;
   }, []);
 
+  const applyUser = useCallback((nextUser) => {
+    if (!isStaffUser(nextUser)) return;
+    setSession(getStoredToken(), nextUser);
+    setUser(nextUser);
+  }, []);
+
   useEffect(() => {
     if (!token) return;
     refreshUser().catch(() => {
@@ -54,8 +60,9 @@ export function AuthProvider({ children }) {
       login,
       logout,
       refreshUser,
+      applyUser,
     }),
-    [token, user, login, logout, refreshUser]
+    [token, user, login, logout, refreshUser, applyUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

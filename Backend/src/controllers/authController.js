@@ -9,11 +9,18 @@ import {
 import {
   validateCitizenRegistration,
   validateLoginInput,
+  isValidEmail,
 } from '../utils/citizenValidation.js';
 import {
   profileImagePublicPath,
   removeProfileImageFile,
 } from '../middleware/uploadProfileImage.js';
+
+const cleanupUpload = (req) => {
+  if (req.file?.filename) {
+    removeProfileImageFile(profileImagePublicPath(req.file.filename));
+  }
+};
 
 export const registerCitizen = asyncHandler(async (req, res) => {
   const validation = validateCitizenRegistration(req.body);
@@ -148,55 +155,129 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone } = req.body;
+  // Never allow role/status changes from self-service profile.
+  const { name, phone, email } = req.body;
   const previousImage = req.user.profileImage || '';
+  const previousName = req.user.name;
+  const previousPhone = req.user.phone || '';
+  const previousEmail = req.user.email;
+  const changed = [];
 
   if (name !== undefined) {
     const trimmedName = String(name).trim();
     if (!trimmedName) {
-      if (req.file?.filename) {
-        removeProfileImageFile(profileImagePublicPath(req.file.filename));
-      }
+      cleanupUpload(req);
       return res.status(400).json({
         success: false,
         message: 'Name is required.',
       });
     }
     if (trimmedName.length > 30) {
-      if (req.file?.filename) {
-        removeProfileImageFile(profileImagePublicPath(req.file.filename));
-      }
+      cleanupUpload(req);
       return res.status(400).json({
         success: false,
         message: 'Name must be at most 30 characters.',
       });
     }
-    req.user.name = trimmedName;
+    if (trimmedName !== req.user.name) {
+      req.user.name = trimmedName;
+      changed.push('name');
+    }
   }
 
   if (phone !== undefined) {
     const trimmedPhone = String(phone).trim();
     if (!trimmedPhone) {
-      if (req.file?.filename) {
-        removeProfileImageFile(profileImagePublicPath(req.file.filename));
-      }
+      cleanupUpload(req);
       return res.status(400).json({
         success: false,
         message: 'Phone is required.',
       });
     }
-    req.user.phone = trimmedPhone;
+    if (trimmedPhone !== req.user.phone) {
+      req.user.phone = trimmedPhone;
+      changed.push('phone');
+    }
+  }
+
+  if (email !== undefined) {
+    const trimmedEmail = String(email).trim().toLowerCase();
+    if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
+      cleanupUpload(req);
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address.',
+      });
+    }
+    if (trimmedEmail !== req.user.email) {
+      const taken = await User.findOne({
+        email: trimmedEmail,
+        _id: { $ne: req.user._id },
+      });
+      if (taken) {
+        cleanupUpload(req);
+        return res.status(409).json({
+          success: false,
+          message: 'An account with this email already exists.',
+        });
+      }
+      req.user.email = trimmedEmail;
+      changed.push('email');
+    }
   }
 
   if (req.file) {
-    const nextImage = profileImagePublicPath(req.file.filename);
-    req.user.profileImage = nextImage;
+    req.user.profileImage = profileImagePublicPath(req.file.filename);
+    changed.push('profileImage');
   }
 
   await req.user.save();
 
   if (req.file && previousImage && previousImage !== req.user.profileImage) {
     removeProfileImageFile(previousImage);
+  }
+
+  if (req.user.role === 'admin' || req.user.role === 'police') {
+    if (changed.includes('profileImage')) {
+      await createAuditLog({
+        actor: req.user,
+        action: 'UPDATE',
+        recordType: 'Profile',
+        recordId: req.user._id,
+        recordLabel: req.user.name,
+        previousValue: previousImage || '(none)',
+        newValue: req.user.profileImage || '(none)',
+        details: 'Profile image updated.',
+        ipAddress: getRequestIp(req),
+      });
+    }
+
+    const fieldChanges = changed.filter((key) => key !== 'profileImage');
+    if (fieldChanges.length) {
+      await createAuditLog({
+        actor: req.user,
+        action: 'UPDATE',
+        recordType: 'Profile',
+        recordId: req.user._id,
+        recordLabel: req.user.name,
+        previousValue: [
+          fieldChanges.includes('name') ? `name=${previousName}` : null,
+          fieldChanges.includes('email') ? `email=${previousEmail}` : null,
+          fieldChanges.includes('phone') ? `phone=${previousPhone}` : null,
+        ]
+          .filter(Boolean)
+          .join('; '),
+        newValue: [
+          fieldChanges.includes('name') ? `name=${req.user.name}` : null,
+          fieldChanges.includes('email') ? `email=${req.user.email}` : null,
+          fieldChanges.includes('phone') ? `phone=${req.user.phone}` : null,
+        ]
+          .filter(Boolean)
+          .join('; '),
+        details: `Profile fields updated: ${fieldChanges.join(', ')}.`,
+        ipAddress: getRequestIp(req),
+      });
+    }
   }
 
   return res.json({
@@ -218,6 +299,13 @@ export const changePassword = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!String(newPassword).trim()) {
+    return res.status(400).json({
+      success: false,
+      message: 'New password cannot be empty.',
+    });
+  }
+
   if (String(newPassword).length < 8) {
     return res.status(400).json({
       success: false,
@@ -228,7 +316,7 @@ export const changePassword = asyncHandler(async (req, res) => {
   if (confirmPassword !== undefined && newPassword !== confirmPassword) {
     return res.status(400).json({
       success: false,
-      message: 'New password and confirm password do not match.',
+      message: 'Passwords do not match.',
     });
   }
 
@@ -243,6 +331,20 @@ export const changePassword = asyncHandler(async (req, res) => {
 
   user.password = newPassword;
   await user.save();
+
+  if (user.role === 'admin' || user.role === 'police') {
+    await createAuditLog({
+      actor: user,
+      action: 'UPDATE',
+      recordType: 'Profile',
+      recordId: user._id,
+      recordLabel: user.name,
+      previousValue: '',
+      newValue: 'Password changed',
+      details: 'Account password was changed. Password values were not logged.',
+      ipAddress: getRequestIp(req),
+    });
+  }
 
   return res.json({
     success: true,

@@ -738,7 +738,7 @@ select:focus {
 }
 
 .profile-popover {
-  width: 250px;
+  width: min(280px, 90vw);
 }
 
 .profile-popover__identity {
@@ -748,6 +748,44 @@ select:focus {
   padding: 1rem;
   border-bottom: 1px solid var(--spo-border);
   background: linear-gradient(180deg, #f8fbff, #fff);
+}
+
+.profile-popover__identity > div {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.profile-popover__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  color: var(--spo-muted) !important;
+}
+
+.profile-popover__status i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+
+.profile-popover__status.is-active {
+  color: var(--spo-success) !important;
+}
+
+.profile-popover__status.is-active i {
+  background: var(--spo-success);
+}
+
+.profile-popover__status.is-inactive {
+  color: var(--spo-danger) !important;
+}
+
+.profile-popover__status.is-inactive i {
+  background: var(--spo-danger);
 }
 
 .header-popover__list {
@@ -2600,5 +2638,81 @@ select:focus {
 @media (min-width: 961px) {
   .profile-trigger__meta {
     display: block;
+  }
+}
+
+.profile-page .alert {
+  margin-bottom: 0;
+}
+
+.profile-hero-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1.5rem 1.4rem;
+  background:
+    linear-gradient(125deg, rgba(11, 61, 145, 0.08), transparent 48%),
+    #fff;
+}
+
+.profile-hero-card__media {
+  display: grid;
+  place-items: center;
+}
+
+.profile-hero-card__copy {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.profile-hero-card__copy h1 {
+  margin: 0.15rem 0 0.25rem;
+  font-size: 1.55rem;
+}
+
+.profile-hero-card__role {
+  margin: 0 0 0.55rem;
+  color: var(--spo-muted);
+  font-weight: 650;
+}
+
+.profile-hero-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.profile-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.form-grid--single {
+  grid-template-columns: 1fr;
+}
+
+.input--readonly,
+input.input--readonly,
+input:disabled.input--readonly {
+  background: #f1f5f9;
+  color: var(--spo-navy);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.field-hint {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.78rem;
+  font-style: normal;
+  color: var(--spo-muted);
+}
+
+@media (max-width: 900px) {
+  .profile-info-grid {
+    grid-template-columns: 1fr;
   }
 }
