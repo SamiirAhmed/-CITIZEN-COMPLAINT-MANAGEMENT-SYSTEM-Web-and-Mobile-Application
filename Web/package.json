@@ -2,7 +2,7 @@
   "name": "web",
   "private": true,
   "version": "1.0.0",
-  "description": "Citizen complaint management web app",
+  "description": "SPO Admin Web — Somali Police OBE administration portal",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -11,6 +11,8 @@
   "keywords": [
     "react",
     "vite",
+    "spo",
+    "admin",
     "web"
   ],
   "author": "",
@@ -18,7 +20,8 @@
   "type": "module",
   "dependencies": {
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.3"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",
