@@ -1,4 +1,4 @@
-import { useAuth } from '../../context/AuthContext';
+﻿import { useAuth } from '../../context/AuthContext';
 
 export default function AdminHeader({ title, onToggleSidebar }) {
   const { user, logout } = useAuth();
@@ -12,7 +12,7 @@ export default function AdminHeader({ title, onToggleSidebar }) {
           onClick={onToggleSidebar}
           aria-label="Toggle navigation"
         >
-          ☰
+          â˜°
         </button>
         <div>
           <p className="admin-header__eyebrow">SPO Admin Portal</p>
@@ -37,3 +37,4 @@ export default function AdminHeader({ title, onToggleSidebar }) {
     </header>
   );
 }
+

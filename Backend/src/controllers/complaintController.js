@@ -2,6 +2,7 @@ import Complaint, {
   COMPLAINT_CATEGORIES,
 } from '../models/Complaint.js';
 import OBRecord from '../models/OBRecord.js';
+import User from '../models/User.js';
 import {
   asyncHandler,
   createNotification,
@@ -368,11 +369,45 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
   }
 
   const obNumber = await generateOBNumber();
+  const now = new Date();
+  const mappedCategory =
+    {
+      Theft: 'Theft',
+      Assault: 'Assault',
+      Fraud: 'Fraud',
+      'Traffic Accident': 'Traffic Incident',
+      'Domestic Dispute': 'Domestic Incident',
+      'Property Damage': 'Property Damage',
+      'Missing Person': 'Missing Person',
+      Cybercrime: 'Other',
+      'Noise Complaint': 'Disturbance',
+      Other: 'Other',
+    }[complaint.category] || 'Other';
+
+  const citizen = await User.findById(complaint.citizen).select('name phone address');
+
   const ob = await OBRecord.create({
     obNumber,
     complaint: complaint._id,
     citizen: complaint.citizen,
+    occurrenceDate: complaint.incidentDate || now,
+    occurrenceTime: '',
+    dateReported: now,
+    timeReported: now.toTimeString().slice(0, 5),
+    station: req.user.station || '',
+    complainantName: citizen?.name || '',
+    complainantPhone: citizen?.phone || '',
+    complainantAddress: citizen?.address || '',
+    category: mappedCategory,
+    occurrenceType: complaint.category,
+    subject: `${complaint.category} — ${complaint.complaintNumber}`,
+    description: complaint.description || '',
+    location: complaint.location || '',
+    district: '',
+    priority: 'MEDIUM',
+    recordedBy: req.user._id,
     createdBy: req.user._id,
+    updatedBy: req.user._id,
     status: 'Opened',
     citizenSummary: req.body.citizenSummary || 'Occurrence Book opened for your complaint.',
     updates: [
@@ -381,7 +416,17 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
         note: 'An Occurrence Book has been created for your complaint.',
         visibleToCitizen: true,
         createdBy: req.user._id,
-        createdAt: new Date(),
+        createdAt: now,
+      },
+    ],
+    activityHistory: [
+      {
+        action: 'Created',
+        user: req.user._id,
+        previousValue: '',
+        newValue: 'Opened',
+        note: `OB created from complaint ${complaint.complaintNumber}.`,
+        createdAt: now,
       },
     ],
   });

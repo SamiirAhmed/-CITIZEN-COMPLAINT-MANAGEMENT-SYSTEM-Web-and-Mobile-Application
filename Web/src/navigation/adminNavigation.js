@@ -1,4 +1,4 @@
-export const adminNavigation = [
+﻿export const adminNavigation = [
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -23,14 +23,12 @@ export const adminNavigation = [
     label: 'OB Records',
     path: '/ob-records',
     icon: 'ob',
-    comingSoon: true,
   },
   {
     id: 'reports',
     label: 'Reports',
     path: '/reports',
     icon: 'reports',
-    comingSoon: true,
   },
   {
     id: 'notifications',
@@ -69,13 +67,13 @@ export const adminNavigation = [
   },
   {
     id: 'profile',
-    label: 'Profile',
+    label: 'Edit Profile',
     path: '/profile',
     icon: 'profile',
-    comingSoon: true,
   },
 ];
 
 export function isSettingsPath(pathname) {
   return pathname === '/settings' || pathname.startsWith('/settings/');
 }
+

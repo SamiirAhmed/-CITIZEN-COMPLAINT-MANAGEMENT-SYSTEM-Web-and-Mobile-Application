@@ -58,9 +58,15 @@ app.use((err, _req, res, _next) => {
 
   if (err?.code === 11000) {
     const field = Object.keys(err.keyPattern || {})[0] || 'field';
+    const friendly =
+      field === 'obNumber'
+        ? 'An occurrence with this OB number already exists. Please try again.'
+        : field === 'complaint'
+          ? 'An Occurrence Book already exists for this complaint.'
+          : `Duplicate value for ${field}.`;
     return res.status(409).json({
       success: false,
-      message: `Duplicate value for ${field}.`,
+      message: friendly,
     });
   }
 

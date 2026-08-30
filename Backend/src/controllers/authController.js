@@ -105,7 +105,9 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone, tell } = req.body;
+  const { name, phone, tell, email, address, username, avatar } = req.body;
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const usernamePattern = /^[a-z0-9._-]{3,30}$/i;
 
   if (name !== undefined) {
     const trimmedName = String(name).trim();
@@ -136,21 +138,90 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
 
   if (tell !== undefined) {
-    const trimmedTell = String(tell).trim();
-    if (!trimmedTell) {
+    req.user.tell = String(tell).trim();
+  }
+
+  if (address !== undefined) {
+    req.user.address = String(address).trim();
+  }
+
+  if (email !== undefined) {
+    const trimmedEmail = String(email).trim().toLowerCase();
+    if (!trimmedEmail) {
       return res.status(400).json({
         success: false,
-        message: 'Tell is required.',
+        message: 'Email is required.',
       });
     }
-    req.user.tell = trimmedTell;
+    if (!emailPattern.test(trimmedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address.',
+      });
+    }
+    const existingEmail = await User.findOne({
+      email: trimmedEmail,
+      _id: { $ne: req.user._id },
+    });
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        message: 'An account with this email already exists.',
+      });
+    }
+    req.user.email = trimmedEmail;
+  }
+
+  if (username !== undefined) {
+    const trimmedUsername = String(username).trim().toLowerCase();
+    if (!trimmedUsername) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username is required.',
+      });
+    }
+    if (!usernamePattern.test(trimmedUsername)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Username must be 3-30 characters and contain only letters, numbers, dots, underscores, or hyphens.',
+      });
+    }
+    const existingUsername = await User.findOne({
+      username: trimmedUsername,
+      _id: { $ne: req.user._id },
+    });
+    if (existingUsername) {
+      return res.status(409).json({
+        success: false,
+        message: 'This username is already taken.',
+      });
+    }
+    req.user.username = trimmedUsername;
+  }
+
+  if (avatar !== undefined) {
+    const nextAvatar = String(avatar || '');
+    if (nextAvatar && !nextAvatar.startsWith('data:image/')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Avatar must be a valid image.',
+      });
+    }
+    if (nextAvatar.length > 750000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Profile photo is too large. Please upload a smaller image.',
+      });
+    }
+    req.user.avatar = nextAvatar;
   }
 
   await req.user.save();
 
   return res.json({
     success: true,
-    message: 'Profile updated successfully.',
+    message: 'Profile updated successfully!',
     data: {
       user: req.user.toSafeObject(),
     },
