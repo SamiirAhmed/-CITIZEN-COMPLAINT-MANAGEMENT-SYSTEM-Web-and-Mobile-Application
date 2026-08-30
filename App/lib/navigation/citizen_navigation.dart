@@ -6,28 +6,28 @@ class CitizenNavigation {
   static const List<NavigationItem> destinations = [
     NavigationItem(
       label: 'Home',
-      icon: Icons.dashboard_outlined,
-      selectedIcon: Icons.dashboard,
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
     ),
     NavigationItem(
       label: 'Complaints',
       icon: Icons.report_outlined,
-      selectedIcon: Icons.report,
+      selectedIcon: Icons.report_rounded,
     ),
     NavigationItem(
       label: 'OB',
       icon: Icons.folder_outlined,
-      selectedIcon: Icons.folder,
+      selectedIcon: Icons.folder_rounded,
     ),
     NavigationItem(
       label: 'Alerts',
       icon: Icons.notifications_outlined,
-      selectedIcon: Icons.notifications,
+      selectedIcon: Icons.notifications_rounded,
     ),
     NavigationItem(
       label: 'Profile',
       icon: Icons.person_outline,
-      selectedIcon: Icons.person,
+      selectedIcon: Icons.person_rounded,
     ),
   ];
 

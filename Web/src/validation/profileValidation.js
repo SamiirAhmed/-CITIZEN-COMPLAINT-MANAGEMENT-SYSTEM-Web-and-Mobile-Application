@@ -56,7 +56,9 @@ export function validateChangePassword(values) {
   if (!newPassword.trim()) {
     errors.newPassword = 'New password is required.';
   } else if (newPassword.length < 8) {
-    errors.newPassword = 'New password must be at least 8 characters.';
+    errors.newPassword = 'Password must be at least 8 characters.';
+  } else if (!/\S/.test(newPassword)) {
+    errors.newPassword = 'Password cannot be empty or spaces only.';
   }
 
   if (!confirmPassword) {

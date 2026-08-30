@@ -3,15 +3,19 @@ import 'package:provider/provider.dart';
 
 import '../../../application/application_routes.dart';
 import '../../../application/application_theme.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/network/api_exception.dart';
-import '../../../core/utils/date_formatters.dart';
 import '../../../core/widgets/error_state.dart';
-import '../../../core/widgets/loading_indicator.dart';
-import '../../../core/widgets/status_badge.dart';
 import '../../../layouts/citizen_app_layout.dart';
 import '../../../services/authentication_service.dart';
 import '../../../services/complaint_service.dart';
+import '../../../services/notification_service.dart';
+import '../widgets/dashboard_header.dart';
+import '../widgets/dashboard_skeleton.dart';
+import '../widgets/latest_status_card.dart';
+import '../widgets/quick_action_card.dart';
+import '../widgets/safety_info_card.dart';
+import '../widgets/statistics_card.dart';
+import '../widgets/welcome_card.dart';
 
 class CitizenDashboardScreen extends StatefulWidget {
   const CitizenDashboardScreen({super.key});
@@ -24,6 +28,7 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
   DashboardData? _data;
   bool _loading = true;
   String? _error;
+  int _unreadCount = 0;
 
   @override
   void initState() {
@@ -38,12 +43,25 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
     });
 
     try {
-      final data = await context.read<ComplaintService>().getDashboard();
+      final complaintService = context.read<ComplaintService>();
+      final notificationService = context.read<NotificationService>();
+
+      final results = await Future.wait([
+        complaintService.getDashboard(),
+        notificationService.getNotifications(),
+      ]);
+
       if (!mounted) return;
+
+      final notifications = results[1] as NotificationListResult;
+
       setState(() {
-        _data = data;
+        _data = results[0] as DashboardData;
+        _unreadCount = notifications.unreadCount;
         _loading = false;
       });
+
+      CitizenAppLayout.of(context)?.refreshUnreadBadge();
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -53,409 +71,193 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Unable to load dashboard.';
+        _error = 'Unable to load dashboard data.';
         _loading = false;
       });
     }
   }
 
+  void _openTab(int index) {
+    CitizenAppLayout.of(context)?.selectTab(index);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthenticationService>().user;
-    final firstName = user?.name.trim().split(' ').first ?? 'Citizen';
+    final citizenName = user?.name ?? 'Citizen';
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Dashboard'),
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () => CitizenAppLayout.of(context)?.openDrawer(),
-        ),
-        actions: [
-          IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _load,
-        color: AppColors.spfBlue,
-        child: _loading
-            ? ListView(
-                children: const [
-                  SizedBox(height: 180, child: LoadingIndicator()),
-                ],
-              )
-            : _error != null
-                ? ListView(
-                    children: [
-                      SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.6,
-                        child: ErrorState(message: _error!, onRetry: _load),
-                      ),
-                    ],
-                  )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [AppColors.spfBlueDark, AppColors.spfBlue],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          DashboardHeader(
+            unreadCount: _unreadCount,
+            onMenuTap: () => CitizenAppLayout.of(context)?.openDrawer(),
+            onNotificationsTap: () => _openTab(3),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _load,
+              color: AppColors.spfBlue,
+              child: _loading
+                  ? const DashboardSkeleton()
+                  : _error != null
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: [
-                            Image.asset(
-                              AppConstants.logoAsset,
-                              width: 52,
-                              height: 52,
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Welcome, $firstName',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  const Text(
-                                    'Somali Police Force • Citizen Portal',
-                                    style: TextStyle(
-                                      color: Color(0xFFDCE7F8),
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
+                            SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.55,
+                              child: ErrorState(
+                                message: _error!,
+                                onRetry: _load,
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _StatCard(
-                              label: 'My Complaints',
-                              value: '${_data!.totalComplaints}',
-                              icon: Icons.report_outlined,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _StatCard(
-                              label: 'Active',
-                              value: '${_data!.activeComplaints}',
-                              icon: Icons.timelapse_outlined,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _StatCard(
-                              label: 'Active OB',
-                              value: '${_data!.activeOBs}',
-                              icon: Icons.folder_open_outlined,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _StatCard(
-                              label: 'Closed',
-                              value: '${_data!.closedComplaints}',
-                              icon: Icons.check_circle_outline,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 22),
-                      Text(
-                        'Latest Status',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 10),
-                      _LatestStatusCard(data: _data!),
-                      const SizedBox(height: 22),
-                      Text(
-                        'Quick Actions',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _ActionTile(
-                              icon: Icons.add_circle_outline,
-                              label: 'Submit Complaint',
-                              onTap: () async {
-                                await Navigator.pushNamed(
-                                  context,
-                                  AppRoutes.submitComplaint,
-                                );
-                                _load();
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _ActionTile(
-                              icon: Icons.list_alt_outlined,
-                              label: 'View Complaints',
-                              onTap: () {
-                                CitizenAppLayout.of(context)?.selectTab(1);
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _ActionTile(
-                        icon: Icons.folder_outlined,
-                        label: 'View OB Records',
-                        onTap: () {
-                          CitizenAppLayout.of(context)?.selectTab(2);
-                        },
-                      ),
-                      const SizedBox(height: 22),
-                      Text(
-                        'Recent Activity',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 10),
-                      if (_data!.recentUpdates.isEmpty)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: const Text(
-                            'No recent activity yet. Submit a complaint to get started.',
-                          ),
                         )
-                      else
-                        ..._data!.recentUpdates.map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: AppColors.border),
-                              ),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    backgroundColor: AppColors.spfBlue
-                                        .withValues(alpha: 0.1),
-                                    child: Icon(
-                                      item['type'] == 'ob'
-                                          ? Icons.folder_outlined
-                                          : Icons.report_outlined,
-                                      color: AppColors.spfBlue,
-                                      size: 18,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          '${item['title']}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          '${item['note']}',
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          DateFormatters.relative(
-                                            DateTime.tryParse(
-                                              '${item['updatedAt']}',
-                                            ),
-                                          ),
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  StatusBadge(status: '${item['status']}'),
-                                ],
-                              ),
-                            ),
-                          ),
+                      : _DashboardContent(
+                          data: _data!,
+                          citizenName: citizenName,
+                          onOpenComplaints: () => _openTab(1),
+                          onOpenObRecords: () => _openTab(2),
+                          onSubmitComplaint: () async {
+                            await Navigator.pushNamed(
+                              context,
+                              AppRoutes.submitComplaint,
+                            );
+                            _load();
+                          },
                         ),
-                    ],
-                  ),
-      ),
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.spfBlue.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: AppColors.spfBlue),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
-              color: AppColors.navy,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 13)),
         ],
       ),
     );
   }
 }
 
-class _LatestStatusCard extends StatelessWidget {
-  const _LatestStatusCard({required this.data});
+class _DashboardContent extends StatelessWidget {
+  const _DashboardContent({
+    required this.data,
+    required this.citizenName,
+    required this.onOpenComplaints,
+    required this.onOpenObRecords,
+    required this.onSubmitComplaint,
+  });
 
   final DashboardData data;
+  final String citizenName;
+  final VoidCallback onOpenComplaints;
+  final VoidCallback onOpenObRecords;
+  final Future<void> Function() onSubmitComplaint;
 
   @override
   Widget build(BuildContext context) {
-    final status = data.latestStatus;
-    if (status == null) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: const Text('No status available yet.'),
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '${status['reference']}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  DateFormatters.dateTime(
-                    DateTime.tryParse('${status['updatedAt']}'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          StatusBadge(status: '${status['label']}'),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  const _ActionTile({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, color: AppColors.spfBlue, size: 28),
-              const SizedBox(height: 10),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: [
+        WelcomeCard(citizenName: citizenName),
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: StatisticsCard(
+                label: 'My Complaints',
+                value: '${data.totalComplaints}',
+                icon: Icons.description_outlined,
+                accentColor: AppColors.spfBlue,
+                actionLabel: data.totalComplaints > 0 ? 'View all' : null,
+                onTap: data.totalComplaints > 0 ? onOpenComplaints : null,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: StatisticsCard(
+                label: 'Active',
+                value: '${data.activeComplaints}',
+                icon: Icons.person_outline_rounded,
+                accentColor: AppColors.success,
+                actionLabel: data.activeComplaints > 0 ? 'View details' : null,
+                onTap: data.activeComplaints > 0 ? onOpenComplaints : null,
+              ),
+            ),
+          ],
         ),
-      ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: StatisticsCard(
+                label: 'Active OB Records',
+                value: '${data.activeOBs}',
+                icon: Icons.work_outline_rounded,
+                accentColor: AppColors.warning,
+                actionLabel: data.activeOBs > 0 ? 'View all' : null,
+                onTap: data.activeOBs > 0 ? onOpenObRecords : null,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: StatisticsCard(
+                label: 'Closed Cases',
+                value: '${data.closedComplaints}',
+                icon: Icons.verified_user_outlined,
+                accentColor: const Color(0xFF7C3AED),
+                actionLabel: data.closedComplaints > 0 ? 'View all' : null,
+                onTap: data.closedComplaints > 0 ? onOpenComplaints : null,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 22),
+        LatestStatusSectionHeader(
+          onViewAll: data.latestStatus != null ? onOpenComplaints : null,
+        ),
+        const SizedBox(height: 10),
+        LatestStatusCard(data: data),
+        const SizedBox(height: 22),
+        Text(
+          'Quick Actions',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: QuickActionCard(
+                title: 'Submit Complaint',
+                subtitle: 'Report an issue',
+                icon: Icons.add_rounded,
+                accentColor: AppColors.spfBlue,
+                onTap: onSubmitComplaint,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: QuickActionCard(
+                title: 'View Complaints',
+                subtitle: 'Track your complaints',
+                icon: Icons.list_alt_rounded,
+                accentColor: AppColors.success,
+                onTap: onOpenComplaints,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        QuickActionCard(
+          title: 'View OB Records',
+          subtitle: 'View your OB records and details',
+          icon: Icons.folder_open_rounded,
+          accentColor: AppColors.warning,
+          onTap: onOpenObRecords,
+          fullWidth: true,
+        ),
+        const SizedBox(height: 22),
+        const SafetyInfoCard(),
+      ],
     );
   }
 }

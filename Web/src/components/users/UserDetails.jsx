@@ -68,6 +68,14 @@ export default function UserDetails({ user }) {
             <strong>{user.station || '—'}</strong>
           </div>
           <div>
+            <span className="detail-label">District</span>
+            <strong>{user.district || '—'}</strong>
+          </div>
+          <div>
+            <span className="detail-label">Region</span>
+            <strong>{user.region || '—'}</strong>
+          </div>
+          <div>
             <span className="detail-label">Role</span>
             <strong>{user.role}</strong>
           </div>

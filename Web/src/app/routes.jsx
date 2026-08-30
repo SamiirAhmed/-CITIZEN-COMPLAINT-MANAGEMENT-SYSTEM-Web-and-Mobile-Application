@@ -6,6 +6,7 @@ import {
   userHasModule,
 } from '../navigation/adminNavigation';
 import LoginPage from '../pages/LoginPage';
+import ForceChangePasswordPage from '../pages/ForceChangePasswordPage';
 import DashboardPage from '../pages/DashboardPage';
 import CitizensPage from '../pages/CitizensPage';
 import CitizenDetailsPage from '../pages/CitizenDetailsPage';
@@ -15,15 +16,20 @@ import SettingsPage from '../pages/SettingsPage';
 import UsersPage from '../pages/UsersPage';
 import PermissionsPage from '../pages/PermissionsPage';
 import CategoriesPage from '../pages/CategoriesPage';
+import DistrictsPage from '../pages/DistrictsPage';
 import AuditLogsPage from '../pages/AuditLogsPage';
 import ComingSoonPage from '../pages/ComingSoonPage';
 import ProfilePage from '../pages/ProfilePage';
 
 function ProtectedRoute() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (user?.passwordChangeRequired) {
+    return <Navigate to="/change-password-required" replace />;
   }
 
   return <AdminLayout />;
@@ -43,6 +49,7 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/change-password-required" element={<ForceChangePasswordPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -131,6 +138,14 @@ export default function AppRoutes() {
           element={
             <ModuleRoute moduleKey="settings">
               <CategoriesPage />
+            </ModuleRoute>
+          }
+        />
+        <Route
+          path="/settings/districts"
+          element={
+            <ModuleRoute moduleKey="settings">
+              <DistrictsPage />
             </ModuleRoute>
           }
         />

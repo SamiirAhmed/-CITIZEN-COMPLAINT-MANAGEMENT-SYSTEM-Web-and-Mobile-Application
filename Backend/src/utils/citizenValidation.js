@@ -11,6 +11,8 @@ export const validateCitizenRegistration = ({
   email,
   password,
   confirmPassword,
+  region,
+  district,
 }) => {
   const trimmedName = String(name ?? '').trim();
   const trimmedNira = String(niraId ?? '').trim();
@@ -66,6 +68,17 @@ export const validateCitizenRegistration = ({
     };
   }
 
+  const trimmedRegion = String(region ?? '').trim();
+  const trimmedDistrict = String(district ?? '').trim();
+
+  if (!trimmedRegion) {
+    return { ok: false, message: 'Region is required.' };
+  }
+
+  if (!trimmedDistrict) {
+    return { ok: false, message: 'District is required.' };
+  }
+
   return {
     ok: true,
     data: {
@@ -75,6 +88,8 @@ export const validateCitizenRegistration = ({
       tell: trimmedTell || '',
       email: trimmedEmail,
       password: rawPassword,
+      region: trimmedRegion,
+      district: trimmedDistrict,
     },
   };
 };

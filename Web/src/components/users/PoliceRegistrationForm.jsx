@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import PhoneInput from '../common/PhoneInput';
 import ProfileImageField from '../common/ProfileImageField';
-import { validatePoliceRegistration, validateStaffUserEdit } from '../../validation/userValidation';
+import GeographicSelect from '../common/GeographicSelect';
+import { validateStaffRegistration, validateStaffUserEdit } from '../../validation/userValidation';
 
 const REGISTER_INITIAL = {
   name: '',
   niraId: '',
   phone: '',
   email: '',
-  password: '',
-  confirmPassword: '',
+  role: 'police',
   badgeNumber: '',
   station: '',
+  region: '',
+  district: '',
 };
 
 const EDIT_INITIAL = {
@@ -20,6 +22,8 @@ const EDIT_INITIAL = {
   email: '',
   badgeNumber: '',
   station: '',
+  region: '',
+  district: '',
 };
 
 export default function PoliceRegistrationForm({
@@ -59,7 +63,7 @@ export default function PoliceRegistrationForm({
     setFormError('');
     const validation = isEdit
       ? validateStaffUserEdit(values, { profileImageFile })
-      : validatePoliceRegistration(values, { profileImageFile });
+      : validateStaffRegistration(values, { profileImageFile });
     setErrors(validation.errors);
     if (!validation.ok) return;
 
@@ -84,9 +88,22 @@ export default function PoliceRegistrationForm({
         disabled={submitting}
       />
 
+      {!isEdit ? (
+        <label className="field">
+          <span>Role</span>
+          <select name="role" value={values.role} onChange={handleChange} disabled={submitting}>
+            <option value="police">Police</option>
+            <option value="admin">Admin</option>
+          </select>
+          <small className="field-hint">Select whether this account is Admin or Police.</small>
+          {errors.role ? <em className="field-error">{errors.role}</em> : null}
+        </label>
+      ) : null}
+
       <label className="field">
         <span>Name</span>
         <input name="name" value={values.name} onChange={handleChange} maxLength={30} />
+        <small className="field-hint">Enter the user&apos;s full name.</small>
         {errors.name ? <em className="field-error">{errors.name}</em> : null}
       </label>
 
@@ -94,19 +111,15 @@ export default function PoliceRegistrationForm({
         <label className="field">
           <span>NIRA ID</span>
           <input name="niraId" value={values.niraId} onChange={handleChange} maxLength={11} />
+          <small className="field-hint">Enter the 11-character NIRA ID.</small>
           {errors.niraId ? <em className="field-error">{errors.niraId}</em> : null}
         </label>
       ) : null}
 
       <label className="field">
         <span>Email</span>
-        <input
-          name="email"
-          type="email"
-          value={values.email}
-          onChange={handleChange}
-          disabled={!isEdit && false}
-        />
+        <input name="email" type="email" value={values.email} onChange={handleChange} />
+        <small className="field-hint">Enter a valid email address.</small>
         {errors.email ? <em className="field-error">{errors.email}</em> : null}
       </label>
 
@@ -117,45 +130,32 @@ export default function PoliceRegistrationForm({
         error={errors.phone}
       />
 
+      <GeographicSelect
+        region={values.region}
+        district={values.district}
+        onRegionChange={(nextRegion) =>
+          setValues((prev) => ({ ...prev, region: nextRegion, district: '' }))
+        }
+        onDistrictChange={(nextDistrict) =>
+          setValues((prev) => ({ ...prev, district: nextDistrict }))
+        }
+        regionError={errors.region}
+        districtError={errors.district}
+        disabled={submitting}
+      />
+
       <label className="field">
         <span>Badge Number</span>
         <input name="badgeNumber" value={values.badgeNumber} onChange={handleChange} />
+        <small className="field-hint">Optional for admin accounts; required for police officers.</small>
+        {errors.badgeNumber ? <em className="field-error">{errors.badgeNumber}</em> : null}
       </label>
 
       <label className="field">
         <span>Station</span>
         <input name="station" value={values.station} onChange={handleChange} />
+        <small className="field-hint">Enter the assigned police station, if applicable.</small>
       </label>
-
-      {!isEdit ? (
-        <>
-          <label className="field">
-            <span>Password</span>
-            <input
-              name="password"
-              type="password"
-              value={values.password}
-              onChange={handleChange}
-              autoComplete="new-password"
-            />
-            {errors.password ? <em className="field-error">{errors.password}</em> : null}
-          </label>
-
-          <label className="field">
-            <span>Confirm Password</span>
-            <input
-              name="confirmPassword"
-              type="password"
-              value={values.confirmPassword}
-              onChange={handleChange}
-              autoComplete="new-password"
-            />
-            {errors.confirmPassword ? (
-              <em className="field-error">{errors.confirmPassword}</em>
-            ) : null}
-          </label>
-        </>
-      ) : null}
 
       <div className="form-actions">
         {onCancel ? (
@@ -164,7 +164,7 @@ export default function PoliceRegistrationForm({
           </button>
         ) : null}
         <button type="submit" className="btn btn--primary" disabled={submitting}>
-          {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Register police'}
+          {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Register user'}
         </button>
       </div>
     </form>

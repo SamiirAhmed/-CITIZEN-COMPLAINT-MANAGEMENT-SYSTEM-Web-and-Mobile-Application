@@ -78,9 +78,13 @@ export default function ProfilePage() {
   const handlePasswordSubmit = async (payload) => {
     setSubmitting(true);
     try {
-      const message = await changeMyPassword(payload);
+      const updated = await changeMyPassword(payload);
+      if (updated) {
+        setProfile(updated);
+        applyUser(updated);
+      }
       setPasswordOpen(false);
-      setNotice(message || 'Password changed successfully.');
+      setNotice('Password changed successfully.');
       if (location.hash === '#password') {
         navigate('/profile', { replace: true });
       }

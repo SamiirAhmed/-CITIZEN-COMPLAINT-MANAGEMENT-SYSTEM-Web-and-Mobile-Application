@@ -137,31 +137,52 @@ class CitizenAppLayoutState extends State<CitizenAppLayout> {
         index: _index,
         children: _pages,
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        backgroundColor: AppColors.white,
-        indicatorColor: AppColors.spfBlue.withValues(alpha: 0.12),
-        onDestinationSelected: selectTab,
-        destinations: [
-          for (var i = 0; i < destinations.length; i++)
-            NavigationDestination(
-              icon: i == 3
-                  ? Badge(
-                      isLabelVisible: _unread > 0,
-                      label: Text('$_unread'),
-                      child: Icon(destinations[i].icon),
-                    )
-                  : Icon(destinations[i].icon),
-              selectedIcon: i == 3
-                  ? Badge(
-                      isLabelVisible: _unread > 0,
-                      label: Text('$_unread'),
-                      child: Icon(destinations[i].selectedIcon),
-                    )
-                  : Icon(destinations[i].selectedIcon),
-              label: destinations[i].label,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.navy.withValues(alpha: 0.06),
+              blurRadius: 18,
+              offset: const Offset(0, -4),
             ),
-        ],
+          ],
+        ),
+        child: SafeArea(
+          top: false,
+          child: NavigationBar(
+            selectedIndex: _index,
+            backgroundColor: AppColors.white,
+            surfaceTintColor: Colors.transparent,
+            indicatorColor: AppColors.spfBlue.withValues(alpha: 0.12),
+            elevation: 0,
+            height: 68,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            onDestinationSelected: selectTab,
+            destinations: [
+              for (var i = 0; i < destinations.length; i++)
+                NavigationDestination(
+                  icon: i == 3
+                      ? Badge(
+                          isLabelVisible: _unread > 0,
+                          label: Text('$_unread'),
+                          backgroundColor: AppColors.error,
+                          child: Icon(destinations[i].icon),
+                        )
+                      : Icon(destinations[i].icon),
+                  selectedIcon: i == 3
+                      ? Badge(
+                          isLabelVisible: _unread > 0,
+                          label: Text('$_unread'),
+                          backgroundColor: AppColors.error,
+                          child: Icon(destinations[i].selectedIcon),
+                        )
+                      : Icon(destinations[i].selectedIcon),
+                  label: destinations[i].label,
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

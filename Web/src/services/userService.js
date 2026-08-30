@@ -33,14 +33,24 @@ export async function getUserById(id) {
   return response?.data?.user || null;
 }
 
-export async function registerPolice(payload) {
+export async function registerStaff(payload) {
   const { profileImageFile, ...fields } = payload;
   const formData = toFormData(fields, profileImageFile);
-  const response = await apiRequest('/admin/users/police', {
+  const response = await apiRequest('/admin/users/staff', {
     method: 'POST',
     formData,
   });
-  return response?.data?.user;
+  return {
+    user: response?.data?.user,
+    message: response?.message,
+    credentialsNotice: response?.data?.credentialsNotice,
+  };
+}
+
+/** @deprecated Use registerStaff */
+export async function registerPolice(payload) {
+  const result = await registerStaff(payload);
+  return result.user;
 }
 
 export async function updateUser(id, payload) {

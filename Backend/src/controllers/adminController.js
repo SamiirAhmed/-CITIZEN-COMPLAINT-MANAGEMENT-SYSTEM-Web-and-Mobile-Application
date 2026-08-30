@@ -13,6 +13,8 @@ import {
   profileImagePublicPath,
   removeProfileImageFile,
 } from '../middleware/uploadProfileImage.js';
+import { getDefaultUserPassword } from '../utils/defaultPassword.js';
+import { applyGeographicLocation, applyGeographicSelection } from '../utils/geographyHelpers.js';
 
 const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -548,23 +550,27 @@ export const listStaffUsers = asyncHandler(async (req, res) => {
   });
 });
 
-export const registerPolice = asyncHandler(async (req, res) => {
+export const registerStaffUser = asyncHandler(async (req, res) => {
   const {
     name,
     niraId,
     phone,
     email,
-    password,
-    confirmPassword,
+    role,
     badgeNumber,
     station,
+    geographicLocationId,
+    region,
+    district,
+    village,
+    area,
   } = req.body;
 
   const trimmedName = String(name ?? '').trim();
   const trimmedNira = String(niraId ?? '').trim();
   const trimmedPhone = String(phone ?? '').trim();
   const trimmedEmail = String(email ?? '').trim().toLowerCase();
-  const rawPassword = String(password ?? '');
+  const staffRole = String(role ?? 'police').trim().toLowerCase();
   const uploadedPath = req.file ? profileImagePublicPath(req.file.filename) : '';
 
   const fail = (status, message) => {
@@ -590,11 +596,8 @@ export const registerPolice = asyncHandler(async (req, res) => {
   if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
     return fail(400, 'Please enter a valid email address.');
   }
-  if (!rawPassword || rawPassword.length < 8) {
-    return fail(400, 'Password must be at least 8 characters.');
-  }
-  if (confirmPassword !== undefined && rawPassword !== confirmPassword) {
-    return fail(400, 'Password and confirm password do not match.');
+  if (staffRole !== 'admin' && staffRole !== 'police') {
+    return fail(400, 'Role must be Admin or Police.');
   }
   if (!req.file) {
     return fail(400, 'Profile image is required.');
@@ -602,7 +605,7 @@ export const registerPolice = asyncHandler(async (req, res) => {
 
   const existingEmail = await User.findOne({ email: trimmedEmail });
   if (existingEmail) {
-    return fail(409, 'An account with this email already exists.');
+    return fail(409, 'A user with this email already exists.');
   }
 
   const existingNira = await User.findOne({ niraId: trimmedNira });
@@ -610,20 +613,41 @@ export const registerPolice = asyncHandler(async (req, res) => {
     return fail(409, 'An account with this NIRA ID already exists.');
   }
 
-  const user = await User.create({
+  let defaultPassword;
+  try {
+    defaultPassword = getDefaultUserPassword();
+  } catch (error) {
+    return fail(500, error.message);
+  }
+
+  const user = new User({
     name: trimmedName,
     niraId: trimmedNira,
     phone: trimmedPhone,
     tell: '',
     email: trimmedEmail,
-    password: rawPassword,
-    role: 'police',
+    password: defaultPassword,
+    role: staffRole,
     badgeNumber: badgeNumber ? String(badgeNumber).trim() : '',
     station: station ? String(station).trim() : '',
     profileImage: uploadedPath,
     isActive: true,
-    menuPermissions: DEFAULT_POLICE_PERMISSIONS,
+    passwordChangeRequired: true,
+    menuPermissions: staffRole === 'police' ? DEFAULT_POLICE_PERMISSIONS : [],
   });
+
+  let geoResult;
+  if (geographicLocationId) {
+    geoResult = await applyGeographicLocation(user, geographicLocationId);
+  } else {
+    geoResult = await applyGeographicSelection(user, { region, district, village, area });
+  }
+
+  if (!geoResult.ok) {
+    return fail(400, geoResult.message);
+  }
+
+  await user.save();
 
   await createAuditLog({
     actor: req.user,
@@ -632,17 +656,24 @@ export const registerPolice = asyncHandler(async (req, res) => {
     recordId: user._id,
     recordLabel: user.name,
     previousValue: '',
-    newValue: user.profileImage || 'Police registered',
-    details: `Police user ${user.email} registered with profile image.`,
+    newValue: user.profileImage || `${staffRole} registered`,
+    details: `${staffRole} user ${user.email} registered with profile image.`,
     ipAddress: getRequestIp(req),
   });
 
   return res.status(201).json({
     success: true,
-    message: 'Police user registered successfully.',
-    data: { user: user.toSafeObject() },
+    message: `${staffRole === 'admin' ? 'Admin' : 'Police'} user registered successfully. Share the account email and your organization's initial password with the user securely.`,
+    data: {
+      user: user.toSafeObject(),
+      credentialsNotice:
+        'Provide the user with their email and the initial password through your secure channel.',
+    },
   });
 });
+
+/** @deprecated Use registerStaffUser — kept for route compatibility */
+export const registerPolice = registerStaffUser;
 
 export const getStaffUserById = asyncHandler(async (req, res) => {
   const user = await User.findOne({
@@ -679,7 +710,7 @@ export const updateStaffUser = asyncHandler(async (req, res) => {
     });
   }
 
-  const { name, phone, badgeNumber, station, email } = req.body;
+  const { name, phone, badgeNumber, station, email, geographicLocationId, region, district, village, area } = req.body;
   const previousImage = user.profileImage || '';
 
   if (name !== undefined) {
@@ -751,6 +782,24 @@ export const updateStaffUser = asyncHandler(async (req, res) => {
 
   if (station !== undefined) {
     user.station = String(station).trim();
+  }
+
+  if (geographicLocationId || region || district) {
+    let geoResult;
+    if (geographicLocationId) {
+      geoResult = await applyGeographicLocation(user, geographicLocationId);
+    } else {
+      geoResult = await applyGeographicSelection(user, { region, district, village, area });
+    }
+    if (!geoResult.ok) {
+      if (req.file?.filename) {
+        removeProfileImageFile(profileImagePublicPath(req.file.filename));
+      }
+      return res.status(400).json({
+        success: false,
+        message: geoResult.message,
+      });
+    }
   }
 
   if (req.file) {

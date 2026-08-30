@@ -1,17 +1,19 @@
 import { validateProfileImageFile } from './imageValidation';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const STAFF_ROLES = new Set(['admin', 'police']);
 
-export function validatePoliceRegistration(values, { profileImageFile } = {}) {
+export function validateStaffRegistration(values, { profileImageFile } = {}) {
   const errors = {};
   const name = String(values.name ?? '').trim();
   const niraId = String(values.niraId ?? '').trim();
   const phone = String(values.phone ?? '').trim();
   const email = String(values.email ?? '').trim().toLowerCase();
-  const password = String(values.password ?? '');
-  const confirmPassword = String(values.confirmPassword ?? '');
+  const role = String(values.role ?? 'police').trim().toLowerCase();
   const badgeNumber = String(values.badgeNumber ?? '').trim();
   const station = String(values.station ?? '').trim();
+  const region = String(values.region ?? '').trim();
+  const district = String(values.district ?? '').trim();
 
   if (!name) {
     errors.name = 'Name is required.';
@@ -26,7 +28,7 @@ export function validatePoliceRegistration(values, { profileImageFile } = {}) {
   }
 
   if (!phone) {
-    errors.phone = 'Phone Number is required.';
+    errors.phone = 'Phone is required.';
   }
 
   if (!email) {
@@ -35,16 +37,16 @@ export function validatePoliceRegistration(values, { profileImageFile } = {}) {
     errors.email = 'Please enter a valid email address.';
   }
 
-  if (!password) {
-    errors.password = 'Password is required.';
-  } else if (password.length < 8) {
-    errors.password = 'Password must be at least 8 characters.';
+  if (!STAFF_ROLES.has(role)) {
+    errors.role = 'Role must be Admin or Police.';
   }
 
-  if (!confirmPassword) {
-    errors.confirmPassword = 'Confirm password is required.';
-  } else if (password !== confirmPassword) {
-    errors.confirmPassword = 'Password and confirm password do not match.';
+  if (!region) {
+    errors.region = 'Region is required.';
+  }
+
+  if (!district) {
+    errors.district = 'District is required.';
   }
 
   const imageCheck = validateProfileImageFile(profileImageFile, { required: true });
@@ -60,14 +62,18 @@ export function validatePoliceRegistration(values, { profileImageFile } = {}) {
       niraId,
       phone,
       email,
-      password,
-      confirmPassword,
+      role,
       badgeNumber,
       station,
+      region,
+      district,
       profileImageFile: profileImageFile || null,
     },
   };
 }
+
+/** @deprecated Use validateStaffRegistration */
+export const validatePoliceRegistration = validateStaffRegistration;
 
 export function validateStaffUserEdit(values, { profileImageFile } = {}) {
   const errors = {};
@@ -76,6 +82,8 @@ export function validateStaffUserEdit(values, { profileImageFile } = {}) {
   const email = String(values.email ?? '').trim().toLowerCase();
   const badgeNumber = String(values.badgeNumber ?? '').trim();
   const station = String(values.station ?? '').trim();
+  const region = String(values.region ?? '').trim();
+  const district = String(values.district ?? '').trim();
 
   if (!name) {
     errors.name = 'Name is required.';
@@ -84,11 +92,15 @@ export function validateStaffUserEdit(values, { profileImageFile } = {}) {
   }
 
   if (!phone) {
-    errors.phone = 'Phone Number is required.';
+    errors.phone = 'Phone is required.';
   }
 
   if (email && !EMAIL_PATTERN.test(email)) {
     errors.email = 'Please enter a valid email address.';
+  }
+
+  if (region && !district) {
+    errors.district = 'District is required when region is selected.';
   }
 
   if (profileImageFile) {
@@ -107,6 +119,8 @@ export function validateStaffUserEdit(values, { profileImageFile } = {}) {
       email,
       badgeNumber,
       station,
+      region,
+      district,
       profileImageFile: profileImageFile || null,
     },
   };

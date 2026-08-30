@@ -4,7 +4,7 @@ const SETTINGS_ITEMS = [
   {
     to: '/settings/users',
     title: 'Users',
-    description: 'View staff accounts, register police officers, and manage profile photos.',
+    description: 'View staff accounts, register admin/police users, and manage profile photos.',
     badge: 'Staff',
     tone: 'users',
     icon: (
@@ -42,6 +42,21 @@ const SETTINGS_ITEMS = [
         <path
           fill="currentColor"
           d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"
+        />
+      </svg>
+    ),
+  },
+  {
+    to: '/settings/districts',
+    title: 'Districts',
+    description: 'View district, village, and area records from the shared geographic database.',
+    badge: 'Geography',
+    tone: 'districts',
+    icon: (
+      <svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7Zm0 9.5A2.5 2.5 0 1 1 12 6a2.5 2.5 0 0 1 0 5.5Z"
         />
       </svg>
     ),

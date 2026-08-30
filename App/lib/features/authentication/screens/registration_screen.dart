@@ -14,6 +14,7 @@ import '../../../core/widgets/confirmation_dialog.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/text_input_field.dart';
 import '../../../services/authentication_service.dart';
+import '../../../services/geography_service.dart';
 
 class RegistrationScreen extends StatefulWidget {
   const RegistrationScreen({super.key});
@@ -35,6 +36,49 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   String? _error;
+  List<String> _regions = [];
+  List<String> _districts = [];
+  String? _selectedRegion;
+  String? _selectedDistrict;
+  bool _loadingRegions = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadRegions());
+  }
+
+  Future<void> _loadRegions() async {
+    final geography = context.read<GeographyService>();
+    try {
+      final regions = await geography.listRegions();
+      if (!mounted) return;
+      setState(() {
+        _regions = regions;
+        _loadingRegions = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingRegions = false;
+        _error = 'Unable to load regions. Check your connection.';
+      });
+    }
+  }
+
+  Future<void> _loadDistricts(String region) async {
+    final geography = context.read<GeographyService>();
+    try {
+      final districts = await geography.listDistricts(region);
+      if (!mounted) return;
+      setState(() {
+        _districts = districts;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = 'Unable to load districts.');
+    }
+  }
 
   @override
   void dispose() {
@@ -82,6 +126,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       setState(() => _error = 'Profile image is required.');
       return;
     }
+    if (_selectedRegion == null || _selectedRegion!.isEmpty) {
+      setState(() => _error = 'Region is required.');
+      return;
+    }
+    if (_selectedDistrict == null || _selectedDistrict!.isEmpty) {
+      setState(() => _error = 'District is required.');
+      return;
+    }
 
     setState(() => _error = null);
 
@@ -95,6 +147,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         password: _password.text,
         confirmPassword: _confirm.text,
         profileImagePath: _profileImage!.path,
+        region: _selectedRegion!,
+        district: _selectedDistrict!,
       );
       if (!mounted) return;
 
@@ -202,6 +256,71 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   keyboardType: TextInputType.emailAddress,
                   prefixIcon: Icons.email_outlined,
                   validator: AuthenticationValidator.email,
+                ),
+                const SizedBox(height: 14),
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Region',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _selectedRegion,
+                      hint: Text(_loadingRegions ? 'Loading regions…' : 'Select region'),
+                      items: _regions
+                          .map(
+                            (region) => DropdownMenuItem(
+                              value: region,
+                              child: Text(region),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _loadingRegions
+                          ? null
+                          : (value) {
+                              setState(() {
+                                _selectedRegion = value;
+                                _selectedDistrict = null;
+                                _districts = [];
+                              });
+                              if (value != null) {
+                                _loadDistricts(value);
+                              }
+                            },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'District',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _selectedDistrict,
+                      hint: Text(
+                        _selectedRegion == null
+                            ? 'Select region first'
+                            : 'Select district',
+                      ),
+                      items: _districts
+                          .map(
+                            (district) => DropdownMenuItem(
+                              value: district,
+                              child: Text(district),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _selectedRegion == null
+                          ? null
+                          : (value) {
+                              setState(() => _selectedDistrict = value);
+                            },
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 14),
                 TextInputField(

@@ -5,6 +5,8 @@ export default function ChangePasswordForm({
   submitting = false,
   onCancel,
   onSubmit,
+  submitLabel = 'Update Password',
+  hideCancel = false,
 }) {
   const [values, setValues] = useState({
     currentPassword: '',
@@ -51,6 +53,7 @@ export default function ChangePasswordForm({
           onChange={handleChange}
           autoComplete="current-password"
         />
+        <small className="field-hint">Enter your current password.</small>
         {errors.currentPassword ? (
           <em className="field-error">{errors.currentPassword}</em>
         ) : null}
@@ -65,6 +68,7 @@ export default function ChangePasswordForm({
           onChange={handleChange}
           autoComplete="new-password"
         />
+        <small className="field-hint">Use at least 8 characters.</small>
         {errors.newPassword ? <em className="field-error">{errors.newPassword}</em> : null}
       </label>
 
@@ -77,19 +81,20 @@ export default function ChangePasswordForm({
           onChange={handleChange}
           autoComplete="new-password"
         />
+        <small className="field-hint">Re-enter your new password.</small>
         {errors.confirmPassword ? (
           <em className="field-error">{errors.confirmPassword}</em>
         ) : null}
       </label>
 
       <div className="form-actions">
-        {onCancel ? (
+        {!hideCancel && onCancel ? (
           <button type="button" className="btn btn--ghost" onClick={onCancel} disabled={submitting}>
             Cancel
           </button>
         ) : null}
         <button type="submit" className="btn btn--primary" disabled={submitting}>
-          {submitting ? 'Updating…' : 'Update Password'}
+          {submitting ? 'Updating…' : submitLabel}
         </button>
       </div>
     </form>

@@ -53,6 +53,35 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    geographicLocationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'GeographicLocation',
+      default: null,
+    },
+    region: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    district: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    village: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    area: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    passwordChangeRequired: {
+      type: Boolean,
+      default: false,
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -110,6 +139,14 @@ userSchema.methods.toSafeObject = function toSafeObject() {
     role: this.role,
     badgeNumber: this.badgeNumber || '',
     station: this.station || '',
+    region: this.region || '',
+    district: this.district || '',
+    village: this.village || '',
+    area: this.area || '',
+    geographicLocationId: this.geographicLocationId
+      ? this.geographicLocationId.toString()
+      : '',
+    passwordChangeRequired: this.passwordChangeRequired === true,
     isActive: this.isActive !== false,
     profileImage: this.profileImage || '',
     menuPermissions: permissions,

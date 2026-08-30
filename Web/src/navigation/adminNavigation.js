@@ -78,6 +78,13 @@ export const adminNavigation = [
         icon: 'categories',
         moduleKey: 'settings',
       },
+      {
+        id: 'districts',
+        label: 'Districts',
+        path: '/settings/districts',
+        icon: 'districts',
+        moduleKey: 'settings',
+      },
     ],
   },
   {
