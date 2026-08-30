@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export default function Modal({
   open,
@@ -26,7 +27,7 @@ export default function Modal({
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
       className="modal-backdrop"
       onClick={onClose || undefined}
@@ -52,6 +53,7 @@ export default function Modal({
         <div className="modal__body">{children}</div>
         {footer ? <div className="modal__footer">{footer}</div> : null}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

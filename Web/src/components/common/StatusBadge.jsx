@@ -6,27 +6,16 @@ const STATUS_MAP = {
   verified: { label: 'Verified', tone: 'info' },
   'ob created': { label: 'OB Created', tone: 'info' },
   'under investigation': { label: 'Under Investigation', tone: 'warning' },
-  'investigation completed': { label: 'Investigation Completed', tone: 'info' },
+  'investigation completed': { label: 'Investigation Completed', tone: 'success' },
   resolved: { label: 'Resolved', tone: 'success' },
   closed: { label: 'Closed', tone: 'neutral' },
   rejected: { label: 'Rejected', tone: 'danger' },
   reopened: { label: 'Reopened', tone: 'warning' },
-  opened: { label: 'Opened', tone: 'warning' },
+  opened: { label: 'Opened', tone: 'info' },
   open: { label: 'Open', tone: 'warning' },
-  opened: { label: 'Opened', tone: 'warning' },
   pending: { label: 'Pending', tone: 'warning' },
   assigned: { label: 'Assigned', tone: 'info' },
   investigating: { label: 'Investigating', tone: 'warning' },
-<<<<<<< HEAD
-  'under investigation': { label: 'Under Investigation', tone: 'warning' },
-  'investigation completed': { label: 'Investigation Completed', tone: 'info' },
-  reopened: { label: 'Reopened', tone: 'danger' },
-=======
-  opened: { label: 'Opened', tone: 'info' },
-  'under investigation': { label: 'Under Investigation', tone: 'warning' },
-  'investigation completed': { label: 'Investigation Completed', tone: 'success' },
-  reopened: { label: 'Reopened', tone: 'warning' },
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 };
 
 export default function StatusBadge({ status }) {

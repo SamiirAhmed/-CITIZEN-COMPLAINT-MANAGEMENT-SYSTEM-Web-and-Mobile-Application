@@ -1,5 +1,4 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const TOKEN_KEY = 'spo_admin_token';
 const USER_KEY = 'spo_admin_user';
@@ -28,9 +27,8 @@ export function clearSession() {
 }
 
 function redirectToLogin() {
-  const next = window.location.pathname.startsWith('/police') ? '/police/login' : '/login';
-  if (window.location.pathname !== next) {
-    window.location.assign(next);
+  if (window.location.pathname !== '/login') {
+    window.location.assign('/login');
   }
 }
 

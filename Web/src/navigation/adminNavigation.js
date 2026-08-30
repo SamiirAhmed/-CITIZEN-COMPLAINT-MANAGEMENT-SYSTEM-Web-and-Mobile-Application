@@ -1,10 +1,6 @@
-<<<<<<< HEAD
-﻿export const adminNavigation = [
-=======
 import { policeNavigation } from './policeNavigation';
 
 export const adminNavigation = [
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -34,30 +30,17 @@ export const adminNavigation = [
     label: 'OB Records',
     path: '/ob-records',
     icon: 'ob',
-<<<<<<< HEAD
-=======
     moduleKey: 'ob-records',
     section: 'main',
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   },
   {
     id: 'reports',
     label: 'Reports',
     path: '/reports',
     icon: 'reports',
-<<<<<<< HEAD
-  },
-  {
-    id: 'notifications',
-    label: 'Notifications',
-    path: '/notifications',
-    icon: 'notifications',
-    comingSoon: true,
-=======
     comingSoon: true,
     moduleKey: 'reports',
     section: 'main',
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   },
   {
     id: 'audit-logs',
@@ -108,14 +91,11 @@ export const adminNavigation = [
   },
   {
     id: 'profile',
-    label: 'Edit Profile',
+    label: 'Profile',
     path: '/profile',
     icon: 'profile',
-<<<<<<< HEAD
-=======
     moduleKey: 'profile',
     section: 'system',
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   },
 ];
 
@@ -123,8 +103,6 @@ export function isSettingsPath(pathname) {
   return pathname === '/settings' || pathname.startsWith('/settings/');
 }
 
-<<<<<<< HEAD
-=======
 export function userHasModule(user, moduleKey) {
   if (!user) return false;
   if (user.role === 'admin') return true;
@@ -174,4 +152,3 @@ export function resolveNotificationPath(notification, user) {
   if (notification?.relatedComplaint) return '/complaints';
   return getHomePath(user);
 }
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706

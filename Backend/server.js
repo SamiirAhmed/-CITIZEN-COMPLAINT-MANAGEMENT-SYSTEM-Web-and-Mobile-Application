@@ -113,18 +113,12 @@ app.use((err, _req, res, _next) => {
 
 const startServer = async () => {
   try {
-<<<<<<< HEAD
     const connected = await connectDB();
     if (connected) {
       await seedStaffUsers();
       await seedComplaintCategories();
       await seedGeography();
     }
-=======
-    await connectDB();
-    await seedStaffUsers();
-    await seedComplaintCategories();
->>>>>>> da921d70880b08e5b0f04686ff0264e78d57ccae
 
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);

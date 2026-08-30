@@ -1,8 +1,3 @@
-<<<<<<< HEAD
-﻿import { apiRequest, getStoredToken, setSession } from './apiClient';
-
-export async function getCurrentUser() {
-=======
 import { apiRequest, getStoredToken, setSession } from './apiClient';
 
 function toFormData(fields = {}, file = null) {
@@ -18,39 +13,10 @@ function toFormData(fields = {}, file = null) {
 }
 
 export async function getMyProfile() {
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   const response = await apiRequest('/auth/me');
   return response?.data?.user || null;
 }
 
-<<<<<<< HEAD
-export async function updateProfile(payload) {
-  const response = await apiRequest('/auth/profile', {
-    method: 'PUT',
-    body: payload,
-  });
-  const user = response?.data?.user;
-  if (user) {
-    const token = getStoredToken();
-    if (token) {
-      setSession(token, user);
-    }
-  }
-  return {
-    user,
-    message: response?.message || 'Profile updated successfully!',
-  };
-}
-
-export async function changePassword(payload) {
-  const response = await apiRequest('/auth/change-password', {
-    method: 'PUT',
-    body: payload,
-  });
-  return {
-    message: response?.message || 'Password changed successfully.',
-  };
-=======
 export async function updateMyProfile(payload) {
   const { profileImageFile, ...fields } = payload;
   let response;
@@ -79,14 +45,9 @@ export async function changeMyPassword({ currentPassword, newPassword, confirmPa
     method: 'PUT',
     body: { currentPassword, newPassword, confirmPassword },
   });
-<<<<<<< HEAD
   const user = response?.data?.user || null;
   if (user) {
     setSession(getStoredToken(), user);
   }
   return user;
-=======
-  return response?.message || 'Password changed successfully.';
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
->>>>>>> da921d70880b08e5b0f04686ff0264e78d57ccae
 }

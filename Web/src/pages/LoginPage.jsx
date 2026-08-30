@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import LOGO_SRC from '../assets/branding';
 import { useAuth } from '../context/AuthContext';
-import { getFirstAllowedPath } from '../navigation/adminNavigation';
-import { validateLogin } from '../validation/authenticationValidation';
 import { getHomePath } from '../navigation/adminNavigation';
+import { validateLogin } from '../validation/authenticationValidation';
 
 export default function LoginPage() {
   const { isAuthenticated, user, login } = useAuth();
@@ -15,14 +14,10 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated) {
-<<<<<<< HEAD
     if (user?.passwordChangeRequired) {
       return <Navigate to="/change-password-required" replace />;
     }
-    return <Navigate to={getFirstAllowedPath(user)} replace />;
-=======
     return <Navigate to={getHomePath(user)} replace />;
->>>>>>> da921d70880b08e5b0f04686ff0264e78d57ccae
   }
 
   const handleChange = (event) => {
@@ -40,15 +35,11 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const result = await login(validation.data.email, validation.data.password);
-<<<<<<< HEAD
       if (result.user?.passwordChangeRequired) {
         navigate('/change-password-required', { replace: true });
       } else {
-        navigate(getFirstAllowedPath(result.user), { replace: true });
+        navigate(getHomePath(result.user), { replace: true });
       }
-=======
-      navigate(getHomePath(result.user), { replace: true });
->>>>>>> da921d70880b08e5b0f04686ff0264e78d57ccae
     } catch (error) {
       setFormError(error.message || 'Unable to sign in.');
     } finally {
