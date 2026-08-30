@@ -58,7 +58,7 @@ export default function DashboardPage() {
 
   const summary = data?.summary || {};
   const trends = data?.cardTrends || {};
-  const displayName = user?.name || 'System Administrator';
+  const displayName = user?.name || 'Admin';
   const { date, time } = formatDateTime(now);
 
   return (

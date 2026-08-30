@@ -87,11 +87,6 @@ export default function PermissionsPage() {
     [policeUsers, selectedUserId]
   );
 
-  const enabledCount = useMemo(
-    () => selectedPermissions.filter((key) => key !== 'profile').length,
-    [selectedPermissions]
-  );
-
   const togglePermission = (moduleKey) => {
     if (moduleKey === 'profile') return;
 
@@ -141,16 +136,6 @@ export default function PermissionsPage() {
             Select a police user and choose which sidebar menus they can see in SPO. Admin accounts
             always retain full access.
           </p>
-        </div>
-        <div className="access-hero__stats">
-          <div className="access-stat">
-            <strong>{policeUsers.length}</strong>
-            <span>Police users</span>
-          </div>
-          <div className="access-stat">
-            <strong>{selectedUserId ? enabledCount : '—'}</strong>
-            <span>Menus enabled</span>
-          </div>
         </div>
       </section>
 

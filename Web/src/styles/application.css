@@ -564,6 +564,7 @@ select:focus {
 
 .admin-header__right {
   justify-content: flex-end;
+  gap: 0.55rem;
 }
 
 .admin-header__eyebrow {

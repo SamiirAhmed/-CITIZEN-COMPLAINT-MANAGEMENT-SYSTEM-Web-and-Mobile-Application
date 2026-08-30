@@ -1,8 +1,12 @@
 import { Router } from 'express';
 import {
+  adminCreateComplaint,
   adminCreateOB,
+  adminDeleteComplaint,
+  adminGetComplaintById,
   adminListComplaints,
   adminReviewComplaint,
+  adminUpdateComplaint,
   getCategories,
   getCitizenDashboard,
   getMyComplaintById,
@@ -20,6 +24,10 @@ router.get('/mine/:id', ...citizenOnly, getMyComplaintById);
 router.post('/', ...citizenOnly, submitComplaint);
 
 router.get('/admin/all', ...staffOnly, adminListComplaints);
+router.post('/admin', ...adminOnly, adminCreateComplaint);
+router.get('/admin/:id', ...staffOnly, adminGetComplaintById);
+router.put('/admin/:id', ...adminOnly, adminUpdateComplaint);
+router.delete('/admin/:id', ...adminOnly, adminDeleteComplaint);
 router.patch('/admin/:id/review', ...adminOnly, adminReviewComplaint);
 router.post('/admin/:id/ob', ...adminOnly, adminCreateOB);
 

@@ -112,7 +112,7 @@ export default function ProfilePage() {
         </div>
         <div className="profile-hero-card__copy">
           <p className="settings-hub__eyebrow">Admin Profile</p>
-          <h1>{profile.name || 'System Administrator'}</h1>
+          <h1>{profile.name || 'Admin'}</h1>
           <p className="profile-hero-card__role">{roleLabel}</p>
           <div className="profile-hero__badges">
             <StatusBadge status={active ? 'Active' : 'Inactive'} />

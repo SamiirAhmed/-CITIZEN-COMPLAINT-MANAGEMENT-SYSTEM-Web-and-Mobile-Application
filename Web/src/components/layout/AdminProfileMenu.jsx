@@ -12,8 +12,9 @@ export default function AdminProfileMenu({ showMeta = false }) {
   const [signOutOpen, setSignOutOpen] = useState(false);
   const rootRef = useRef(null);
 
-  const displayName = user?.name || 'System Administrator';
+  const displayName = user?.name || 'Admin';
   const roleLabel = getRoleDisplayLabel(user?.role);
+  const headerLabel = user?.role === 'admin' ? 'Admin' : displayName;
   const active = user?.isActive !== false;
 
   useEffect(() => {
@@ -53,7 +54,7 @@ export default function AdminProfileMenu({ showMeta = false }) {
       <button
         type="button"
         className="profile-trigger"
-        aria-label={`Account menu for ${displayName}`}
+        aria-label={`Account menu for ${headerLabel}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
@@ -66,7 +67,7 @@ export default function AdminProfileMenu({ showMeta = false }) {
         />
         {showMeta ? (
           <span className="profile-trigger__meta">
-            <strong>{displayName}</strong>
+            <strong>{headerLabel}</strong>
           </span>
         ) : null}
         <span className="profile-trigger__chevron" aria-hidden="true">

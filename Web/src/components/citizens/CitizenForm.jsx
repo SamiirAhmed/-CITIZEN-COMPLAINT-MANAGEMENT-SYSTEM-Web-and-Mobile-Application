@@ -1,29 +1,49 @@
 import { useEffect, useState } from 'react';
 import PhoneInput from '../common/PhoneInput';
 import ProfileImageField from '../common/ProfileImageField';
-import { validateCitizenEdit } from '../../validation/citizenValidation';
+import {
+  validateCitizenEdit,
+  validateCitizenRegistration,
+} from '../../validation/citizenValidation';
 
-const INITIAL = { name: '', phone: '', email: '', niraId: '' };
+const REGISTER_INITIAL = {
+  name: '',
+  phone: '',
+  email: '',
+  niraId: '',
+  password: '',
+  confirmPassword: '',
+};
+
+const EDIT_INITIAL = { name: '', phone: '', email: '', niraId: '' };
 
 export default function CitizenForm({
-  initialValues = INITIAL,
+  mode = 'edit',
+  initialValues,
   currentImage = '',
   onSubmit,
   onCancel,
   submitting = false,
-  submitLabel = 'Save changes',
+  submitLabel,
 }) {
-  const [values, setValues] = useState({ ...INITIAL, ...initialValues });
+  const isRegister = mode === 'register';
+  const [values, setValues] = useState(
+    isRegister ? { ...REGISTER_INITIAL } : { ...EDIT_INITIAL, ...initialValues }
+  );
   const [profileImageFile, setProfileImageFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
-    setValues({ ...INITIAL, ...initialValues });
+    if (isRegister) {
+      setValues({ ...REGISTER_INITIAL });
+    } else {
+      setValues({ ...EDIT_INITIAL, ...initialValues });
+    }
     setProfileImageFile(null);
     setErrors({});
     setFormError('');
-  }, [initialValues]);
+  }, [initialValues, isRegister]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -33,7 +53,9 @@ export default function CitizenForm({
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFormError('');
-    const validation = validateCitizenEdit(values, { profileImageFile });
+    const validation = isRegister
+      ? validateCitizenRegistration(values, { profileImageFile })
+      : validateCitizenEdit(values, { profileImageFile });
     setErrors(validation.errors);
     if (!validation.ok) return;
 
@@ -51,6 +73,7 @@ export default function CitizenForm({
       <ProfileImageField
         name={values.name}
         currentSrc={currentImage}
+        required={isRegister}
         valueFile={profileImageFile}
         onChange={setProfileImageFile}
         error={errors.profileImage}
@@ -88,6 +111,36 @@ export default function CitizenForm({
         {errors.email ? <em className="field-error">{errors.email}</em> : null}
       </label>
 
+      {isRegister ? (
+        <>
+          <label className="field">
+            <span>Password</span>
+            <input
+              name="password"
+              type="password"
+              value={values.password}
+              onChange={handleChange}
+              autoComplete="new-password"
+            />
+            {errors.password ? <em className="field-error">{errors.password}</em> : null}
+          </label>
+
+          <label className="field">
+            <span>Confirm Password</span>
+            <input
+              name="confirmPassword"
+              type="password"
+              value={values.confirmPassword}
+              onChange={handleChange}
+              autoComplete="new-password"
+            />
+            {errors.confirmPassword ? (
+              <em className="field-error">{errors.confirmPassword}</em>
+            ) : null}
+          </label>
+        </>
+      ) : null}
+
       <div className="form-actions">
         {onCancel ? (
           <button type="button" className="btn btn--ghost" onClick={onCancel} disabled={submitting}>
@@ -95,7 +148,9 @@ export default function CitizenForm({
           </button>
         ) : null}
         <button type="submit" className="btn btn--primary" disabled={submitting}>
-          {submitting ? 'Saving…' : submitLabel}
+          {submitting
+            ? 'Saving…'
+            : submitLabel || (isRegister ? 'Register citizen' : 'Save changes')}
         </button>
       </div>
     </form>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+import CitizenDetails from '../components/citizens/CitizenDetails';
 import CitizenForm from '../components/citizens/CitizenForm';
 import CitizenTable from '../components/citizens/CitizenTable';
 import ConfirmDialog from '../components/common/ConfirmDialog';
@@ -7,13 +8,14 @@ import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import Modal from '../components/common/Modal';
 import {
+  getCitizenById,
   listCitizens,
+  registerCitizen,
   setCitizenStatus,
   updateCitizen,
 } from '../services/citizenService';
 
 export default function CitizensPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [citizens, setCitizens] = useState([]);
   const [search, setSearch] = useState(() => searchParams.get('search') || '');
@@ -21,7 +23,11 @@ export default function CitizensPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
+  const [registerOpen, setRegisterOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
+  const [viewComplaints, setViewComplaints] = useState([]);
+  const [viewOBRecords, setViewOBRecords] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState('');
   const [confirmTarget, setConfirmTarget] = useState(null);
@@ -51,6 +57,34 @@ export default function CitizensPage() {
     return () => clearTimeout(timer);
   }, [load]);
 
+  const handleRegister = async (payload) => {
+    setSubmitting(true);
+    try {
+      const created = await registerCitizen(payload);
+      setCitizens((prev) => [created, ...prev]);
+      setRegisterOpen(false);
+      setNotice('Citizen registered successfully.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleView = async (citizen) => {
+    setViewing(citizen);
+    setViewComplaints([]);
+    setViewOBRecords([]);
+    try {
+      const details = await getCitizenById(citizen.id);
+      if (details?.citizen) {
+        setViewing(details.citizen);
+        setViewComplaints(details.complaints || []);
+        setViewOBRecords(details.obRecords || []);
+      }
+    } catch {
+      // Keep list row data if details fetch fails.
+    }
+  };
+
   const handleToggleStatus = (citizen) => {
     const active = citizen.isActive !== false;
     setConfirmTarget({
@@ -71,6 +105,9 @@ export default function CitizensPage() {
     try {
       const updated = await setCitizenStatus(citizen.id, nextActive);
       setCitizens((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      if (viewing?.id === updated.id) {
+        setViewing(updated);
+      }
       setNotice(updated.isActive ? 'Citizen activated.' : 'Citizen deactivated.');
       setConfirmTarget(null);
     } catch (err) {
@@ -86,6 +123,9 @@ export default function CitizensPage() {
     try {
       const updated = await updateCitizen(editing.id, payload);
       setCitizens((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+      if (viewing?.id === updated.id) {
+        setViewing(updated);
+      }
       setEditing(null);
       setNotice('Citizen updated successfully.');
     } finally {
@@ -101,6 +141,9 @@ export default function CitizensPage() {
             <h2>Citizens</h2>
             <p className="muted">Search, review, and manage registered citizens.</p>
           </div>
+          <button type="button" className="btn btn--primary" onClick={() => setRegisterOpen(true)}>
+            Register Citizen
+          </button>
         </div>
 
         <div className="toolbar">
@@ -128,12 +171,26 @@ export default function CitizensPage() {
           <CitizenTable
             citizens={citizens}
             busyId={busyId}
-            onView={(citizen) => navigate(`/citizens/${citizen.id}`)}
+            onView={handleView}
             onEdit={setEditing}
             onToggleStatus={handleToggleStatus}
           />
         )}
       </section>
+
+      <Modal
+        open={registerOpen}
+        title="Register Citizen"
+        onClose={() => setRegisterOpen(false)}
+        size="lg"
+      >
+        <CitizenForm
+          mode="register"
+          submitting={submitting}
+          onCancel={() => setRegisterOpen(false)}
+          onSubmit={handleRegister}
+        />
+      </Modal>
 
       <Modal
         open={Boolean(editing)}
@@ -143,6 +200,7 @@ export default function CitizensPage() {
       >
         {editing ? (
           <CitizenForm
+            mode="edit"
             initialValues={{
               name: editing.name || '',
               phone: editing.phone || '',
@@ -155,6 +213,23 @@ export default function CitizensPage() {
             onSubmit={handleEditSubmit}
           />
         ) : null}
+      </Modal>
+
+      <Modal
+        open={Boolean(viewing)}
+        title="Citizen Details"
+        onClose={() => {
+          setViewing(null);
+          setViewComplaints([]);
+          setViewOBRecords([]);
+        }}
+        size="lg"
+      >
+        <CitizenDetails
+          citizen={viewing}
+          complaints={viewComplaints}
+          obRecords={viewOBRecords}
+        />
       </Modal>
 
       <ConfirmDialog
