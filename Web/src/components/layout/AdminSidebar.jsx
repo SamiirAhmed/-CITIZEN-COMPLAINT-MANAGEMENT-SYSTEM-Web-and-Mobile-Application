@@ -137,7 +137,7 @@ function NavItem({ item, collapsed, onNavigate, settingsOpen, onToggleSettings }
   return (
     <NavLink
       to={item.path}
-      end={item.path === '/dashboard'}
+      end={item.path === '/dashboard' || item.path === '/police/dashboard'}
       title={collapsed ? item.label : undefined}
       className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}
       onClick={onNavigate}

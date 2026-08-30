@@ -1,8 +1,8 @@
 export const policeNavigation = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
-    path: '/dashboard',
+    label: 'Police Dashboard',
+    path: '/police/dashboard',
     icon: 'dashboard',
     moduleKey: 'dashboard',
     section: 'main',

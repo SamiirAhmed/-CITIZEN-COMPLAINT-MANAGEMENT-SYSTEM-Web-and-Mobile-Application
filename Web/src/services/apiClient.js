@@ -28,8 +28,9 @@ export function clearSession() {
 }
 
 function redirectToLogin() {
-  if (window.location.pathname !== '/login') {
-    window.location.assign('/login');
+  const next = window.location.pathname.startsWith('/police') ? '/police/login' : '/login';
+  if (window.location.pathname !== next) {
+    window.location.assign(next);
   }
 }
 

@@ -85,7 +85,7 @@ export default function PoliceDashboardPage() {
     <div className="page-stack dashboard-page">
       <header className="dashboard-intro dashboard-intro--row">
         <div>
-          <h2>Dashboard</h2>
+          <h2>Police Dashboard</h2>
           <p>Welcome back, {displayName}</p>
         </div>
         <div className="dashboard-intro__actions">

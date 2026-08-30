@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import LOGO_SRC from '../assets/branding';
 import { useAuth } from '../context/AuthContext';
 import { validateLogin } from '../validation/authenticationValidation';
+import { getHomePath } from '../navigation/adminNavigation';
 
 export default function PoliceLoginPage() {
   const { isAuthenticated, user, login, logout } = useAuth();
@@ -13,11 +14,11 @@ export default function PoliceLoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated && user?.role === 'police') {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/police/dashboard" replace />;
   }
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={getHomePath(user)} replace />;
   }
 
   const handleChange = (event) => {
@@ -40,7 +41,7 @@ export default function PoliceLoginPage() {
         setFormError('This portal is for police officers. Administrators should use the Admin Portal.');
         return;
       }
-      navigate('/dashboard', { replace: true });
+      navigate('/police/dashboard', { replace: true });
     } catch (error) {
       setFormError(error.message || 'Unable to sign in.');
     } finally {

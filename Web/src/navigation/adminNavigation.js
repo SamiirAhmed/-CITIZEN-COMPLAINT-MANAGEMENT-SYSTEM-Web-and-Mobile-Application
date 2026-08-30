@@ -106,15 +106,18 @@ export function userHasModule(user, moduleKey) {
 export function filterNavigationForUser(user) {
   if (!user) return [];
   if (user.role === 'police') {
-    return policeNavigation.filter((item) => {
-      if (!item.moduleKey) return true;
-      return userHasModule(user, item.moduleKey);
-    });
+    return policeNavigation;
   }
   return adminNavigation.filter((item) => userHasModule(user, item.moduleKey));
 }
 
+export function getHomePath(user) {
+  if (user?.role === 'police') return '/police/dashboard';
+  return '/dashboard';
+}
+
 export function getFirstAllowedPath(user) {
+  if (user?.role === 'police') return getHomePath(user);
   const items = filterNavigationForUser(user);
   if (!items.length) return '/profile';
   const first = items[0];
@@ -128,12 +131,17 @@ export function resolveNotificationPath(notification, user) {
   if (user?.role === 'police' && notification?.relatedOB) {
     return `/ob-records/${notification.relatedOB}`;
   }
-  if (notification?.linkPath) return notification.linkPath;
+  if (notification?.linkPath) {
+    if (user?.role === 'police' && notification.linkPath === '/dashboard') {
+      return '/police/dashboard';
+    }
+    return notification.linkPath;
+  }
   if (notification?.relatedUser && String(notification.type || '').includes('citizen')) {
     return `/citizens/${notification.relatedUser}`;
   }
   if (notification?.relatedUser) return '/settings/users';
   if (notification?.relatedOB) return '/ob-records';
   if (notification?.relatedComplaint) return '/complaints';
-  return '/dashboard';
+  return getHomePath(user);
 }

@@ -74,7 +74,7 @@ export function validateChangePassword(values) {
 
 export function getRoleDisplayLabel(role) {
   if (role === 'admin') return 'Admin';
-  if (role === 'police') return 'Police';
+  if (role === 'police') return 'Police Officer';
   if (role === 'citizen') return 'Citizen';
   return role || '—';
 }

@@ -1,8 +1,9 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AdminLayout from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import {
   getFirstAllowedPath,
+  getHomePath,
   userHasModule,
 } from '../navigation/adminNavigation';
 import LoginPage from '../pages/LoginPage';
@@ -35,9 +36,11 @@ const ADMIN_ONLY_MODULES = new Set([
 
 function ProtectedRoute() {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    const loginPath = location.pathname.startsWith('/police') ? '/police/login' : '/login';
+    return <Navigate to={loginPath} replace />;
   }
 
   return <AdminLayout />;
@@ -46,8 +49,11 @@ function ProtectedRoute() {
 function ModuleRoute({ moduleKey, children }) {
   const { user } = useAuth();
 
-  if (user?.role === 'police' && ADMIN_ONLY_MODULES.has(moduleKey)) {
-    return <Navigate to={getFirstAllowedPath(user)} replace />;
+  if (user?.role === 'police') {
+    if (ADMIN_ONLY_MODULES.has(moduleKey)) {
+      return <Navigate to="/police/dashboard" replace />;
+    }
+    return children;
   }
 
   if (!userHasModule(user, moduleKey)) {
@@ -61,15 +67,30 @@ function PoliceRoute({ children }) {
   const { user } = useAuth();
 
   if (user?.role !== 'police') {
-    return <Navigate to={getFirstAllowedPath(user)} replace />;
+    return <Navigate to={getHomePath(user)} replace />;
   }
 
   return children;
 }
 
-function DashboardRoute() {
+function HomeRedirect() {
   const { user } = useAuth();
-  if (user?.role === 'police') return <PoliceDashboardPage />;
+  return <Navigate to={getHomePath(user)} replace />;
+}
+
+function CatchAllRedirect() {
+  const { isAuthenticated, user } = useAuth();
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  return <Navigate to={getHomePath(user)} replace />;
+}
+
+function AdminDashboardRoute() {
+  const { user } = useAuth();
+  if (user?.role === 'police') {
+    return <Navigate to="/police/dashboard" replace />;
+  }
   return <DashboardPage />;
 }
 
@@ -86,13 +107,21 @@ export default function AppRoutes() {
       <Route path="/police/login" element={<PoliceLoginPage />} />
 
       <Route element={<ProtectedRoute />}>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/" element={<HomeRedirect />} />
         <Route
           path="/dashboard"
           element={
             <ModuleRoute moduleKey="dashboard">
-              <DashboardRoute />
+              <AdminDashboardRoute />
             </ModuleRoute>
+          }
+        />
+        <Route
+          path="/police/dashboard"
+          element={
+            <PoliceRoute>
+              <PoliceDashboardPage />
+            </PoliceRoute>
           }
         />
         <Route
@@ -209,7 +238,7 @@ export default function AppRoutes() {
         />
       </Route>
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<CatchAllRedirect />} />
     </Routes>
   );
 }
