@@ -29,8 +29,8 @@ export default function RecentOccurrencesTable({ records, loading, onView, onEdi
   if (!records.length) {
     return (
       <div className="report-table-empty">
-        <h3>No recent occurrence records</h3>
-        <p>No occurrence data available for this period.</p>
+        <h3>No recent OB records</h3>
+        <p>No OB record data available for this period.</p>
       </div>
     );
   }
@@ -40,10 +40,10 @@ export default function RecentOccurrencesTable({ records, loading, onView, onEdi
       <table className="report-table">
         <thead>
           <tr>
-            <th>Occurrence ID</th>
+            <th>OB Number</th>
             <th>Date &amp; Time</th>
             <th>Citizen</th>
-            <th>Occurrence Type</th>
+            <th>Category</th>
             <th>Location</th>
             <th>Assigned Officer</th>
             <th>Status</th>

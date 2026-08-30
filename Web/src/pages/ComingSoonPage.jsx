@@ -7,7 +7,7 @@ const TITLES = {
   },
   'ob-records': {
     title: 'OB Records',
-    description: 'Occurrence book management tools will be available here soon.',
+    description: 'OB record management tools will be available here soon.',
   },
   reports: {
     title: 'Reports',

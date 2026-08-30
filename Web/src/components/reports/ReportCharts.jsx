@@ -84,7 +84,7 @@ export function OccurrenceTrendChart({
       ) : null}
 
       {!points.length ? (
-        <ChartEmpty message="No occurrence data available for this period." />
+        <ChartEmpty message="No OB record data available for this period." />
       ) : (
         <TrendSvg points={points} granularity={granularity} />
       )}
@@ -117,7 +117,7 @@ function TrendSvg({ points, granularity }) {
   };
 
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Occurrence trends chart">
+    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="OB record trends chart">
       {[0, 0.25, 0.5, 0.75, 1].map((tick) => {
         const y = pad.top + innerH - tick * innerH;
         const value = Math.round(max * tick);
@@ -180,7 +180,7 @@ export function StatusDonutChart({ byStatus = [], loading }) {
   if (!total) {
     return (
       <div className="report-chart report-chart--donut">
-        <ChartEmpty message="No occurrence data available for this period." />
+        <ChartEmpty message="No OB record data available for this period." />
       </div>
     );
   }
@@ -260,7 +260,7 @@ export function CategoryBarChart({ byCategory = [], loading }) {
   if (!rows.length) {
     return (
       <div className="report-chart report-chart--bars">
-        <ChartEmpty message="No occurrence data available for this period." />
+        <ChartEmpty message="No OB record data available for this period." />
       </div>
     );
   }

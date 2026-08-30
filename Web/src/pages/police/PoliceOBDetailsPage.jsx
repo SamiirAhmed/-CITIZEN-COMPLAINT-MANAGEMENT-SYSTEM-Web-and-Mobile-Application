@@ -189,7 +189,7 @@ export default function PoliceOBDetailsPage() {
         <div className="panel__header panel__header--spread">
           <div>
             <h2>{record.obNumber}</h2>
-            <p className="muted">Occurrence book details and investigation workspace.</p>
+            <p className="muted">OB record details and investigation workspace.</p>
           </div>
           <StatusBadge status={record.status} />
         </div>

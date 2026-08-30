@@ -6,7 +6,7 @@ import { formatDate } from './policeFormat';
 export default function PoliceOBTable({
   records = [],
   emptyTitle = 'No OB records found',
-  emptyMessage = 'Assigned occurrence book records will appear here.',
+  emptyMessage = 'Assigned OB records will appear here.',
   actionLabel = 'View',
 }) {
   const navigate = useNavigate();

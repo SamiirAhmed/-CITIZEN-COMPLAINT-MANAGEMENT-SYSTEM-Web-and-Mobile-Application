@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-=======
 import { Navigate, Route, Routes } from 'react-router-dom';
->>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 import AdminLayout from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import {

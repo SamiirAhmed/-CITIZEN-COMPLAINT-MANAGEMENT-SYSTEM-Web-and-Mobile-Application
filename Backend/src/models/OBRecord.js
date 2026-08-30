@@ -21,21 +21,6 @@ const updateSchema = new mongoose.Schema(
   { _id: false }
 );
 
-<<<<<<< HEAD
-const activitySchema = new mongoose.Schema(
-  {
-    action: { type: String, required: true },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    previousValue: { type: String, default: '' },
-    newValue: { type: String, default: '' },
-    note: { type: String, default: '' },
-    createdAt: { type: Date, default: Date.now },
-  },
-  { _id: false }
-);
-
-=======
->>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 const investigationNoteSchema = new mongoose.Schema(
   {
     note: { type: String, required: true },
@@ -239,7 +224,6 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
         name: this.assignedOfficer.name || '',
         badgeNumber: this.assignedOfficer.badgeNumber || '',
         station: this.assignedOfficer.station || '',
-        role: this.assignedOfficer.role || '',
       }
     : null;
 
@@ -262,34 +246,7 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
   return {
     id: this._id.toString(),
     obNumber: this.obNumber,
-    complaint: complaintInfo,
-    citizen: citizenInfo,
-    occurrenceDate: this.occurrenceDate,
-    occurrenceTime: this.occurrenceTime || '',
-    dateReported: this.dateReported,
-    timeReported: this.timeReported || '',
-    station: this.station || '',
-    complainantName: this.complainantName || '',
-    complainantPhone: this.complainantPhone || '',
-    complainantAddress: this.complainantAddress || '',
-    category: this.category || '',
-    occurrenceType: this.occurrenceType || '',
-    subject: this.subject || '',
-    description: this.description || '',
-    location: this.location || '',
-    district: this.district || '',
-    recordedBy: serializeUser(this.recordedBy),
-    createdBy: serializeUser(this.createdBy),
-    updatedBy: serializeUser(this.updatedBy),
-    assignedOfficer: assigned,
-    assignedAt: this.assignedAt,
-    priority: this.priority || 'MEDIUM',
     status: this.status,
-    actionTaken: this.actionTaken || '',
-    followUpDate: this.followUpDate,
-    followUpNotes: this.followUpNotes || '',
-    outcome: this.outcome || '',
-    additionalNotes: this.additionalNotes || '',
     investigationNotes: this.investigationNotes || '',
     investigationNoteEntries: noteEntries,
     investigationProgress: Number(this.investigationProgress || 0),
@@ -298,7 +255,10 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
     citizenSummary: this.citizenSummary || '',
     closureReason: this.closureReason || '',
     closedAt: this.closedAt,
-    closedBy: serializeUser(this.closedBy),
+    assignedAt: this.assignedAt,
+    assignedOfficer: assigned,
+    citizen: citizenInfo,
+    complaint: complaintInfo,
     evidence: (this.evidence || []).map((item) => ({
       id: item._id?.toString?.() || undefined,
       fileName: item.fileName || '',
@@ -312,18 +272,6 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
       title: item.title,
       note: item.note || '',
       visibleToCitizen: item.visibleToCitizen !== false,
-<<<<<<< HEAD
-      createdAt: item.createdAt,
-      createdBy: item.createdBy?.toString?.() || item.createdBy || null,
-    })),
-    activityHistory: (this.activityHistory || []).map((item) => ({
-      action: item.action,
-      user: serializeUser(item.user),
-      previousValue: item.previousValue || '',
-      newValue: item.newValue || '',
-      note: item.note || '',
-=======
->>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
       createdAt: item.createdAt,
     })),
     createdAt: this.createdAt,

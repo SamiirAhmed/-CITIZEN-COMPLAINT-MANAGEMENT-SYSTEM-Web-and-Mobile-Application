@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import ErrorState from '../components/common/ErrorState';import RecentOccurrencesTable from '../components/reports/RecentOccurrencesTable';
+import ErrorState from '../components/common/ErrorState';
+import RecentOccurrencesTable from '../components/reports/RecentOccurrencesTable';
 import {
   CategoryBarChart,
   OccurrenceTrendChart,
@@ -179,7 +180,7 @@ export default function ReportsPage() {
       <header className="reports-hero">
         <div className="reports-hero__intro">
           <h1>Reports &amp; Analytics</h1>
-          <p>Monitor occurrence records, complaints, and case activity</p>
+          <p>Monitor OB records, complaints, and case activity</p>
           <span className="reports-hero__period">{formatPeriodLabel(appliedFilters.range)}</span>
         </div>
 
@@ -194,7 +195,7 @@ export default function ReportsPage() {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search citizens, occurrence ID, or case…"
+              placeholder="Search citizens, OB number, or case…"
               aria-label="Search reports"
             />
           </form>
@@ -256,7 +257,7 @@ export default function ReportsPage() {
         <>
           <section className="reports-stats-grid" aria-label="Key statistics">
             <ReportStatCard
-              label="Total Occurrences"
+              label="Total OB Records"
               value={summary.total}
               description="All records in selected period"
               changePct={calcChangePct(summary.total, prevSummary.total)}
@@ -285,7 +286,7 @@ export default function ReportsPage() {
             <ReportStatCard
               label="Resolved Cases"
               value={summary.resolved}
-              description="Successfully resolved occurrences"
+              description="Successfully resolved OB records"
               changePct={calcChangePct(summary.resolved, prevSummary.resolved)}
               icon="resolved"
               tone="green"
@@ -294,7 +295,7 @@ export default function ReportsPage() {
             <ReportStatCard
               label="Closed Cases"
               value={summary.closed}
-              description="Formally closed occurrences"
+              description="Formally closed OB records"
               changePct={calcChangePct(summary.closed, prevSummary.closed)}
               icon="closed"
               tone="slate"
@@ -306,8 +307,8 @@ export default function ReportsPage() {
             <article className="report-panel">
               <div className="report-panel__header report-panel__header--spread">
                 <div>
-                  <h2>Occurrence Trends</h2>
-                  <p>Volume of occurrence records over time</p>
+                  <h2>OB Record Trends</h2>
+                  <p>Volume of OB records over time</p>
                 </div>
               </div>
               <OccurrenceTrendChart
@@ -328,8 +329,8 @@ export default function ReportsPage() {
 
             <article className="report-panel report-panel--wide">
               <div className="report-panel__header">
-                <h2>Occurrence Categories</h2>
-                <p>Most frequent occurrence types reported</p>
+                <h2>OB Categories</h2>
+                <p>Most frequent complaint types in OB records</p>
               </div>
               <CategoryBarChart byCategory={data?.byCategory} loading={loading} />
             </article>
@@ -338,7 +339,7 @@ export default function ReportsPage() {
           <section className="report-panel report-panel--table">
               <div className="report-panel__header report-panel__header--spread">
                 <div>
-                  <h2>Recent Occurrence Records</h2>
+                  <h2>Recent OB Records</h2>
                   <p>Latest records matching your filters</p>
                 </div>
               </div>

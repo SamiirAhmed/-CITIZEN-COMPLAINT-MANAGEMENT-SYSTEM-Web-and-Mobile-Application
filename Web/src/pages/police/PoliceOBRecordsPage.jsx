@@ -50,7 +50,7 @@ export default function PoliceOBRecordsPage() {
         <div className="panel__header panel__header--spread">
           <div>
             <h2>My OB Records</h2>
-            <p className="muted">Occurrence book records assigned to you.</p>
+            <p className="muted">OB records assigned to you.</p>
           </div>
         </div>
 

@@ -13,7 +13,6 @@ const STATUS_MAP = {
   reopened: { label: 'Reopened', tone: 'warning' },
   opened: { label: 'Opened', tone: 'info' },
   open: { label: 'Open', tone: 'warning' },
-<<<<<<< HEAD
   assigned: { label: 'Assigned', tone: 'info' },
   investigating: { label: 'Investigating', tone: 'warning' },
   pending: { label: 'Pending', tone: 'warning' },
@@ -21,11 +20,6 @@ const STATUS_MAP = {
   medium: { label: 'MEDIUM', tone: 'info' },
   high: { label: 'HIGH', tone: 'warning' },
   critical: { label: 'CRITICAL', tone: 'danger' },
-=======
-  pending: { label: 'Pending', tone: 'warning' },
-  assigned: { label: 'Assigned', tone: 'info' },
-  investigating: { label: 'Investigating', tone: 'warning' },
->>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 };
 
 export default function StatusBadge({ status }) {

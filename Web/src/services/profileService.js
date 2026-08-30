@@ -45,13 +45,9 @@ export async function changeMyPassword({ currentPassword, newPassword, confirmPa
     method: 'PUT',
     body: { currentPassword, newPassword, confirmPassword },
   });
-<<<<<<< HEAD
-  return response?.message || 'Password changed successfully.';
-=======
   const user = response?.data?.user || null;
   if (user) {
     setSession(getStoredToken(), user);
   }
   return user;
->>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 }

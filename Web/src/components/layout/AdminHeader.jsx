@@ -13,18 +13,7 @@ const SEARCH_ICON = (
   </svg>
 );
 
-<<<<<<< HEAD
-const FULLSCREEN_ICON = (
-  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-    <path
-      fill="currentColor"
-      d="M7 14H5v5h5v-2H7v-3zm12 0h-2v3h-3v2h5v-5zM7 7h3V5H5v5h2V7zm12-2h-5v2h3v3h2V5z"
-    />
-  </svg>
-);
 
-=======
->>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 export default function AdminHeader({ title, onToggleSidebar }) {
   const navigate = useNavigate();
   const { user } = useAuth();

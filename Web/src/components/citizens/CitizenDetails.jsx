@@ -140,7 +140,7 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
         ) : (
           <EmptyState
             title="No OB records"
-            description="No occurrence book records are linked to this citizen."
+            description="No OB records are linked to this citizen."
           />
         )}
       </section>

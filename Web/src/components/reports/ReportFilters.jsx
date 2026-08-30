@@ -60,7 +60,7 @@ export default function ReportFilters({
         </label>
 
         <label className="report-filters__field">
-          <span>Occurrence type</span>
+          <span>Category</span>
           <select value={filters.category} onChange={(e) => set('category', e.target.value)}>
             <option value="">All types</option>
             {categories.map((item) => (

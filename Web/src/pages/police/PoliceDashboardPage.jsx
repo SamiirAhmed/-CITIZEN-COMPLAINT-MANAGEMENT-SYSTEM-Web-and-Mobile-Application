@@ -129,7 +129,7 @@ export default function PoliceDashboardPage() {
           <div className="panel__header panel__header--spread">
             <div>
               <h2>Assigned OB Records</h2>
-              <p className="muted">Latest occurrence book records assigned to you.</p>
+              <p className="muted">Latest OB records assigned to you.</p>
             </div>
             <Link to="/ob-records" className="btn btn--ghost btn--small">
               View All
