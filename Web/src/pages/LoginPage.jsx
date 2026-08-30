@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import LOGO_SRC from '../assets/branding';
 import { useAuth } from '../context/AuthContext';
 import { validateLogin } from '../validation/authenticationValidation';
+import { getHomePath } from '../navigation/adminNavigation';
 
 export default function LoginPage() {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, user, login } = useAuth();
   const navigate = useNavigate();
   const [values, setValues] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
@@ -12,7 +14,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={getHomePath(user)} replace />;
   }
 
   const handleChange = (event) => {
@@ -29,8 +31,8 @@ export default function LoginPage() {
 
     setSubmitting(true);
     try {
-      await login(validation.data.email, validation.data.password);
-      navigate('/dashboard', { replace: true });
+      const result = await login(validation.data.email, validation.data.password);
+      navigate(getHomePath(result.user), { replace: true });
     } catch (error) {
       setFormError(error.message || 'Unable to sign in.');
     } finally {
@@ -42,7 +44,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-page__panel">
         <div className="login-page__brand">
-          <img src="/assets/branding/spo-logo.png" alt="SPO logo" />
+          <img src={LOGO_SRC} alt="SPO logo" />
           <div>
             <p className="login-page__system">SPO — Somali Police OBE</p>
             <h1>Admin Portal</h1>

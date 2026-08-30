@@ -98,24 +98,26 @@ class AuthenticationService extends ChangeNotifier {
     required String name,
     required String niraId,
     required String phone,
-    required String tell,
     required String email,
     required String password,
     required String confirmPassword,
+    required String profileImagePath,
   }) async {
     _busy = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await _api.post(
+      final response = await _api.postMultipart(
         ApiEndpoints.register,
         auth: false,
-        body: {
+        fileField: 'profileImage',
+        filePath: profileImagePath,
+        fields: {
           'name': name.trim(),
           'niraId': niraId.trim(),
           'phone': phone.trim(),
-          'tell': tell.trim(),
+          'tell': '',
           'email': email.trim(),
           'password': password,
           'confirmPassword': confirmPassword,

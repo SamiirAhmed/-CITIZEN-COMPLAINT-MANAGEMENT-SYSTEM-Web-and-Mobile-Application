@@ -53,6 +53,7 @@ const updateSchema = new mongoose.Schema(
   { _id: false }
 );
 
+<<<<<<< HEAD
 const activitySchema = new mongoose.Schema(
   {
     action: { type: String, required: true },
@@ -63,6 +64,28 @@ const activitySchema = new mongoose.Schema(
     createdAt: { type: Date, default: Date.now },
   },
   { _id: false }
+=======
+const investigationNoteSchema = new mongoose.Schema(
+  {
+    note: { type: String, required: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true }
+);
+
+const evidenceSchema = new mongoose.Schema(
+  {
+    fileName: { type: String, default: '' },
+    originalName: { type: String, default: '' },
+    mimeType: { type: String, default: '' },
+    url: { type: String, default: '' },
+    note: { type: String, default: '' },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: true }
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 );
 
 const obRecordSchema = new mongoose.Schema(
@@ -220,6 +243,28 @@ const obRecordSchema = new mongoose.Schema(
       default: '',
       select: false,
     },
+    investigationNoteEntries: {
+      type: [investigationNoteSchema],
+      default: [],
+    },
+    investigationProgress: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: 0,
+    },
+    investigationStartedAt: {
+      type: Date,
+      default: null,
+    },
+    investigationCompletedAt: {
+      type: Date,
+      default: null,
+    },
+    evidence: {
+      type: [evidenceSchema],
+      default: [],
+    },
     citizenSummary: {
       type: String,
       default: '',
@@ -308,6 +353,7 @@ obRecordSchema.methods.toCitizenObject = function toCitizenObject(complaint) {
   };
 };
 
+<<<<<<< HEAD
 obRecordSchema.methods.toStaffObject = function toStaffObject() {
   return {
     id: this._id.toString(),
@@ -372,6 +418,107 @@ obRecordSchema.methods.toStaffObject = function toStaffObject() {
       previousValue: item.previousValue || '',
       newValue: item.newValue || '',
       note: item.note || '',
+=======
+function refId(doc) {
+  if (!doc) return null;
+  if (typeof doc === 'object') {
+    return doc._id?.toString?.() || doc.id || doc.toString?.() || null;
+  }
+  return String(doc);
+}
+
+obRecordSchema.methods.toStaffObject = function toStaffObject(
+  complaintDoc,
+  citizenDoc
+) {
+  const complaint = complaintDoc || this.complaint;
+  const citizen = citizenDoc || this.citizen;
+
+  const complaintInfo =
+    complaint && typeof complaint === 'object' && complaint.complaintNumber
+      ? {
+          id: refId(complaint),
+          complaintNumber: complaint.complaintNumber,
+          category: complaint.category,
+          status: complaint.status,
+          description: complaint.description,
+          location: complaint.location,
+          incidentDate: complaint.incidentDate,
+          relatedInformation: complaint.relatedInformation || '',
+          evidenceNotes: complaint.evidenceNotes || '',
+        }
+      : complaint
+        ? { id: refId(complaint) }
+        : null;
+
+  const citizenInfo =
+    citizen && typeof citizen === 'object' && (citizen.name || citizen.email)
+      ? {
+          id: refId(citizen),
+          name: citizen.name || '',
+          email: citizen.email || '',
+          phone: citizen.phone || '',
+          niraId: citizen.niraId || '',
+        }
+      : citizen
+        ? { id: refId(citizen) }
+        : null;
+
+  const assigned = this.assignedOfficer
+    ? {
+        id: refId(this.assignedOfficer),
+        name: this.assignedOfficer.name || '',
+        badgeNumber: this.assignedOfficer.badgeNumber || '',
+        station: this.assignedOfficer.station || '',
+      }
+    : null;
+
+  const noteEntries = (this.investigationNoteEntries || []).map((item) => ({
+    id: item._id?.toString?.() || undefined,
+    note: item.note || '',
+    createdAt: item.createdAt,
+  }));
+
+  if (!noteEntries.length && this.investigationNotes) {
+    String(this.investigationNotes)
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((note) => {
+        noteEntries.push({ note, createdAt: this.updatedAt || this.createdAt });
+      });
+  }
+
+  return {
+    id: this._id.toString(),
+    obNumber: this.obNumber,
+    status: this.status,
+    investigationNotes: this.investigationNotes || '',
+    investigationNoteEntries: noteEntries,
+    investigationProgress: Number(this.investigationProgress || 0),
+    investigationStartedAt: this.investigationStartedAt,
+    investigationCompletedAt: this.investigationCompletedAt,
+    citizenSummary: this.citizenSummary || '',
+    closureReason: this.closureReason || '',
+    closedAt: this.closedAt,
+    assignedAt: this.assignedAt,
+    assignedOfficer: assigned,
+    citizen: citizenInfo,
+    complaint: complaintInfo,
+    evidence: (this.evidence || []).map((item) => ({
+      id: item._id?.toString?.() || undefined,
+      fileName: item.fileName || '',
+      originalName: item.originalName || '',
+      mimeType: item.mimeType || '',
+      url: item.url || '',
+      note: item.note || '',
+      createdAt: item.createdAt,
+    })),
+    updates: (this.updates || []).map((item) => ({
+      title: item.title,
+      note: item.note || '',
+      visibleToCitizen: item.visibleToCitizen !== false,
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
       createdAt: item.createdAt,
     })),
     createdAt: this.createdAt,

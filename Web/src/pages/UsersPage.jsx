@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Modal from '../components/common/Modal';
+import ConfirmDialog from '../components/common/ConfirmDialog';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import PoliceRegistrationForm from '../components/users/PoliceRegistrationForm';
@@ -27,6 +28,7 @@ export default function UsersPage() {
   const [viewing, setViewing] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState('');
+  const [confirmTarget, setConfirmTarget] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,15 +74,30 @@ export default function UsersPage() {
     }
   };
 
-  const handleToggleStatus = async (user) => {
+  const handleToggleStatus = (user) => {
+    const active = user.isActive !== false;
+    setConfirmTarget({
+      user,
+      nextActive: !active,
+      label: active ? 'deactivate' : 'activate',
+      confirmLabel: active ? 'Deactivate' : 'Activate',
+      tone: active ? 'danger' : 'success',
+    });
+  };
+
+  const runStatusChange = async () => {
+    if (!confirmTarget) return;
+    const { user, nextActive } = confirmTarget;
     setBusyId(user.id);
     setNotice('');
     try {
-      const updated = await setUserStatus(user.id, !user.isActive);
+      const updated = await setUserStatus(user.id, nextActive);
       setUsers((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       setNotice(updated.isActive ? 'User activated.' : 'User deactivated.');
+      setConfirmTarget(null);
     } catch (err) {
       setNotice(err.message || 'Unable to update status.');
+      setConfirmTarget(null);
     } finally {
       setBusyId(null);
     }
@@ -163,10 +180,11 @@ export default function UsersPage() {
             initialValues={{
               name: editing.name || '',
               phone: editing.phone || '',
-              tell: editing.tell || '',
+              email: editing.email || '',
               badgeNumber: editing.badgeNumber || '',
               station: editing.station || '',
             }}
+            currentImage={editing.profileImage || ''}
             submitting={submitting}
             onCancel={() => setEditing(null)}
             onSubmit={handleEditSubmit}
@@ -178,9 +196,26 @@ export default function UsersPage() {
         open={Boolean(viewing)}
         title="User Details"
         onClose={() => setViewing(null)}
+        size="lg"
       >
         <UserDetails user={viewing} />
       </Modal>
+
+      <ConfirmDialog
+        open={Boolean(confirmTarget)}
+        title={confirmTarget?.confirmLabel || 'Confirm'}
+        message={
+          confirmTarget
+            ? `Are you sure you want to ${confirmTarget.label} ${confirmTarget.user.name}?`
+            : ''
+        }
+        confirmLabel={confirmTarget?.confirmLabel || 'Confirm'}
+        cancelLabel="Cancel"
+        tone={confirmTarget?.tone || 'danger'}
+        busy={Boolean(busyId)}
+        onCancel={() => setConfirmTarget(null)}
+        onConfirm={runStatusChange}
+      />
     </div>
   );
 }

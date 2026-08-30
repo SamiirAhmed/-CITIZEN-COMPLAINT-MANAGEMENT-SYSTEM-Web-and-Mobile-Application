@@ -28,9 +28,22 @@ export function clearSession() {
 }
 
 function redirectToLogin() {
-  if (window.location.pathname !== '/login') {
-    window.location.assign('/login');
+  const next = window.location.pathname.startsWith('/police') ? '/police/login' : '/login';
+  if (window.location.pathname !== next) {
+    window.location.assign(next);
   }
+}
+
+function toClientErrorMessage(message, fallback) {
+  const text = String(message || fallback || 'Request failed.');
+  if (
+    /buffering timed out|users\.findOne|MongoServerError|MongooseError|ECONNREFUSED|server selection timed out/i.test(
+      text
+    )
+  ) {
+    return 'Authentication service is temporarily unavailable. Please try again.';
+  }
+  return text;
 }
 
 export async function apiRequest(path, options = {}) {
@@ -39,6 +52,7 @@ export async function apiRequest(path, options = {}) {
     body,
     headers = {},
     auth = true,
+    formData = null,
   } = options;
 
   const requestHeaders = {
@@ -46,7 +60,7 @@ export async function apiRequest(path, options = {}) {
     ...headers,
   };
 
-  if (body !== undefined) {
+  if (body !== undefined && !formData) {
     requestHeaders['Content-Type'] = 'application/json';
   }
 
@@ -62,7 +76,11 @@ export async function apiRequest(path, options = {}) {
     response = await fetch(`${API_BASE_URL}${path}`, {
       method,
       headers: requestHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: formData
+        ? formData
+        : body !== undefined
+          ? JSON.stringify(body)
+          : undefined,
     });
   } catch {
     const error = new Error('Unable to reach the server. Please try again.');
@@ -77,15 +95,19 @@ export async function apiRequest(path, options = {}) {
   }
 
   if (response.status === 401) {
-    clearSession();
-    redirectToLogin();
-    const error = new Error(payload?.message || 'Session expired. Please sign in again.');
+    if (auth) {
+      clearSession();
+      redirectToLogin();
+    }
+    const error = new Error(
+      toClientErrorMessage(payload?.message, 'Session expired. Please sign in again.')
+    );
     error.status = 401;
     throw error;
   }
 
   if (!response.ok) {
-    const error = new Error(payload?.message || 'Request failed.');
+    const error = new Error(toClientErrorMessage(payload?.message, 'Request failed.'));
     error.status = response.status;
     error.data = payload;
     throw error;

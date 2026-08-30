@@ -1,24 +1,49 @@
 import { useEffect, useState } from 'react';
-import { validateCitizenEdit } from '../../validation/citizenValidation';
+import PhoneInput from '../common/PhoneInput';
+import ProfileImageField from '../common/ProfileImageField';
+import {
+  validateCitizenEdit,
+  validateCitizenRegistration,
+} from '../../validation/citizenValidation';
 
-const INITIAL = { name: '', phone: '', tell: '' };
+const REGISTER_INITIAL = {
+  name: '',
+  phone: '',
+  email: '',
+  niraId: '',
+  password: '',
+  confirmPassword: '',
+};
+
+const EDIT_INITIAL = { name: '', phone: '', email: '', niraId: '' };
 
 export default function CitizenForm({
-  initialValues = INITIAL,
+  mode = 'edit',
+  initialValues,
+  currentImage = '',
   onSubmit,
   onCancel,
   submitting = false,
-  submitLabel = 'Save changes',
+  submitLabel,
 }) {
-  const [values, setValues] = useState({ ...INITIAL, ...initialValues });
+  const isRegister = mode === 'register';
+  const [values, setValues] = useState(
+    isRegister ? { ...REGISTER_INITIAL } : { ...EDIT_INITIAL, ...initialValues }
+  );
+  const [profileImageFile, setProfileImageFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
 
   useEffect(() => {
-    setValues({ ...INITIAL, ...initialValues });
+    if (isRegister) {
+      setValues({ ...REGISTER_INITIAL });
+    } else {
+      setValues({ ...EDIT_INITIAL, ...initialValues });
+    }
+    setProfileImageFile(null);
     setErrors({});
     setFormError('');
-  }, [initialValues]);
+  }, [initialValues, isRegister]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -28,7 +53,9 @@ export default function CitizenForm({
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFormError('');
-    const validation = validateCitizenEdit(values);
+    const validation = isRegister
+      ? validateCitizenRegistration(values, { profileImageFile })
+      : validateCitizenEdit(values, { profileImageFile });
     setErrors(validation.errors);
     if (!validation.ok) return;
 
@@ -43,6 +70,16 @@ export default function CitizenForm({
     <form className="form-grid" onSubmit={handleSubmit} noValidate>
       {formError ? <div className="alert alert--error">{formError}</div> : null}
 
+      <ProfileImageField
+        name={values.name}
+        currentSrc={currentImage}
+        required={isRegister}
+        valueFile={profileImageFile}
+        onChange={setProfileImageFile}
+        error={errors.profileImage}
+        disabled={submitting}
+      />
+
       <label className="field">
         <span>Name</span>
         <input
@@ -56,26 +93,53 @@ export default function CitizenForm({
       </label>
 
       <label className="field">
-        <span>Phone</span>
-        <input
-          name="phone"
-          value={values.phone}
-          onChange={handleChange}
-          autoComplete="tel"
-        />
-        {errors.phone ? <em className="field-error">{errors.phone}</em> : null}
+        <span>NIRA ID</span>
+        <input name="niraId" value={values.niraId} onChange={handleChange} maxLength={11} />
+        {errors.niraId ? <em className="field-error">{errors.niraId}</em> : null}
       </label>
 
+      <PhoneInput
+        name="phone"
+        value={values.phone}
+        onChange={handleChange}
+        error={errors.phone}
+      />
+
       <label className="field">
-        <span>Tell</span>
-        <input
-          name="tell"
-          value={values.tell}
-          onChange={handleChange}
-          autoComplete="tel"
-        />
-        {errors.tell ? <em className="field-error">{errors.tell}</em> : null}
+        <span>Email</span>
+        <input name="email" type="email" value={values.email} onChange={handleChange} />
+        {errors.email ? <em className="field-error">{errors.email}</em> : null}
       </label>
+
+      {isRegister ? (
+        <>
+          <label className="field">
+            <span>Password</span>
+            <input
+              name="password"
+              type="password"
+              value={values.password}
+              onChange={handleChange}
+              autoComplete="new-password"
+            />
+            {errors.password ? <em className="field-error">{errors.password}</em> : null}
+          </label>
+
+          <label className="field">
+            <span>Confirm Password</span>
+            <input
+              name="confirmPassword"
+              type="password"
+              value={values.confirmPassword}
+              onChange={handleChange}
+              autoComplete="new-password"
+            />
+            {errors.confirmPassword ? (
+              <em className="field-error">{errors.confirmPassword}</em>
+            ) : null}
+          </label>
+        </>
+      ) : null}
 
       <div className="form-actions">
         {onCancel ? (
@@ -84,7 +148,9 @@ export default function CitizenForm({
           </button>
         ) : null}
         <button type="submit" className="btn btn--primary" disabled={submitting}>
-          {submitting ? 'Saving…' : submitLabel}
+          {submitting
+            ? 'Saving…'
+            : submitLabel || (isRegister ? 'Register citizen' : 'Save changes')}
         </button>
       </div>
     </form>

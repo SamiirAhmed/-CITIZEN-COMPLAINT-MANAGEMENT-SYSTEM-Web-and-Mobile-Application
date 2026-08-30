@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../../application/application_routes.dart';
@@ -24,10 +27,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   final _name = TextEditingController();
   final _niraId = TextEditingController();
   final _phone = TextEditingController();
-  final _tell = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
+  final _picker = ImagePicker();
+  XFile? _profileImage;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   String? _error;
@@ -37,15 +41,48 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
     _name.dispose();
     _niraId.dispose();
     _phone.dispose();
-    _tell.dispose();
     _email.dispose();
     _password.dispose();
     _confirm.dispose();
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    setState(() => _error = null);
+    final picked = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1200,
+      maxHeight: 1200,
+      imageQuality: 85,
+    );
+    if (picked == null) return;
+
+    final bytes = await picked.length();
+    if (bytes > 2 * 1024 * 1024) {
+      setState(() => _error = 'Profile image must be 2MB or smaller.');
+      return;
+    }
+
+    final lower = picked.name.toLowerCase();
+    final okExt = lower.endsWith('.jpg') ||
+        lower.endsWith('.jpeg') ||
+        lower.endsWith('.png') ||
+        lower.endsWith('.webp');
+    if (!okExt) {
+      setState(() => _error = 'Profile image must be a JPEG, PNG, or WebP file.');
+      return;
+    }
+
+    setState(() => _profileImage = picked);
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_profileImage == null) {
+      setState(() => _error = 'Profile image is required.');
+      return;
+    }
+
     setState(() => _error = null);
 
     final auth = context.read<AuthenticationService>();
@@ -54,10 +91,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         name: _name.text,
         niraId: _niraId.text,
         phone: _phone.text,
-        tell: _tell.text,
         email: _email.text,
         password: _password.text,
         confirmPassword: _confirm.text,
+        profileImagePath: _profileImage!.path,
       );
       if (!mounted) return;
 
@@ -69,7 +106,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       );
       if (!mounted) return;
 
-      // Return to AuthGate so it can show the authenticated layout.
       AppNavigator.returnToRoot();
     } on ApiException catch (e) {
       setState(() => _error = e.message);
@@ -99,6 +135,43 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 20),
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    width: 112,
+                    height: 112,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.surface,
+                      border: Border.all(color: AppColors.border),
+                      image: _profileImage != null
+                          ? DecorationImage(
+                              image: FileImage(File(_profileImage!.path)),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: _profileImage == null
+                        ? const Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_a_photo_outlined),
+                              SizedBox(height: 4),
+                              Text('Photo *', style: TextStyle(fontSize: 12)),
+                            ],
+                          )
+                        : null,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _pickImage,
+                  child: Text(
+                    _profileImage == null
+                        ? 'Add profile photo (required)'
+                        : 'Change profile photo',
+                  ),
+                ),
+                const SizedBox(height: 8),
                 TextInputField(
                   controller: _name,
                   label: 'Full Name',
@@ -121,14 +194,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   keyboardType: TextInputType.phone,
                   prefixIcon: Icons.phone_outlined,
                   validator: CitizenValidator.phone,
-                ),
-                const SizedBox(height: 14),
-                TextInputField(
-                  controller: _tell,
-                  label: 'Tell',
-                  keyboardType: TextInputType.phone,
-                  prefixIcon: Icons.call_outlined,
-                  validator: CitizenValidator.tell,
                 ),
                 const SizedBox(height: 14),
                 TextInputField(

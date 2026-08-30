@@ -1,5 +1,6 @@
 import StatusBadge from '../common/StatusBadge';
 import EmptyState from '../common/EmptyState';
+import ProfileAvatar from '../common/ProfileAvatar';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -15,41 +16,72 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
 
   return (
     <div className="detail-stack">
-      <section className="panel">
-        <div className="panel__header">
-          <div>
-            <h2>{citizen.name}</h2>
-            <p className="muted">{citizen.email}</p>
+      <section className="profile-hero">
+        <ProfileAvatar
+          name={citizen.name}
+          src={citizen.profileImage}
+          size={120}
+          className="profile-avatar--ring profile-avatar--lg"
+        />
+        <div>
+          <h2>{citizen.name}</h2>
+          <p className="muted">{citizen.email}</p>
+          <div className="profile-hero__badges">
+            <StatusBadge status={citizen.isActive !== false ? 'Active' : 'Inactive'} />
           </div>
-          <StatusBadge status={citizen.isActive ? 'Active' : 'Inactive'} />
         </div>
+      </section>
 
+      <section className="detail-section">
+        <h3>Personal Information</h3>
         <div className="detail-grid">
+          <div>
+            <span className="detail-label">Name</span>
+            <strong>{citizen.name}</strong>
+          </div>
           <div>
             <span className="detail-label">NIRA ID</span>
             <strong>{citizen.niraId || '—'}</strong>
           </div>
+        </div>
+      </section>
+
+      <section className="detail-section">
+        <h3>Contact Information</h3>
+        <div className="detail-grid">
           <div>
             <span className="detail-label">Phone</span>
             <strong>{citizen.phone || '—'}</strong>
           </div>
           <div>
-            <span className="detail-label">Tell</span>
-            <strong>{citizen.tell || '—'}</strong>
-          </div>
-          <div>
-            <span className="detail-label">Registered</span>
-            <strong>{formatDate(citizen.createdAt)}</strong>
+            <span className="detail-label">Email</span>
+            <strong>{citizen.email || '—'}</strong>
           </div>
         </div>
       </section>
 
-      <section className="panel">
-        <div className="panel__header">
-          <h3>Related Complaints</h3>
+      <section className="detail-section">
+        <h3>Account Information</h3>
+        <div className="detail-grid">
+          <div>
+            <span className="detail-label">Status</span>
+            <StatusBadge status={citizen.isActive !== false ? 'Active' : 'Inactive'} />
+          </div>
+          <div>
+            <span className="detail-label">Registration Date</span>
+            <strong>{formatDate(citizen.createdAt)}</strong>
+          </div>
+          <div>
+            <span className="detail-label">Updated</span>
+            <strong>{formatDate(citizen.updatedAt)}</strong>
+          </div>
         </div>
+      </section>
+
+      <section className="detail-section">
+        <h3>Related Complaints</h3>
         {complaints.length ? (
-          <div className="table-wrap">
+          <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
@@ -78,12 +110,10 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
         )}
       </section>
 
-      <section className="panel">
-        <div className="panel__header">
-          <h3>Related OB Records</h3>
-        </div>
+      <section className="detail-section">
+        <h3>Related OB Records</h3>
         {obRecords.length ? (
-          <div className="table-wrap">
+          <div className="table-scroll">
             <table className="data-table">
               <thead>
                 <tr>
@@ -108,7 +138,10 @@ export default function CitizenDetails({ citizen, complaints = [], obRecords = [
             </table>
           </div>
         ) : (
-          <EmptyState title="No OB records" description="No occurrence book records are linked to this citizen." />
+          <EmptyState
+            title="No OB records"
+            description="No occurrence book records are linked to this citizen."
+          />
         )}
       </section>
     </div>

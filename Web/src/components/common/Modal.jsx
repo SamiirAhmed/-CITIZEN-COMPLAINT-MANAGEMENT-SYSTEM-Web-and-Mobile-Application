@@ -12,7 +12,7 @@ export default function Modal({
     if (!open) return undefined;
 
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') onClose?.();
+      if (event.key === 'Escape' && onClose) onClose();
     };
 
     document.addEventListener('keydown', onKeyDown);
@@ -27,7 +27,11 @@ export default function Modal({
   if (!open) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
+    <div
+      className="modal-backdrop"
+      onClick={onClose || undefined}
+      role="presentation"
+    >
       <div
         className={`modal modal--${size}`}
         role="dialog"
@@ -37,9 +41,13 @@ export default function Modal({
       >
         <div className="modal__header">
           <h2>{title}</h2>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
-            ×
-          </button>
+          {onClose ? (
+            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+              ×
+            </button>
+          ) : (
+            <span />
+          )}
         </div>
         <div className="modal__body">{children}</div>
         {footer ? <div className="modal__footer">{footer}</div> : null}

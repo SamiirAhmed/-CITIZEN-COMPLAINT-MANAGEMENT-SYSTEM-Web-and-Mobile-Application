@@ -1,24 +1,56 @@
 import User from '../models/User.js';
-import { asyncHandler, signToken } from '../utils/helpers.js';
+import {
+  databaseUnavailableMessage,
+  isDatabaseError,
+  isDbReady,
+} from '../config/db.js';
+import {
+  asyncHandler,
+  createAuditLog,
+  getRequestIp,
+  notifyRole,
+  signToken,
+} from '../utils/helpers.js';
 import {
   validateCitizenRegistration,
   validateLoginInput,
+  isValidEmail,
 } from '../utils/citizenValidation.js';
+import {
+  profileImagePublicPath,
+  removeProfileImageFile,
+} from '../middleware/uploadProfileImage.js';
+
+const cleanupUpload = (req) => {
+  if (req.file?.filename) {
+    removeProfileImageFile(profileImagePublicPath(req.file.filename));
+  }
+};
 
 export const registerCitizen = asyncHandler(async (req, res) => {
   const validation = validateCitizenRegistration(req.body);
 
   if (!validation.ok) {
+    if (req.file?.path) removeProfileImageFile(profileImagePublicPath(req.file.filename));
     return res.status(400).json({
       success: false,
       message: validation.message,
     });
   }
 
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      message: 'Profile image is required.',
+    });
+  }
+
   const { name, niraId, phone, tell, email, password } = validation.data;
+  const profileImage = profileImagePublicPath(req.file.filename);
 
   const existingEmail = await User.findOne({ email });
   if (existingEmail) {
+    removeProfileImageFile(profileImage);
     return res.status(409).json({
       success: false,
       message: 'An account with this email already exists.',
@@ -27,6 +59,7 @@ export const registerCitizen = asyncHandler(async (req, res) => {
 
   const existingNira = await User.findOne({ niraId });
   if (existingNira) {
+    removeProfileImageFile(profileImage);
     return res.status(409).json({
       success: false,
       message: 'An account with this NIRA ID already exists.',
@@ -41,9 +74,18 @@ export const registerCitizen = asyncHandler(async (req, res) => {
     email,
     password,
     role: 'citizen',
+    profileImage,
   });
 
   const token = signToken(user._id, user.role);
+
+  await notifyRole('admin', {
+    title: 'Citizen Registered',
+    message: `${user.name} registered as a citizen.`,
+    type: 'citizen_registered',
+    relatedUser: user._id,
+    linkPath: `/citizens/${user._id}`,
+  });
 
   return res.status(201).json({
     success: true,
@@ -65,9 +107,28 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!isDbReady()) {
+    return res.status(503).json({
+      success: false,
+      message: databaseUnavailableMessage(),
+    });
+  }
+
   const { email, password } = validation.data;
 
-  const user = await User.findOne({ email }).select('+password');
+  let user;
+  try {
+    user = await User.findOne({ email }).select('+password');
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      console.error('Login database error:', error.message);
+      return res.status(503).json({
+        success: false,
+        message: databaseUnavailableMessage(),
+      });
+    }
+    throw error;
+  }
 
   if (!user || !(await user.comparePassword(password))) {
     return res.status(401).json({
@@ -79,11 +140,24 @@ export const login = asyncHandler(async (req, res) => {
   if (!user.isActive) {
     return res.status(403).json({
       success: false,
-      message: 'This account has been deactivated.',
+      message: 'Your account is inactive. Please contact an administrator.',
     });
   }
 
   const token = signToken(user._id, user.role);
+
+  if (user.role === 'admin' || user.role === 'police') {
+    await createAuditLog({
+      actor: user,
+      action: 'LOGIN',
+      recordType: 'Session',
+      recordId: user._id,
+      recordLabel: user.name,
+      newValue: 'Signed in',
+      details: `${user.role} signed in.`,
+      ipAddress: getRequestIp(req),
+    });
+  }
 
   return res.json({
     success: true,
@@ -105,38 +179,58 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
+<<<<<<< HEAD
   const { name, phone, tell, email, address, username, avatar } = req.body;
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const usernamePattern = /^[a-z0-9._-]{3,30}$/i;
+=======
+  // Never allow role/status changes from self-service profile.
+  const { name, phone, email } = req.body;
+  const previousImage = req.user.profileImage || '';
+  const previousName = req.user.name;
+  const previousPhone = req.user.phone || '';
+  const previousEmail = req.user.email;
+  const changed = [];
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 
   if (name !== undefined) {
     const trimmedName = String(name).trim();
     if (!trimmedName) {
+      cleanupUpload(req);
       return res.status(400).json({
         success: false,
         message: 'Name is required.',
       });
     }
     if (trimmedName.length > 30) {
+      cleanupUpload(req);
       return res.status(400).json({
         success: false,
         message: 'Name must be at most 30 characters.',
       });
     }
-    req.user.name = trimmedName;
+    if (trimmedName !== req.user.name) {
+      req.user.name = trimmedName;
+      changed.push('name');
+    }
   }
 
   if (phone !== undefined) {
     const trimmedPhone = String(phone).trim();
     if (!trimmedPhone) {
+      cleanupUpload(req);
       return res.status(400).json({
         success: false,
         message: 'Phone is required.',
       });
     }
-    req.user.phone = trimmedPhone;
+    if (trimmedPhone !== req.user.phone) {
+      req.user.phone = trimmedPhone;
+      changed.push('phone');
+    }
   }
 
+<<<<<<< HEAD
   if (tell !== undefined) {
     req.user.tell = String(tell).trim();
   }
@@ -215,9 +309,87 @@ export const updateProfile = asyncHandler(async (req, res) => {
       });
     }
     req.user.avatar = nextAvatar;
+=======
+  if (email !== undefined) {
+    const trimmedEmail = String(email).trim().toLowerCase();
+    if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
+      cleanupUpload(req);
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address.',
+      });
+    }
+    if (trimmedEmail !== req.user.email) {
+      const taken = await User.findOne({
+        email: trimmedEmail,
+        _id: { $ne: req.user._id },
+      });
+      if (taken) {
+        cleanupUpload(req);
+        return res.status(409).json({
+          success: false,
+          message: 'An account with this email already exists.',
+        });
+      }
+      req.user.email = trimmedEmail;
+      changed.push('email');
+    }
+  }
+
+  if (req.file) {
+    req.user.profileImage = profileImagePublicPath(req.file.filename);
+    changed.push('profileImage');
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   }
 
   await req.user.save();
+
+  if (req.file && previousImage && previousImage !== req.user.profileImage) {
+    removeProfileImageFile(previousImage);
+  }
+
+  if (req.user.role === 'admin' || req.user.role === 'police') {
+    if (changed.includes('profileImage')) {
+      await createAuditLog({
+        actor: req.user,
+        action: 'UPDATE',
+        recordType: 'Profile',
+        recordId: req.user._id,
+        recordLabel: req.user.name,
+        previousValue: previousImage || '(none)',
+        newValue: req.user.profileImage || '(none)',
+        details: 'Profile image updated.',
+        ipAddress: getRequestIp(req),
+      });
+    }
+
+    const fieldChanges = changed.filter((key) => key !== 'profileImage');
+    if (fieldChanges.length) {
+      await createAuditLog({
+        actor: req.user,
+        action: 'UPDATE',
+        recordType: 'Profile',
+        recordId: req.user._id,
+        recordLabel: req.user.name,
+        previousValue: [
+          fieldChanges.includes('name') ? `name=${previousName}` : null,
+          fieldChanges.includes('email') ? `email=${previousEmail}` : null,
+          fieldChanges.includes('phone') ? `phone=${previousPhone}` : null,
+        ]
+          .filter(Boolean)
+          .join('; '),
+        newValue: [
+          fieldChanges.includes('name') ? `name=${req.user.name}` : null,
+          fieldChanges.includes('email') ? `email=${req.user.email}` : null,
+          fieldChanges.includes('phone') ? `phone=${req.user.phone}` : null,
+        ]
+          .filter(Boolean)
+          .join('; '),
+        details: `Profile fields updated: ${fieldChanges.join(', ')}.`,
+        ipAddress: getRequestIp(req),
+      });
+    }
+  }
 
   return res.json({
     success: true,
@@ -238,6 +410,13 @@ export const changePassword = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!String(newPassword).trim()) {
+    return res.status(400).json({
+      success: false,
+      message: 'New password cannot be empty.',
+    });
+  }
+
   if (String(newPassword).length < 8) {
     return res.status(400).json({
       success: false,
@@ -248,7 +427,7 @@ export const changePassword = asyncHandler(async (req, res) => {
   if (confirmPassword !== undefined && newPassword !== confirmPassword) {
     return res.status(400).json({
       success: false,
-      message: 'New password and confirm password do not match.',
+      message: 'Passwords do not match.',
     });
   }
 
@@ -263,6 +442,20 @@ export const changePassword = asyncHandler(async (req, res) => {
 
   user.password = newPassword;
   await user.save();
+
+  if (user.role === 'admin' || user.role === 'police') {
+    await createAuditLog({
+      actor: user,
+      action: 'UPDATE',
+      recordType: 'Profile',
+      recordId: user._id,
+      recordLabel: user.name,
+      previousValue: '',
+      newValue: 'Password changed',
+      details: 'Account password was changed. Password values were not logged.',
+      ipAddress: getRequestIp(req),
+    });
+  }
 
   return res.json({
     success: true,

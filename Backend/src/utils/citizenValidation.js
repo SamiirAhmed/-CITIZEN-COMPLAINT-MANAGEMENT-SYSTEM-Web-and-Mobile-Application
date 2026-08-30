@@ -43,10 +43,6 @@ export const validateCitizenRegistration = ({
     return { ok: false, message: 'Please enter a valid phone number.' };
   }
 
-  if (!trimmedTell) {
-    return { ok: false, message: 'Tell is required.' };
-  }
-
   if (!trimmedEmail) {
     return { ok: false, message: 'Email is required.' };
   }
@@ -76,7 +72,7 @@ export const validateCitizenRegistration = ({
       name: trimmedName,
       niraId: trimmedNira,
       phone: trimmedPhone,
-      tell: trimmedTell,
+      tell: trimmedTell || '',
       email: trimmedEmail,
       password: rawPassword,
     },

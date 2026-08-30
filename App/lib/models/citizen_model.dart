@@ -9,6 +9,7 @@ class CitizenModel {
     this.tell = '',
     this.badgeNumber = '',
     this.station = '',
+    this.profileImage = '',
   });
 
   final String id;
@@ -20,6 +21,7 @@ class CitizenModel {
   final String tell;
   final String badgeNumber;
   final String station;
+  final String profileImage;
 
   bool get isCitizen => role == 'citizen';
 
@@ -34,6 +36,7 @@ class CitizenModel {
       tell: (json['tell'] ?? '').toString(),
       badgeNumber: (json['badgeNumber'] ?? '').toString(),
       station: (json['station'] ?? '').toString(),
+      profileImage: (json['profileImage'] ?? '').toString(),
     );
   }
 
@@ -47,12 +50,14 @@ class CitizenModel {
         'tell': tell,
         'badgeNumber': badgeNumber,
         'station': station,
+        'profileImage': profileImage,
       };
 
   CitizenModel copyWith({
     String? name,
     String? phone,
     String? tell,
+    String? profileImage,
   }) {
     return CitizenModel(
       id: id,
@@ -64,6 +69,7 @@ class CitizenModel {
       tell: tell ?? this.tell,
       badgeNumber: badgeNumber,
       station: station,
+      profileImage: profileImage ?? this.profileImage,
     );
   }
 }

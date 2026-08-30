@@ -52,7 +52,7 @@ const complaintSchema = new mongoose.Schema(
     category: {
       type: String,
       required: [true, 'Category is required'],
-      enum: COMPLAINT_CATEGORIES,
+      trim: true,
     },
     description: {
       type: String,
