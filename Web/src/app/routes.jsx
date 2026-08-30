@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-﻿import { Navigate, Route, Routes } from 'react-router-dom';
-=======
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 import AdminLayout from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -11,11 +7,8 @@ import {
   userHasModule,
 } from '../navigation/adminNavigation';
 import LoginPage from '../pages/LoginPage';
-<<<<<<< HEAD
 import ForceChangePasswordPage from '../pages/ForceChangePasswordPage';
-=======
 import PoliceLoginPage from '../pages/PoliceLoginPage';
->>>>>>> da921d70880b08e5b0f04686ff0264e78d57ccae
 import DashboardPage from '../pages/DashboardPage';
 import CitizensPage from '../pages/CitizensPage';
 import CitizenDetailsPage from '../pages/CitizenDetailsPage';
@@ -28,12 +21,8 @@ import CategoriesPage from '../pages/CategoriesPage';
 import DistrictsPage from '../pages/DistrictsPage';
 import AuditLogsPage from '../pages/AuditLogsPage';
 import ComingSoonPage from '../pages/ComingSoonPage';
-<<<<<<< HEAD
-import EditProfilePage from '../pages/EditProfilePage';
-import OBRecordsPage from '../pages/OBRecordsPage';
-import ReportsPage from '../pages/ReportsPage';
-=======
 import ProfilePage from '../pages/ProfilePage';
+import ReportsPage from '../pages/ReportsPage';
 import PoliceDashboardPage from '../pages/police/PoliceDashboardPage';
 import PoliceOBRecordsPage from '../pages/police/PoliceOBRecordsPage';
 import PoliceOBDetailsPage from '../pages/police/PoliceOBDetailsPage';
@@ -47,15 +36,10 @@ const ADMIN_ONLY_MODULES = new Set([
   'audit-logs',
   'settings',
 ]);
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 
 function ProtectedRoute() {
-<<<<<<< HEAD
   const { isAuthenticated, user } = useAuth();
-=======
-  const { isAuthenticated } = useAuth();
   const location = useLocation();
->>>>>>> da921d70880b08e5b0f04686ff0264e78d57ccae
 
   if (!isAuthenticated) {
     const loginPath = location.pathname.startsWith('/police') ? '/police/login' : '/login';
@@ -127,28 +111,10 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-<<<<<<< HEAD
       <Route path="/change-password-required" element={<ForceChangePasswordPage />} />
-=======
       <Route path="/police/login" element={<PoliceLoginPage />} />
->>>>>>> da921d70880b08e5b0f04686ff0264e78d57ccae
 
       <Route element={<ProtectedRoute />}>
-<<<<<<< HEAD
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/citizens" element={<CitizensPage />} />
-        <Route path="/citizens/:id" element={<CitizenDetailsPage />} />
-        <Route path="/complaints" element={<ComingSoonPage moduleKey="complaints" />} />
-        <Route path="/ob-records" element={<OBRecordsPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/notifications" element={<ComingSoonPage moduleKey="notifications" />} />
-        <Route path="/audit-logs" element={<ComingSoonPage moduleKey="audit-logs" />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/settings/users" element={<UsersPage />} />
-        <Route path="/settings/permissions" element={<PermissionsPage />} />
-        <Route path="/profile" element={<EditProfilePage />} />
-=======
         <Route path="/" element={<HomeRedirect />} />
         <Route
           path="/dashboard"
@@ -226,7 +192,7 @@ export default function AppRoutes() {
           path="/reports"
           element={
             <ModuleRoute moduleKey="reports">
-              <ComingSoonPage moduleKey="reports" />
+              <ReportsPage />
             </ModuleRoute>
           }
         />
@@ -286,11 +252,9 @@ export default function AppRoutes() {
             </ModuleRoute>
           }
         />
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
       </Route>
 
       <Route path="*" element={<CatchAllRedirect />} />
     </Routes>
   );
 }
-

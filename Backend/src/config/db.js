@@ -75,11 +75,6 @@ export const connectDB = async () => {
     throw new Error('MongoDB connection did not become ready.');
   }
 
-<<<<<<< HEAD
-  await mongoose.connect(uri);
-  console.log('MongoDB connected successfully');
-
-  // Drop legacy unique complaint index that blocks standalone OB creates (null duplicates)
   try {
     const indexes = await OBRecord.collection.indexes();
     for (const index of indexes) {
@@ -99,7 +94,5 @@ export const connectDB = async () => {
     console.warn('OB index sync warning:', err.message);
   }
 
-=======
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   return true;
 };

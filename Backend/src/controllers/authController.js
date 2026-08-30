@@ -199,19 +199,12 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-<<<<<<< HEAD
   const { name, phone, tell, email, address, username, avatar } = req.body;
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const usernamePattern = /^[a-z0-9._-]{3,30}$/i;
-=======
-  // Never allow role/status changes from self-service profile.
-  const { name, phone, email } = req.body;
   const previousImage = req.user.profileImage || '';
   const previousName = req.user.name;
   const previousPhone = req.user.phone || '';
   const previousEmail = req.user.email;
   const changed = [];
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 
   if (name !== undefined) {
     const trimmedName = String(name).trim();
@@ -250,7 +243,6 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
   }
 
-<<<<<<< HEAD
   if (tell !== undefined) {
     req.user.tell = String(tell).trim();
   }
@@ -259,77 +251,6 @@ export const updateProfile = asyncHandler(async (req, res) => {
     req.user.address = String(address).trim();
   }
 
-  if (email !== undefined) {
-    const trimmedEmail = String(email).trim().toLowerCase();
-    if (!trimmedEmail) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required.',
-      });
-    }
-    if (!emailPattern.test(trimmedEmail)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please enter a valid email address.',
-      });
-    }
-    const existingEmail = await User.findOne({
-      email: trimmedEmail,
-      _id: { $ne: req.user._id },
-    });
-    if (existingEmail) {
-      return res.status(409).json({
-        success: false,
-        message: 'An account with this email already exists.',
-      });
-    }
-    req.user.email = trimmedEmail;
-  }
-
-  if (username !== undefined) {
-    const trimmedUsername = String(username).trim().toLowerCase();
-    if (!trimmedUsername) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username is required.',
-      });
-    }
-    if (!usernamePattern.test(trimmedUsername)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          'Username must be 3-30 characters and contain only letters, numbers, dots, underscores, or hyphens.',
-      });
-    }
-    const existingUsername = await User.findOne({
-      username: trimmedUsername,
-      _id: { $ne: req.user._id },
-    });
-    if (existingUsername) {
-      return res.status(409).json({
-        success: false,
-        message: 'This username is already taken.',
-      });
-    }
-    req.user.username = trimmedUsername;
-  }
-
-  if (avatar !== undefined) {
-    const nextAvatar = String(avatar || '');
-    if (nextAvatar && !nextAvatar.startsWith('data:image/')) {
-      return res.status(400).json({
-        success: false,
-        message: 'Avatar must be a valid image.',
-      });
-    }
-    if (nextAvatar.length > 750000) {
-      return res.status(400).json({
-        success: false,
-        message: 'Profile photo is too large. Please upload a smaller image.',
-      });
-    }
-    req.user.avatar = nextAvatar;
-=======
   if (email !== undefined) {
     const trimmedEmail = String(email).trim().toLowerCase();
     if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
@@ -356,10 +277,59 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
   }
 
+  if (username !== undefined) {
+    const trimmedUsername = String(username).trim().toLowerCase();
+    if (!trimmedUsername) {
+      cleanupUpload(req);
+      return res.status(400).json({
+        success: false,
+        message: 'Username is required.',
+      });
+    }
+    if (!/^[a-z0-9._-]{3,30}$/i.test(trimmedUsername)) {
+      cleanupUpload(req);
+      return res.status(400).json({
+        success: false,
+        message:
+          'Username must be 3-30 characters and contain only letters, numbers, dots, underscores, or hyphens.',
+      });
+    }
+    const existingUsername = await User.findOne({
+      username: trimmedUsername,
+      _id: { $ne: req.user._id },
+    });
+    if (existingUsername) {
+      cleanupUpload(req);
+      return res.status(409).json({
+        success: false,
+        message: 'This username is already taken.',
+      });
+    }
+    req.user.username = trimmedUsername;
+  }
+
+  if (avatar !== undefined) {
+    const nextAvatar = String(avatar || '');
+    if (nextAvatar && !nextAvatar.startsWith('data:image/')) {
+      cleanupUpload(req);
+      return res.status(400).json({
+        success: false,
+        message: 'Avatar must be a valid image.',
+      });
+    }
+    if (nextAvatar.length > 750000) {
+      cleanupUpload(req);
+      return res.status(400).json({
+        success: false,
+        message: 'Profile photo is too large. Please upload a smaller image.',
+      });
+    }
+    req.user.avatar = nextAvatar;
+  }
+
   if (req.file) {
     req.user.profileImage = profileImagePublicPath(req.file.filename);
     changed.push('profileImage');
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   }
 
   await req.user.save();
