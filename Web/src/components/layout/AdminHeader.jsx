@@ -13,6 +13,7 @@ const SEARCH_ICON = (
   </svg>
 );
 
+<<<<<<< HEAD
 const FULLSCREEN_ICON = (
   <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
     <path
@@ -22,19 +23,14 @@ const FULLSCREEN_ICON = (
   </svg>
 );
 
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 export default function AdminHeader({ title, onToggleSidebar }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [query, setQuery] = useState('');
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
-  const welcomeName = user?.name || 'System Administrator';
-
-  useEffect(() => {
-    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
+  const welcomeName = user?.name || 'Admin';
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -63,18 +59,6 @@ export default function AdminHeader({ title, onToggleSidebar }) {
       return;
     }
     navigate(`/citizens?search=${encodeURIComponent(trimmed)}`);
-  };
-
-  const toggleFullscreen = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch {
-      // Fullscreen may be blocked by the browser.
-    }
   };
 
   return (
@@ -109,15 +93,6 @@ export default function AdminHeader({ title, onToggleSidebar }) {
 
       <div className="admin-header__right">
         <NotificationDropdown />
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={toggleFullscreen}
-          aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-        >
-          {FULLSCREEN_ICON}
-        </button>
         <AdminProfileMenu showMeta />
       </div>
     </header>

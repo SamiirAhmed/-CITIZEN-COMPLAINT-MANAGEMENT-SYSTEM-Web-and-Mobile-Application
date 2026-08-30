@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+=======
+import { Navigate, Route, Routes } from 'react-router-dom';
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 import AdminLayout from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -7,7 +11,7 @@ import {
   userHasModule,
 } from '../navigation/adminNavigation';
 import LoginPage from '../pages/LoginPage';
-import PoliceLoginPage from '../pages/PoliceLoginPage';
+import ForceChangePasswordPage from '../pages/ForceChangePasswordPage';
 import DashboardPage from '../pages/DashboardPage';
 import CitizensPage from '../pages/CitizensPage';
 import CitizenDetailsPage from '../pages/CitizenDetailsPage';
@@ -17,6 +21,7 @@ import SettingsPage from '../pages/SettingsPage';
 import UsersPage from '../pages/UsersPage';
 import PermissionsPage from '../pages/PermissionsPage';
 import CategoriesPage from '../pages/CategoriesPage';
+import DistrictsPage from '../pages/DistrictsPage';
 import AuditLogsPage from '../pages/AuditLogsPage';
 import ComingSoonPage from '../pages/ComingSoonPage';
 import ProfilePage from '../pages/ProfilePage';
@@ -36,12 +41,14 @@ const ADMIN_ONLY_MODULES = new Set([
 ]);
 
 function ProtectedRoute() {
-  const { isAuthenticated } = useAuth();
-  const location = useLocation();
+  const { isAuthenticated, user } = useAuth();
 
   if (!isAuthenticated) {
-    const loginPath = location.pathname.startsWith('/police') ? '/police/login' : '/login';
-    return <Navigate to={loginPath} replace />;
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.passwordChangeRequired) {
+    return <Navigate to="/change-password-required" replace />;
   }
 
   return <AdminLayout />;
@@ -105,7 +112,7 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/police/login" element={<PoliceLoginPage />} />
+      <Route path="/change-password-required" element={<ForceChangePasswordPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<HomeRedirect />} />
@@ -226,6 +233,14 @@ export default function AppRoutes() {
           element={
             <ModuleRoute moduleKey="settings">
               <CategoriesPage />
+            </ModuleRoute>
+          }
+        />
+        <Route
+          path="/settings/districts"
+          element={
+            <ModuleRoute moduleKey="settings">
+              <DistrictsPage />
             </ModuleRoute>
           }
         />

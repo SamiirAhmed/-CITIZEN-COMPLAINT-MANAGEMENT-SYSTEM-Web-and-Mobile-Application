@@ -13,5 +13,18 @@ function buildQuery(params = {}) {
 
 export async function listAuditLogs(filters = {}) {
   const response = await apiRequest(`/admin/audit-logs${buildQuery(filters)}`);
-  return response?.data?.logs || [];
+  return {
+    logs: response?.data?.logs || [],
+    pagination: response?.data?.pagination || { page: 1, limit: 20, total: 0, pages: 1 },
+  };
+}
+
+export async function getAuditLogById(id) {
+  const response = await apiRequest(`/admin/audit-logs/${id}`);
+  return response?.data?.log || null;
+}
+
+export async function getAuthTimeline(filters = {}) {
+  const response = await apiRequest(`/admin/audit-logs/timeline${buildQuery(filters)}`);
+  return response?.data?.events || [];
 }

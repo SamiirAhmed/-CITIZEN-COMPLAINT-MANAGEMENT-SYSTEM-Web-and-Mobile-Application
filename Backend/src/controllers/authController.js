@@ -12,6 +12,11 @@ import {
   signToken,
 } from '../utils/helpers.js';
 import {
+  recordAuthAuditEvent,
+  shouldNotifyAdminsForFailedLogin,
+} from '../utils/authAudit.js';
+import { getAccessSource } from '../utils/requestContext.js';
+import {
   validateCitizenRegistration,
   validateLoginInput,
   isValidEmail,
@@ -20,6 +25,8 @@ import {
   profileImagePublicPath,
   removeProfileImageFile,
 } from '../middleware/uploadProfileImage.js';
+import { applyGeographicSelection } from '../utils/geographyHelpers.js';
+import { getDefaultUserPassword } from '../utils/defaultPassword.js';
 
 const cleanupUpload = (req) => {
   if (req.file?.filename) {
@@ -45,7 +52,7 @@ export const registerCitizen = asyncHandler(async (req, res) => {
     });
   }
 
-  const { name, niraId, phone, tell, email, password } = validation.data;
+  const { name, niraId, phone, tell, email, password, region, district } = validation.data;
   const profileImage = profileImagePublicPath(req.file.filename);
 
   const existingEmail = await User.findOne({ email });
@@ -76,6 +83,24 @@ export const registerCitizen = asyncHandler(async (req, res) => {
     role: 'citizen',
     profileImage,
   });
+
+  const geoResult = await applyGeographicSelection(user, {
+    region,
+    district,
+    village: req.body.village,
+    area: req.body.area,
+  });
+
+  if (!geoResult.ok) {
+    await User.deleteOne({ _id: user._id });
+    removeProfileImageFile(profileImage);
+    return res.status(400).json({
+      success: false,
+      message: geoResult.message,
+    });
+  }
+
+  await user.save();
 
   const token = signToken(user._id, user.role);
 
@@ -115,6 +140,7 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   const { email, password } = validation.data;
+  const accessSource = getAccessSource(req);
 
   let user;
   try {
@@ -131,6 +157,16 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   if (!user || !(await user.comparePassword(password))) {
+    await recordAuthAuditEvent(req, {
+      actor: user,
+      email,
+      action: 'LOGIN_FAILED',
+      status: 'failed',
+      failureReason: 'Invalid credentials',
+      accessSource,
+      notifyAdmins: shouldNotifyAdminsForFailedLogin({ user, accessSource }),
+    });
+
     return res.status(401).json({
       success: false,
       message: 'Invalid email or password.',
@@ -138,6 +174,16 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   if (!user.isActive) {
+    await recordAuthAuditEvent(req, {
+      actor: user,
+      email,
+      action: 'LOGIN_FAILED',
+      status: 'failed',
+      failureReason: 'Account inactive',
+      accessSource,
+      notifyAdmins: user.role === 'admin' || user.role === 'police',
+    });
+
     return res.status(403).json({
       success: false,
       message: 'Your account is inactive. Please contact an administrator.',
@@ -147,16 +193,27 @@ export const login = asyncHandler(async (req, res) => {
   const token = signToken(user._id, user.role);
 
   if (user.role === 'admin' || user.role === 'police') {
-    await createAuditLog({
+    await recordAuthAuditEvent(req, {
       actor: user,
-      action: 'LOGIN',
-      recordType: 'Session',
-      recordId: user._id,
-      recordLabel: user.name,
-      newValue: 'Signed in',
-      details: `${user.role} signed in.`,
-      ipAddress: getRequestIp(req),
+      email,
+      action: 'LOGIN_SUCCESS',
+      status: 'success',
+      accessSource,
+      notifyAdmins: true,
+      excludeNotificationUserId: user._id,
     });
+
+    if (user.passwordChangeRequired) {
+      await recordAuthAuditEvent(req, {
+        actor: user,
+        email,
+        action: 'PASSWORD_CHANGE_REQUIRED',
+        status: 'info',
+        accessSource,
+        notifyAdmins: true,
+        excludeNotificationUserId: user._id,
+      });
+    }
   }
 
   return res.json({
@@ -337,6 +394,20 @@ export const changePassword = asyncHandler(async (req, res) => {
     });
   }
 
+  if (String(newPassword).trim().length !== String(newPassword).length) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password cannot contain leading or trailing spaces.',
+    });
+  }
+
+  if (!/\S/.test(String(newPassword))) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password cannot be empty or spaces only.',
+    });
+  }
+
   if (confirmPassword !== undefined && newPassword !== confirmPassword) {
     return res.status(400).json({
       success: false,
@@ -353,30 +424,57 @@ export const changePassword = asyncHandler(async (req, res) => {
     });
   }
 
+  let defaultPassword;
+  try {
+    defaultPassword = getDefaultUserPassword();
+  } catch {
+    defaultPassword = null;
+  }
+
+  if (defaultPassword && newPassword === defaultPassword) {
+    return res.status(400).json({
+      success: false,
+      message: 'Choose a new password different from the initial default password.',
+    });
+  }
+
   user.password = newPassword;
+  user.passwordChangeRequired = false;
   await user.save();
 
   if (user.role === 'admin' || user.role === 'police') {
-    await createAuditLog({
+    await recordAuthAuditEvent(req, {
       actor: user,
-      action: 'UPDATE',
-      recordType: 'Profile',
-      recordId: user._id,
-      recordLabel: user.name,
-      previousValue: '',
-      newValue: 'Password changed',
+      email: user.email,
+      action: 'PASSWORD_CHANGED',
+      status: 'success',
       details: 'Account password was changed. Password values were not logged.',
-      ipAddress: getRequestIp(req),
+      notifyAdmins: true,
+      excludeNotificationUserId: user._id,
     });
   }
 
   return res.json({
     success: true,
     message: 'Password changed successfully.',
+    data: {
+      user: user.toSafeObject(),
+    },
   });
 });
 
-export const logout = asyncHandler(async (_req, res) => {
+export const logout = asyncHandler(async (req, res) => {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'police')) {
+    await recordAuthAuditEvent(req, {
+      actor: req.user,
+      email: req.user.email,
+      action: 'LOGOUT',
+      status: 'success',
+      notifyAdmins: true,
+      excludeNotificationUserId: req.user._id,
+    });
+  }
+
   return res.json({
     success: true,
     message: 'Logged out successfully.',

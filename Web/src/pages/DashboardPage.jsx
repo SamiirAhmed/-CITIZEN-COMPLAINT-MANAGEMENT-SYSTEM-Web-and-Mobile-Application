@@ -58,7 +58,7 @@ export default function DashboardPage() {
 
   const summary = data?.summary || {};
   const trends = data?.cardTrends || {};
-  const displayName = user?.name || 'System Administrator';
+  const displayName = user?.name || 'Admin';
   const { date, time } = formatDateTime(now);
 
   return (
@@ -133,7 +133,10 @@ export default function DashboardPage() {
           </div>
           <RecentActivityTable activities={data?.recentActivities || []} />
         </article>
-        <SystemAlerts alerts={data?.systemAlerts || []} />
+        <SystemAlerts
+          alerts={data?.systemAlerts || []}
+          unreadCount={data?.securityUnreadCount || 0}
+        />
       </section>
     </div>
   );

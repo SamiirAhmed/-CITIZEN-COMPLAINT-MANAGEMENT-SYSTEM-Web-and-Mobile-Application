@@ -9,7 +9,7 @@ import UserTable from '../components/users/UserTable';
 import { useAuth } from '../context/AuthContext';
 import {
   listUsers,
-  registerPolice,
+  registerStaff,
   setUserStatus,
   updateUser,
 } from '../services/userService';
@@ -53,10 +53,13 @@ export default function UsersPage() {
   const handleRegister = async (payload) => {
     setSubmitting(true);
     try {
-      const created = await registerPolice(payload);
-      setUsers((prev) => [created, ...prev]);
+      const result = await registerStaff(payload);
+      setUsers((prev) => [result.user, ...prev]);
       setRegisterOpen(false);
-      setNotice('Police user registered successfully.');
+      setNotice(
+        result.message ||
+          'User registered successfully. Share the account email and your organization\'s initial password securely.'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -112,7 +115,7 @@ export default function UsersPage() {
             <p className="muted">Manage admin and police staff accounts.</p>
           </div>
           <button type="button" className="btn btn--primary" onClick={() => setRegisterOpen(true)}>
-            Register Police
+            Add User
           </button>
         </div>
 
@@ -156,7 +159,7 @@ export default function UsersPage() {
 
       <Modal
         open={registerOpen}
-        title="Register Police"
+        title="Register User"
         onClose={() => setRegisterOpen(false)}
         size="lg"
       >
@@ -183,6 +186,8 @@ export default function UsersPage() {
               email: editing.email || '',
               badgeNumber: editing.badgeNumber || '',
               station: editing.station || '',
+              region: editing.region || '',
+              district: editing.district || '',
             }}
             currentImage={editing.profileImage || ''}
             submitting={submitting}

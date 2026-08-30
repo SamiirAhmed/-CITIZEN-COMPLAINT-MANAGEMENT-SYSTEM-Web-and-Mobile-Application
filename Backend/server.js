@@ -11,6 +11,8 @@ import complaintRoutes from './src/routes/complaintRoutes.js';
 import obRoutes from './src/routes/obRoutes.js';
 import notificationRoutes from './src/routes/notificationRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
+import geographyRoutes from './src/routes/geographyRoutes.js';
+import { seedGeography } from './src/utils/seedGeography.js';
 import { UPLOADS_ROOT } from './src/middleware/uploadProfileImage.js';
 
 dotenv.config();
@@ -59,6 +61,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/ob', obRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/geography', geographyRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use((req, res) => {
@@ -110,9 +113,12 @@ app.use((err, _req, res, _next) => {
 
 const startServer = async () => {
   try {
-    await connectDB();
-    await seedStaffUsers();
-    await seedComplaintCategories();
+    const connected = await connectDB();
+    if (connected) {
+      await seedStaffUsers();
+      await seedComplaintCategories();
+      await seedGeography();
+    }
 
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);

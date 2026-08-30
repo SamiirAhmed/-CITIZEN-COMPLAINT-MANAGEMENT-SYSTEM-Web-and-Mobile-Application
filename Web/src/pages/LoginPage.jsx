@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import LOGO_SRC from '../assets/branding';
 import { useAuth } from '../context/AuthContext';
-import { validateLogin } from '../validation/authenticationValidation';
 import { getHomePath } from '../navigation/adminNavigation';
+import { validateLogin } from '../validation/authenticationValidation';
 
 export default function LoginPage() {
   const { isAuthenticated, user, login } = useAuth();
@@ -14,6 +14,9 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (isAuthenticated) {
+    if (user?.passwordChangeRequired) {
+      return <Navigate to="/change-password-required" replace />;
+    }
     return <Navigate to={getHomePath(user)} replace />;
   }
 
@@ -32,7 +35,11 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const result = await login(validation.data.email, validation.data.password);
-      navigate(getHomePath(result.user), { replace: true });
+      if (result.user?.passwordChangeRequired) {
+        navigate('/change-password-required', { replace: true });
+      } else {
+        navigate(getHomePath(result.user), { replace: true });
+      }
     } catch (error) {
       setFormError(error.message || 'Unable to sign in.');
     } finally {
@@ -47,8 +54,7 @@ export default function LoginPage() {
           <img src={LOGO_SRC} alt="SPO logo" />
           <div>
             <p className="login-page__system">SPO — Somali Police OBE</p>
-            <h1>Admin Portal</h1>
-            <p className="muted">Secure access for police administration staff.</p>
+            <h1>Sign In</h1>
           </div>
         </div>
 
@@ -63,8 +69,9 @@ export default function LoginPage() {
               value={values.email}
               onChange={handleChange}
               autoComplete="username"
-              placeholder="admin@spf.gov.so"
+              placeholder="you@spf.gov.so"
             />
+            <small className="field-hint">Enter your registered email address.</small>
             {errors.email ? <em className="field-error">{errors.email}</em> : null}
           </label>
 
@@ -77,11 +84,12 @@ export default function LoginPage() {
               onChange={handleChange}
               autoComplete="current-password"
             />
+            <small className="field-hint">Enter your account password.</small>
             {errors.password ? <em className="field-error">{errors.password}</em> : null}
           </label>
 
           <button type="submit" className="btn btn--primary btn--block" disabled={submitting}>
-            {submitting ? 'Signing in…' : 'Sign in'}
+            {submitting ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
       </div>

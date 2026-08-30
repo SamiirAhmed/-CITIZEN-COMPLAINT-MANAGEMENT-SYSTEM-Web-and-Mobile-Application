@@ -102,6 +102,8 @@ class AuthenticationService extends ChangeNotifier {
     required String password,
     required String confirmPassword,
     required String profileImagePath,
+    required String region,
+    required String district,
   }) async {
     _busy = true;
     _error = null;
@@ -121,6 +123,8 @@ class AuthenticationService extends ChangeNotifier {
           'email': email.trim(),
           'password': password,
           'confirmPassword': confirmPassword,
+          'region': region.trim(),
+          'district': district.trim(),
         },
       );
 

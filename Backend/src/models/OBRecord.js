@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 
 export const OB_STATUSES = [
   'Opened',
-  'Pending',
   'Assigned',
   'Under Investigation',
   'Investigation Completed',
@@ -10,37 +9,6 @@ export const OB_STATUSES = [
   'Closed',
   'Reopened',
 ];
-
-export const OB_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-
-export const OB_CATEGORIES = [
-  'Theft',
-  'Assault',
-  'Accident',
-  'Missing Person',
-  'Domestic Incident',
-  'Property Damage',
-  'Fraud',
-  'Lost Property',
-  'Disturbance',
-  'Suspicious Activity',
-  'Traffic Incident',
-  'Other',
-];
-
-/** Map legacy complaint categories onto OB categories when creating from a complaint. */
-export const COMPLAINT_CATEGORY_TO_OB = {
-  Theft: 'Theft',
-  Assault: 'Assault',
-  Fraud: 'Fraud',
-  'Traffic Accident': 'Traffic Incident',
-  'Domestic Dispute': 'Domestic Incident',
-  'Property Damage': 'Property Damage',
-  'Missing Person': 'Missing Person',
-  Cybercrime: 'Other',
-  'Noise Complaint': 'Disturbance',
-  Other: 'Other',
-};
 
 const updateSchema = new mongoose.Schema(
   {
@@ -53,6 +21,7 @@ const updateSchema = new mongoose.Schema(
   { _id: false }
 );
 
+<<<<<<< HEAD
 const activitySchema = new mongoose.Schema(
   {
     action: { type: String, required: true },
@@ -65,6 +34,8 @@ const activitySchema = new mongoose.Schema(
   { _id: false }
 );
 
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 const investigationNoteSchema = new mongoose.Schema(
   {
     note: { type: String, required: true },
@@ -93,149 +64,38 @@ const obRecordSchema = new mongoose.Schema(
       type: String,
       unique: true,
       required: true,
-      index: true,
     },
-    // Optional link to citizen complaint (partial unique — missing/null allowed many times)
     complaint: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Complaint',
+      required: true,
+      unique: true,
     },
     citizen: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+      required: true,
       index: true,
-    },
-    occurrenceDate: {
-      type: Date,
-      default: null,
-    },
-    occurrenceTime: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    dateReported: {
-      type: Date,
-      default: Date.now,
-    },
-    timeReported: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    station: {
-      type: String,
-      default: '',
-      trim: true,
-      index: true,
-    },
-    complainantName: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    complainantPhone: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    complainantAddress: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    category: {
-      type: String,
-      enum: OB_CATEGORIES,
-      default: 'Other',
-      index: true,
-    },
-    occurrenceType: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    subject: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    description: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    location: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    district: {
-      type: String,
-      default: '',
-      trim: true,
-      index: true,
-    },
-    recordedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
-    updatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
     assignedOfficer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,
-      index: true,
     },
     assignedAt: {
       type: Date,
       default: null,
-    },
-    priority: {
-      type: String,
-      enum: OB_PRIORITIES,
-      default: 'MEDIUM',
-      index: true,
     },
     status: {
       type: String,
       enum: OB_STATUSES,
       default: 'Opened',
       index: true,
-    },
-    actionTaken: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    followUpDate: {
-      type: Date,
-      default: null,
-    },
-    followUpNotes: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    outcome: {
-      type: String,
-      default: '',
-      trim: true,
-    },
-    additionalNotes: {
-      type: String,
-      default: '',
-      trim: true,
     },
     investigationNotes: {
       type: String,
@@ -276,43 +136,13 @@ const obRecordSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
-    closedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
     updates: {
       type: [updateSchema],
-      default: [],
-    },
-    activityHistory: {
-      type: [activitySchema],
       default: [],
     },
   },
   { timestamps: true }
 );
-
-obRecordSchema.index({ subject: 'text', complainantName: 'text', location: 'text', obNumber: 'text' });
-obRecordSchema.index(
-  { complaint: 1 },
-  {
-    unique: true,
-    partialFilterExpression: { complaint: { $type: 'objectId' } },
-    name: 'complaint_unique_when_set',
-  }
-);
-
-function serializeUser(user) {
-  if (!user) return null;
-  return {
-    id: user._id?.toString?.() || user.id || String(user),
-    name: user.name || '',
-    badgeNumber: user.badgeNumber || '',
-    station: user.station || '',
-    role: user.role || '',
-  };
-}
 
 obRecordSchema.methods.toCitizenObject = function toCitizenObject(complaint) {
   const complaintInfo = complaint
@@ -327,18 +157,24 @@ obRecordSchema.methods.toCitizenObject = function toCitizenObject(complaint) {
       }
     : null;
 
+  const assigned = this.assignedOfficer
+    ? {
+        id: this.assignedOfficer._id?.toString?.() || this.assignedOfficer.id,
+        name: this.assignedOfficer.name,
+        badgeNumber: this.assignedOfficer.badgeNumber || '',
+        station: this.assignedOfficer.station || '',
+      }
+    : null;
+
   return {
     id: this._id.toString(),
     obNumber: this.obNumber,
     status: this.status,
-    category: this.category || complaintInfo?.category || '',
-    subject: this.subject || '',
-    location: this.location || complaintInfo?.location || '',
     citizenSummary: this.citizenSummary || '',
     closureReason: this.closureReason || '',
     closedAt: this.closedAt,
     assignedAt: this.assignedAt,
-    assignedOfficer: serializeUser(this.assignedOfficer),
+    assignedOfficer: assigned,
     complaint: complaintInfo,
     updates: (this.updates || [])
       .filter((item) => item.visibleToCitizen)
@@ -476,6 +312,7 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
       title: item.title,
       note: item.note || '',
       visibleToCitizen: item.visibleToCitizen !== false,
+<<<<<<< HEAD
       createdAt: item.createdAt,
       createdBy: item.createdBy?.toString?.() || item.createdBy || null,
     })),
@@ -485,6 +322,8 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
       previousValue: item.previousValue || '',
       newValue: item.newValue || '',
       note: item.note || '',
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
       createdAt: item.createdAt,
     })),
     createdAt: this.createdAt,

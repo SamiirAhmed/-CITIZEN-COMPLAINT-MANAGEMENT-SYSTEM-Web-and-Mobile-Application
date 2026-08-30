@@ -78,9 +78,13 @@ export default function ProfilePage() {
   const handlePasswordSubmit = async (payload) => {
     setSubmitting(true);
     try {
-      const message = await changeMyPassword(payload);
+      const updated = await changeMyPassword(payload);
+      if (updated) {
+        setProfile(updated);
+        applyUser(updated);
+      }
       setPasswordOpen(false);
-      setNotice(message || 'Password changed successfully.');
+      setNotice('Password changed successfully.');
       if (location.hash === '#password') {
         navigate('/profile', { replace: true });
       }
@@ -114,7 +118,10 @@ export default function ProfilePage() {
           <p className="settings-hub__eyebrow">
             {profile.role === 'police' ? 'Police Profile' : 'Admin Profile'}
           </p>
-          <h1>{profile.name || (profile.role === 'police' ? 'Police Officer' : 'System Administrator')}</h1>
+          <h1>
+            {profile.name ||
+              (profile.role === 'police' ? 'Police Officer' : 'System Administrator')}
+          </h1>
           <p className="profile-hero-card__role">{roleLabel}</p>
           <div className="profile-hero__badges">
             <StatusBadge status={active ? 'Active' : 'Inactive'} />

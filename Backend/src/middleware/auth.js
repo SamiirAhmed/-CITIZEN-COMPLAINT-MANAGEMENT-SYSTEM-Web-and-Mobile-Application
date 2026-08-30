@@ -55,6 +55,22 @@ export const protect = async (req, res, next) => {
   }
 };
 
+/** Block staff API access until mandatory first-login password change is completed. */
+export const requirePasswordChanged = (req, res, next) => {
+  if (
+    req.user &&
+    (req.user.role === 'admin' || req.user.role === 'police') &&
+    req.user.passwordChangeRequired === true
+  ) {
+    return res.status(403).json({
+      success: false,
+      message: 'Password change required before accessing this resource.',
+      code: 'PASSWORD_CHANGE_REQUIRED',
+    });
+  }
+  return next();
+};
+
 export const authorize =
   (...roles) =>
   (req, res, next) => {
@@ -68,5 +84,5 @@ export const authorize =
   };
 
 export const citizenOnly = [protect, authorize('citizen')];
-export const staffOnly = [protect, authorize('admin', 'police')];
-export const adminOnly = [protect, authorize('admin')];
+export const staffOnly = [protect, authorize('admin', 'police'), requirePasswordChanged];
+export const adminOnly = [protect, authorize('admin'), requirePasswordChanged];

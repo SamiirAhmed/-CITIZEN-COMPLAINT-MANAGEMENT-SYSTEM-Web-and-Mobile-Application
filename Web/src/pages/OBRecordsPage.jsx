@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import DashboardSummaryCard from '../components/dashboard/DashboardSummaryCard';
@@ -34,11 +35,36 @@ const EMPTY_FILTERS = {
   dateFrom: '',
   dateTo: '',
 };
+=======
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import ConfirmDialog from '../components/common/ConfirmDialog';
+import ErrorState from '../components/common/ErrorState';
+import LoadingState from '../components/common/LoadingState';
+import Modal from '../components/common/Modal';
+import AssignOfficerForm from '../components/ob/AssignOfficerForm';
+import CreateOBFromComplaintForm from '../components/ob/CreateOBFromComplaintForm';
+import OBDetails from '../components/ob/OBDetails';
+import OBStatusForm from '../components/ob/OBStatusForm';
+import OBTable from '../components/ob/OBTable';
+import { OB_STATUSES, getRecordId } from '../constants/domain';
+import { useAuth } from '../context/AuthContext';
+import { createOBFromComplaint, listComplaints } from '../services/complaintService';
+import {
+  assignOfficer,
+  deleteOBRecord,
+  getOBById,
+  listOBRecords,
+  updateInvestigation,
+  updateOBStatus,
+} from '../services/obService';
+import { listUsers } from '../services/userService';
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 
 export default function OBRecordsPage() {
   const { user } = useAuth();
   const location = useLocation();
   const isAdmin = user?.role === 'admin';
+<<<<<<< HEAD
 
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [records, setRecords] = useState([]);
@@ -73,11 +99,30 @@ export default function OBRecordsPage() {
       // meta is non-blocking
     }
   }, []);
+=======
+  const [records, setRecords] = useState([]);
+  const [officers, setOfficers] = useState([]);
+  const [eligibleComplaints, setEligibleComplaints] = useState([]);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [busyId, setBusyId] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [viewing, setViewing] = useState(null);
+  const [assigning, setAssigning] = useState(null);
+  const [statusTarget, setStatusTarget] = useState(null);
+  const [investigationTarget, setInvestigationTarget] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [confirmTarget, setConfirmTarget] = useState(null);
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
+<<<<<<< HEAD
       const [listResult, statsResult] = await Promise.all([
         listOccurrences({ ...filters, page, limit: 25 }),
         getOccurrenceStats(),
@@ -113,6 +158,34 @@ export default function OBRecordsPage() {
         .catch(() => {});
     }
   }, [location.state]);
+=======
+      const result = await listOBRecords({ search, status });
+      setRecords(result);
+    } catch (err) {
+      setError(err.message || 'Unable to load OB records.');
+    } finally {
+      setLoading(false);
+    }
+  }, [search, status]);
+
+  const loadLookups = useCallback(async () => {
+    if (!isAdmin) return;
+    const [users, complaints] = await Promise.all([
+      listUsers({ role: 'police', status: 'active' }),
+      listComplaints({}),
+    ]);
+    setOfficers(users.filter((item) => item.role === 'police' || item.role === 'admin'));
+    setEligibleComplaints(
+      complaints.filter((item) =>
+        ['Submitted', 'Under Review', 'Verified'].includes(item.status)
+      )
+    );
+  }, [isAdmin]);
+
+  useEffect(() => {
+    loadLookups().catch(() => {});
+  }, [loadLookups]);
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -121,6 +194,7 @@ export default function OBRecordsPage() {
     return () => clearTimeout(timer);
   }, [load]);
 
+<<<<<<< HEAD
   const setFilter = (key, value) => {
     setPage(1);
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -197,11 +271,37 @@ export default function OBRecordsPage() {
       setRecords((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       await refreshViewing(updated.id);
       await load();
+=======
+  const refreshRecord = async (id) => {
+    try {
+      const updated = await getOBById(id);
+      if (updated) {
+        setRecords((prev) =>
+          prev.map((item) => (getRecordId(item) === getRecordId(updated) ? updated : item))
+        );
+        if (viewing && getRecordId(viewing) === getRecordId(updated)) {
+          setViewing(updated);
+        }
+      }
+    } catch {
+      await load();
+    }
+  };
+
+  const handleCreateOB = async ({ complaintId, citizenSummary }) => {
+    setSubmitting(true);
+    try {
+      await createOBFromComplaint(complaintId, { citizenSummary });
+      setCreateOpen(false);
+      setNotice('OB record created successfully.');
+      await Promise.all([load(), loadLookups()]);
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
     } finally {
       setSubmitting(false);
     }
   };
 
+<<<<<<< HEAD
   const handleAssign = async () => {
     if (!officerId) {
       setNotice('Select an officer to assign.');
@@ -293,12 +393,93 @@ export default function OBRecordsPage() {
   };
 
   const summary = stats || {};
+=======
+  const handleView = async (record) => {
+    try {
+      const details = await getOBById(getRecordId(record));
+      setViewing(details || record);
+    } catch (err) {
+      setNotice(err.message || 'Unable to load OB details.');
+      setViewing(record);
+    }
+  };
+
+  const handleAssign = async (officerId) => {
+    setSubmitting(true);
+    try {
+      const id = getRecordId(assigning);
+      await assignOfficer(id, officerId);
+      setAssigning(null);
+      setNotice('Officer assigned successfully.');
+      await refreshRecord(id);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleStatusUpdate = async (payload) => {
+    setSubmitting(true);
+    try {
+      const id = getRecordId(statusTarget);
+      await updateOBStatus(id, payload);
+      setStatusTarget(null);
+      setNotice('OB status updated successfully.');
+      await refreshRecord(id);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleInvestigationUpdate = async (payload) => {
+    setSubmitting(true);
+    try {
+      const id = getRecordId(investigationTarget);
+      await updateInvestigation(id, payload);
+      setInvestigationTarget(null);
+      setNotice('Investigation updated successfully.');
+      await refreshRecord(id);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const runDelete = async () => {
+    if (!confirmTarget) return;
+    const id = getRecordId(confirmTarget);
+    setBusyId(id);
+    setNotice('');
+    try {
+      await deleteOBRecord(id);
+      setRecords((prev) => prev.filter((item) => getRecordId(item) !== id));
+      setNotice('OB record deleted successfully.');
+      setConfirmTarget(null);
+      await loadLookups();
+    } catch (err) {
+      setNotice(err.message || 'Unable to delete OB record.');
+      setConfirmTarget(null);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const headerActions = useMemo(() => {
+    if (!isAdmin) return null;
+    return (
+      <div className="action-row">
+        <button type="button" className="btn btn--primary" onClick={() => setCreateOpen(true)}>
+          Create OB Record
+        </button>
+      </div>
+    );
+  }, [isAdmin]);
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 
   return (
     <div className="page-stack">
       <section className="panel">
         <div className="panel__header panel__header--spread">
           <div>
+<<<<<<< HEAD
             <h2>Police Occurrence Book</h2>
             <p className="muted">
               Create, search, assign, and track police occurrence records.
@@ -348,11 +529,31 @@ export default function OBRecordsPage() {
           <select value={filters.status} onChange={(e) => setFilter('status', e.target.value)}>
             <option value="">All statuses</option>
             {(meta.statuses || []).map((item) => (
+=======
+            <h2>OB Records</h2>
+            <p className="muted">Manage occurrence books linked to complaints.</p>
+          </div>
+          {headerActions}
+        </div>
+
+        <div className="toolbar">
+          <input
+            className="toolbar__search"
+            type="search"
+            placeholder="Search by OB number, complaint, or citizen"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+          <select value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="">All statuses</option>
+            {OB_STATUSES.map((item) => (
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
               <option key={item} value={item}>
                 {item}
               </option>
             ))}
           </select>
+<<<<<<< HEAD
           <select value={filters.category} onChange={(e) => setFilter('category', e.target.value)}>
             <option value="">All categories</option>
             {(meta.categories || []).map((item) => (
@@ -476,11 +677,40 @@ export default function OBRecordsPage() {
               </div>
             </div>
           </>
+=======
+        </div>
+
+        {notice ? <div className="alert alert--info">{notice}</div> : null}
+
+        {loading ? (
+          <LoadingState message="Loading OB records…" />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : (
+          <OBTable
+            records={records}
+            busyId={busyId}
+            canAssign={isAdmin}
+            canDelete={isAdmin}
+            canUpdateStatus
+            onView={handleView}
+            onAssign={setAssigning}
+            onUpdateStatus={(record) => {
+              if (isAdmin) {
+                setStatusTarget(record);
+              } else {
+                setInvestigationTarget(record);
+              }
+            }}
+            onDelete={setConfirmTarget}
+          />
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
         )}
       </section>
 
       <Modal
         open={createOpen}
+<<<<<<< HEAD
         title="New Occurrence"
         size="lg"
         onClose={() => {
@@ -501,10 +731,22 @@ export default function OBRecordsPage() {
             if (!submitting) setCreateOpen(false);
           }}
           onSubmit={handleCreate}
+=======
+        title="Create OB Record"
+        onClose={() => setCreateOpen(false)}
+        size="lg"
+      >
+        <CreateOBFromComplaintForm
+          complaints={eligibleComplaints}
+          submitting={submitting}
+          onCancel={() => setCreateOpen(false)}
+          onSubmit={handleCreateOB}
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
         />
       </Modal>
 
       <Modal
+<<<<<<< HEAD
         open={Boolean(editing)}
         title={`Edit ${editing?.obNumber || 'Occurrence'}`}
         size="lg"
@@ -520,11 +762,60 @@ export default function OBRecordsPage() {
             submitLabel="Save Changes"
             onCancel={() => setEditing(null)}
             onSubmit={handleEdit}
+=======
+        open={Boolean(viewing)}
+        title="OB Record Details"
+        onClose={() => setViewing(null)}
+        size="lg"
+      >
+        <OBDetails record={viewing} />
+        {viewing && (isAdmin || user?.role === 'police') ? (
+          <div className="form-actions">
+            {isAdmin ? (
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => {
+                  setAssigning(viewing);
+                }}
+              >
+                Assign officer
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => {
+                if (isAdmin) setStatusTarget(viewing);
+                else setInvestigationTarget(viewing);
+              }}
+            >
+              Update status
+            </button>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={Boolean(assigning)}
+        title="Assign Officer"
+        onClose={() => setAssigning(null)}
+        size="md"
+      >
+        {assigning ? (
+          <AssignOfficerForm
+            officers={officers}
+            initialOfficerId={assigning.assignedOfficer?.id || ''}
+            submitting={submitting}
+            onCancel={() => setAssigning(null)}
+            onSubmit={handleAssign}
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
           />
         ) : null}
       </Modal>
 
       <Modal
+<<<<<<< HEAD
         open={Boolean(viewing)}
         title={viewing ? `Occurrence ${viewing.obNumber}` : 'Occurrence Details'}
         size="lg"
@@ -627,6 +918,52 @@ export default function OBRecordsPage() {
           </div>
         </div>
       </Modal>
+=======
+        open={Boolean(statusTarget)}
+        title="Update OB Status"
+        onClose={() => setStatusTarget(null)}
+        size="md"
+      >
+        {statusTarget ? (
+          <OBStatusForm
+            mode="status"
+            submitting={submitting}
+            onCancel={() => setStatusTarget(null)}
+            onSubmit={handleStatusUpdate}
+          />
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={Boolean(investigationTarget)}
+        title="Update Investigation"
+        onClose={() => setInvestigationTarget(null)}
+        size="md"
+      >
+        {investigationTarget ? (
+          <OBStatusForm
+            mode="investigation"
+            submitting={submitting}
+            onCancel={() => setInvestigationTarget(null)}
+            onSubmit={handleInvestigationUpdate}
+          />
+        ) : null}
+      </Modal>
+
+      <ConfirmDialog
+        open={Boolean(confirmTarget)}
+        title="Delete OB Record"
+        message={
+          confirmTarget ? `Are you sure you want to delete ${confirmTarget.obNumber}?` : ''
+        }
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        tone="danger"
+        busy={Boolean(busyId)}
+        onCancel={() => setConfirmTarget(null)}
+        onConfirm={runDelete}
+      />
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
     </div>
   );
 }

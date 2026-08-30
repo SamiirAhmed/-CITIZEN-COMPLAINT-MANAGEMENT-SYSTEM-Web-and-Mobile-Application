@@ -1,17 +1,23 @@
+<<<<<<< HEAD
 import OBRecord, {
   COMPLAINT_CATEGORY_TO_OB,
   OB_CATEGORIES,
   OB_PRIORITIES,
   OB_STATUSES,
 } from '../models/OBRecord.js';
+=======
+import OBRecord, { OB_STATUSES } from '../models/OBRecord.js';
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 import Complaint from '../models/Complaint.js';
 import User from '../models/User.js';
-import mongoose from 'mongoose';
 import {
   asyncHandler,
   createAuditLog,
   createNotification,
+<<<<<<< HEAD
   generateOBNumber,
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
   getRequestIp,
 } from '../utils/helpers.js';
 import {
@@ -114,6 +120,7 @@ const toAdminOB = (record) => {
   };
 };
 
+<<<<<<< HEAD
 const OPEN_STATUSES = ['Opened', 'Assigned', 'Reopened'];
 const CLOSED_LIKE = ['Closed', 'Resolved'];
 
@@ -336,6 +343,8 @@ function validateOccurrencePayload(body, { partial = false } = {}) {
 
 // ─── Citizen endpoints (unchanged behaviour) ─────────────────────────────────
 
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 export const getMyOBRecords = asyncHandler(async (req, res) => {
   const records = await OBRecord.find({ citizen: req.user._id })
     .populate('complaint')
@@ -372,8 +381,6 @@ export const getMyOBById = asyncHandler(async (req, res) => {
 });
 
 const syncComplaintFromOB = async (ob, status, note, userId) => {
-  if (!ob.complaint) return;
-
   const complaint = await Complaint.findById(ob.complaint);
   if (!complaint) return;
 
@@ -399,6 +406,7 @@ const syncComplaintFromOB = async (ob, status, note, userId) => {
   await complaint.save();
 };
 
+<<<<<<< HEAD
 // ─── Staff list / meta / stats / reports ─────────────────────────────────────
 
 export const getOBMeta = asyncHandler(async (_req, res) => {
@@ -1129,6 +1137,8 @@ export const staffExportOBs = asyncHandler(async (req, res) => {
 
 // ─── Existing admin/police workflow (complaint-linked) ───────────────────────
 
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 export const adminAssignOfficer = asyncHandler(async (req, res) => {
   const { officerId } = req.body;
   const ob = await OBRecord.findById(req.params.id);
@@ -1153,37 +1163,26 @@ export const adminAssignOfficer = asyncHandler(async (req, res) => {
     });
   }
 
-  const previousOfficer = ob.assignedOfficer?.toString() || '';
   ob.assignedOfficer = officer._id;
   ob.assignedAt = new Date();
   ob.status = 'Assigned';
-  ob.updatedBy = req.user._id;
   ob.updates.push({
     title: 'Police Assigned',
     note: `An investigating officer has been assigned to ${ob.obNumber}.`,
-    visibleToCitizen: Boolean(ob.citizen),
+    visibleToCitizen: true,
     createdBy: req.user._id,
     createdAt: new Date(),
   });
-  pushActivity(ob, {
-    action: 'Assigned',
-    userId: req.user._id,
-    previousValue: previousOfficer,
-    newValue: officer.name,
-    note: `Assigned to ${officer.name}.`,
-  });
   await ob.save();
 
-  if (ob.citizen) {
-    await createNotification({
-      userId: ob.citizen,
-      title: 'Police Assigned',
-      message: `A police officer has been assigned to OB ${ob.obNumber}.`,
-      type: 'police_assigned',
-      relatedComplaint: ob.complaint,
-      relatedOB: ob._id,
-    });
-  }
+  await createNotification({
+    userId: ob.citizen,
+    title: 'Police Assigned',
+    message: `A police officer has been assigned to OB ${ob.obNumber}.`,
+    type: 'police_assigned',
+    relatedComplaint: ob.complaint,
+    relatedOB: ob._id,
+  });
 
   await createNotification({
     userId: officer._id,
@@ -1196,11 +1195,14 @@ export const adminAssignOfficer = asyncHandler(async (req, res) => {
     linkPath: `/ob-records/${ob._id}`,
   });
 
+<<<<<<< HEAD
   const populated = await loadStaffOB(ob._id);
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
   return res.json({
     success: true,
     message: 'Officer assigned successfully.',
-    data: { record: populated.toStaffObject(), ob: populated },
+    data: { ob },
   });
 });
 
@@ -1236,7 +1238,10 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
         message: 'Investigation has already been started.',
       });
     }
+<<<<<<< HEAD
     const previous = ob.status;
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
     ob.status = 'Under Investigation';
     if (!ob.investigationStartedAt) {
       ob.investigationStartedAt = new Date();
@@ -1244,25 +1249,21 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
     ob.investigationCompletedAt = null;
     if (note) {
       appendInvestigationNote(ob, note, req.user._id);
+<<<<<<< HEAD
       ob.actionTaken = note;
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
     }
-    ob.updatedBy = req.user._id;
     ob.updates.push({
       title: 'Investigation Started',
       note: note || 'Investigation has started on your case.',
-      visibleToCitizen: Boolean(ob.citizen),
+      visibleToCitizen: true,
       createdBy: req.user._id,
       createdAt: new Date(),
     });
-    pushActivity(ob, {
-      action: 'Status changed',
-      userId: req.user._id,
-      previousValue: previous,
-      newValue: 'Under Investigation',
-      note: note || 'Investigation started.',
-    });
     await ob.save();
     await syncComplaintFromOB(ob, 'Under Investigation', note, req.user._id);
+<<<<<<< HEAD
     if (ob.citizen) {
       await createNotification({
         userId: ob.citizen,
@@ -1273,6 +1274,16 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
         relatedOB: ob._id,
       });
     }
+=======
+    await createNotification({
+      userId: ob.citizen,
+      title: 'Investigation Started',
+      message: `Investigation has started for OB ${ob.obNumber}.`,
+      type: 'investigation_started',
+      relatedComplaint: ob.complaint,
+      relatedOB: ob._id,
+    });
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
   } else if (action === 'progress') {
     if (ob.status !== 'Under Investigation') {
       return res.status(400).json({
@@ -1328,6 +1339,7 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
     } else {
       await ob.save();
     }
+<<<<<<< HEAD
     ob.followUpNotes = note;
     ob.updatedBy = req.user._id;
     pushActivity(ob, {
@@ -1338,6 +1350,8 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
       note: 'Investigation note added.',
     });
     await ob.save();
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
   } else if (action === 'update') {
     const updateNote = String(note || '').trim();
     if (!updateNote) {
@@ -1355,7 +1369,11 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
       createdAt: new Date(),
     });
     await ob.save();
+<<<<<<< HEAD
     if (shareWithCitizen && ob.citizen) {
+=======
+    if (shareWithCitizen) {
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
       await createNotification({
         userId: ob.citizen,
         title: 'Case Update',
@@ -1378,31 +1396,29 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
         message: 'Start the investigation before completing it.',
       });
     }
+<<<<<<< HEAD
     const previous = ob.status;
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
     ob.status = 'Investigation Completed';
     ob.investigationCompletedAt = new Date();
     ob.investigationProgress = 100;
     if (note) {
       appendInvestigationNote(ob, note, req.user._id);
+<<<<<<< HEAD
       ob.outcome = note;
+=======
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
     }
     if (citizenSummary) {
       ob.citizenSummary = citizenSummary;
     }
-    ob.updatedBy = req.user._id;
     ob.updates.push({
       title: 'Investigation Completed',
       note: citizenSummary || note || 'Investigation has been completed.',
-      visibleToCitizen: Boolean(ob.citizen),
+      visibleToCitizen: true,
       createdBy: req.user._id,
       createdAt: new Date(),
-    });
-    pushActivity(ob, {
-      action: 'Status changed',
-      userId: req.user._id,
-      previousValue: previous,
-      newValue: 'Investigation Completed',
-      note: note || 'Investigation completed.',
     });
     await ob.save();
     await syncComplaintFromOB(
@@ -1411,16 +1427,14 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
       note,
       req.user._id
     );
-    if (ob.citizen) {
-      await createNotification({
-        userId: ob.citizen,
-        title: 'Investigation Completed',
-        message: `Investigation completed for OB ${ob.obNumber}.`,
-        type: 'investigation_completed',
-        relatedComplaint: ob.complaint,
-        relatedOB: ob._id,
-      });
-    }
+    await createNotification({
+      userId: ob.citizen,
+      title: 'Investigation Completed',
+      message: `Investigation completed for OB ${ob.obNumber}.`,
+      type: 'investigation_completed',
+      relatedComplaint: ob.complaint,
+      relatedOB: ob._id,
+    });
   } else {
     return res.status(400).json({
       success: false,
@@ -1497,6 +1511,88 @@ export const policeAddEvidence = asyncHandler(async (req, res) => {
   });
 });
 
+<<<<<<< HEAD
+=======
+export const staffListOBs = asyncHandler(async (req, res) => {
+  const { status, search = '' } = req.query;
+  const filter = {};
+
+  if (req.user.role === 'police') {
+    filter.assignedOfficer = req.user._id;
+  }
+
+  if (status) {
+    filter.status = status;
+  }
+
+  if (search.trim()) {
+    const regex = new RegExp(escapeRegex(search.trim()), 'i');
+    const matchingCitizens = await User.find({
+      role: 'citizen',
+      $or: [{ name: regex }, { email: regex }, { phone: regex }, { niraId: regex }],
+    }).select('_id');
+    const matchingComplaints = await Complaint.find({
+      $or: [{ complaintNumber: regex }, { category: regex }, { location: regex }],
+    }).select('_id');
+
+    filter.$or = [
+      { obNumber: regex },
+      { citizenSummary: regex },
+      { citizen: { $in: matchingCitizens.map((c) => c._id) } },
+      { complaint: { $in: matchingComplaints.map((c) => c._id) } },
+    ];
+  }
+
+  const records = await OBRecord.find(filter)
+    .populate('complaint')
+    .populate('citizen', 'name email phone niraId')
+    .populate('assignedOfficer', 'name badgeNumber station email')
+    .populate('createdBy', 'name email')
+    .sort({ updatedAt: -1 });
+
+  return res.json({
+    success: true,
+    data: {
+      records: records.map((item) =>
+        req.user.role === 'police'
+          ? item.toStaffObject(item.complaint, item.citizen)
+          : toAdminOB(item)
+      ),
+    },
+  });
+});
+
+export const staffGetOBById = asyncHandler(async (req, res) => {
+  const filter = { _id: req.params.id };
+  if (req.user.role === 'police') {
+    filter.assignedOfficer = req.user._id;
+  }
+
+  const record = await OBRecord.findOne(filter)
+    .select('+investigationNotes')
+    .populate('complaint')
+    .populate('citizen', 'name email phone niraId')
+    .populate('assignedOfficer', 'name badgeNumber station email')
+    .populate('createdBy', 'name email');
+
+  if (!record) {
+    return res.status(404).json({
+      success: false,
+      message: 'OB record not found.',
+    });
+  }
+
+  return res.json({
+    success: true,
+    data: {
+      record:
+        req.user.role === 'police'
+          ? record.toStaffObject(record.complaint, record.citizen)
+          : toAdminOB(record),
+    },
+  });
+});
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 export const adminResolveCloseReopen = asyncHandler(async (req, res) => {
   const { action, note } = req.body;
   const ob = await OBRecord.findById(req.params.id);
@@ -1516,111 +1612,75 @@ export const adminResolveCloseReopen = asyncHandler(async (req, res) => {
   }
 
   if (action === 'resolve') {
-    const previous = ob.status;
     ob.status = 'Resolved';
-    ob.updatedBy = req.user._id;
-    if (note) ob.outcome = note;
     ob.updates.push({
       title: 'OB Resolved',
       note: note || 'Your case has been resolved.',
-      visibleToCitizen: Boolean(ob.citizen),
+      visibleToCitizen: true,
       createdBy: req.user._id,
       createdAt: new Date(),
-    });
-    pushActivity(ob, {
-      action: 'Status changed',
-      userId: req.user._id,
-      previousValue: previous,
-      newValue: 'Resolved',
-      note: note || 'Resolved.',
     });
     await ob.save();
     await syncComplaintFromOB(ob, 'Resolved', note, req.user._id);
-    if (ob.citizen) {
-      await createNotification({
-        userId: ob.citizen,
-        title: 'OB Resolved',
-        message: `OB ${ob.obNumber} has been resolved.`,
-        type: 'ob_resolved',
-        relatedComplaint: ob.complaint,
-        relatedOB: ob._id,
-      });
-    }
+    await createNotification({
+      userId: ob.citizen,
+      title: 'OB Resolved',
+      message: `OB ${ob.obNumber} has been resolved.`,
+      type: 'ob_resolved',
+      relatedComplaint: ob.complaint,
+      relatedOB: ob._id,
+    });
   }
 
   if (action === 'close') {
-    const previous = ob.status;
     ob.status = 'Closed';
     ob.closureReason = note || 'Case closed.';
     ob.closedAt = new Date();
-    ob.closedBy = req.user._id;
-    ob.updatedBy = req.user._id;
     ob.updates.push({
       title: 'OB Closed',
       note: ob.closureReason,
-      visibleToCitizen: Boolean(ob.citizen),
+      visibleToCitizen: true,
       createdBy: req.user._id,
       createdAt: new Date(),
-    });
-    pushActivity(ob, {
-      action: 'Closed',
-      userId: req.user._id,
-      previousValue: previous,
-      newValue: 'Closed',
-      note: ob.closureReason,
     });
     await ob.save();
     await syncComplaintFromOB(ob, 'Closed', note, req.user._id);
-    if (ob.citizen) {
-      await createNotification({
-        userId: ob.citizen,
-        title: 'OB Closed',
-        message: `OB ${ob.obNumber} has been closed.`,
-        type: 'ob_closed',
-        relatedComplaint: ob.complaint,
-        relatedOB: ob._id,
-      });
-    }
+    await createNotification({
+      userId: ob.citizen,
+      title: 'OB Closed',
+      message: `OB ${ob.obNumber} has been closed.`,
+      type: 'ob_closed',
+      relatedComplaint: ob.complaint,
+      relatedOB: ob._id,
+    });
   }
 
   if (action === 'reopen') {
-    const previous = ob.status;
     ob.status = 'Reopened';
     ob.closedAt = null;
-    ob.updatedBy = req.user._id;
     ob.updates.push({
       title: 'OB Reopened',
       note: note || 'Your case has been reopened.',
-      visibleToCitizen: Boolean(ob.citizen),
+      visibleToCitizen: true,
       createdBy: req.user._id,
       createdAt: new Date(),
     });
-    pushActivity(ob, {
-      action: 'Reopened',
-      userId: req.user._id,
-      previousValue: previous,
-      newValue: 'Reopened',
-      note: note || 'Reopened.',
-    });
     await ob.save();
     await syncComplaintFromOB(ob, 'Reopened', note, req.user._id);
-    if (ob.citizen) {
-      await createNotification({
-        userId: ob.citizen,
-        title: 'OB Reopened',
-        message: `OB ${ob.obNumber} has been reopened.`,
-        type: 'ob_reopened',
-        relatedComplaint: ob.complaint,
-        relatedOB: ob._id,
-      });
-    }
+    await createNotification({
+      userId: ob.citizen,
+      title: 'OB Reopened',
+      message: `OB ${ob.obNumber} has been reopened.`,
+      type: 'ob_reopened',
+      relatedComplaint: ob.complaint,
+      relatedOB: ob._id,
+    });
   }
 
-  const populated = await loadStaffOB(ob._id);
   return res.json({
     success: true,
     message: 'OB status updated successfully.',
-    data: { record: populated.toStaffObject(), ob: populated },
+    data: { ob },
   });
 });
 
@@ -1667,4 +1727,8 @@ export const adminDeleteOB = asyncHandler(async (req, res) => {
   });
 });
 
+<<<<<<< HEAD
 export { COMPLAINT_CATEGORY_TO_OB, OB_STATUSES };
+=======
+export { OB_STATUSES };
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9

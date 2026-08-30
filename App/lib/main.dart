@@ -7,6 +7,7 @@ import 'services/complaint_service.dart';
 import 'services/notification_service.dart';
 import 'services/ob_record_service.dart';
 import 'services/citizen_service.dart';
+import 'services/geography_service.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/secure_session_storage.dart';
 
@@ -21,6 +22,7 @@ Future<void> main() async {
   final complaintService = ComplaintService(apiClient: apiClient);
   final obService = ObRecordService(apiClient: apiClient);
   final notificationService = NotificationService(apiClient: apiClient);
+  final geographyService = GeographyService(apiClient: apiClient);
 
   runApp(
     MultiProvider(
@@ -34,6 +36,7 @@ Future<void> main() async {
         Provider.value(value: complaintService),
         Provider.value(value: obService),
         Provider.value(value: notificationService),
+        Provider.value(value: geographyService),
       ],
       child: const CitizenApp(),
     ),

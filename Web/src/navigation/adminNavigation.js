@@ -38,6 +38,10 @@ export const adminNavigation = [
     label: 'Reports',
     path: '/reports',
     icon: 'reports',
+<<<<<<< HEAD
+=======
+    comingSoon: true,
+>>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
     moduleKey: 'reports',
     section: 'main',
   },
@@ -77,6 +81,13 @@ export const adminNavigation = [
         label: 'Categories',
         path: '/settings/categories',
         icon: 'categories',
+        moduleKey: 'settings',
+      },
+      {
+        id: 'districts',
+        label: 'Districts',
+        path: '/settings/districts',
+        icon: 'districts',
         moduleKey: 'settings',
       },
     ],

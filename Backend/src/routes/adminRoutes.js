@@ -10,6 +10,7 @@ import {
   listStaffUsers,
   registerCitizen,
   registerPolice,
+  registerStaffUser,
   setCitizenStatus,
   setStaffUserStatus,
   updateCitizen,
@@ -22,7 +23,8 @@ import {
   setCategoryStatus,
   updateCategory,
 } from '../controllers/categoryController.js';
-import { listAuditLogs } from '../controllers/auditController.js';
+import { listGeographyTable } from '../controllers/geographyController.js';
+import { listAuditLogs, getAuditLogById, getAuthTimeline } from '../controllers/auditController.js';
 import { adminOnly } from '../middleware/auth.js';
 import { uploadProfileImageOptional } from '../middleware/uploadProfileImage.js';
 
@@ -39,6 +41,7 @@ router.put('/citizens/:id', uploadProfileImageOptional, updateCitizen);
 router.patch('/citizens/:id/status', setCitizenStatus);
 
 router.get('/users', listStaffUsers);
+router.post('/users/staff', uploadProfileImageOptional, registerStaffUser);
 router.post('/users/police', uploadProfileImageOptional, registerPolice);
 router.get('/users/:id', getStaffUserById);
 router.put('/users/:id', uploadProfileImageOptional, updateStaffUser);
@@ -56,5 +59,9 @@ router.put('/categories/:id', updateCategory);
 router.patch('/categories/:id/status', setCategoryStatus);
 
 router.get('/audit-logs', listAuditLogs);
+router.get('/audit-logs/timeline', getAuthTimeline);
+router.get('/audit-logs/:id', getAuditLogById);
+
+router.get('/geography', listGeographyTable);
 
 export default router;
