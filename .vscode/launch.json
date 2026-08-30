@@ -8,7 +8,19 @@
             "name": "App",
             "cwd": "App",
             "request": "launch",
-            "type": "dart"
+            "type": "dart",
+            "toolArgs": [
+                "--dart-define=API_BASE_URL=http://127.0.0.1:5000/api"
+            ]
+        },
+        {
+            "name": "App (Android emulator)",
+            "cwd": "App",
+            "request": "launch",
+            "type": "dart",
+            "toolArgs": [
+                "--dart-define=API_BASE_URL=http://10.0.2.2:5000/api"
+            ]
         },
         {
             "name": "App (profile mode)",

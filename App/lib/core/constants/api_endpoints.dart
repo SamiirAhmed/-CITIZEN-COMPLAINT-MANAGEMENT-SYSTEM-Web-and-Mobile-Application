@@ -3,21 +3,12 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 
 class ApiEndpoints {
+  /// Local backend only. Remote/hosted URLs are never used.
   static String get baseUrl {
-    const fromEnv = String.fromEnvironment('API_BASE_URL');
-    if (fromEnv.isNotEmpty) {
-      return fromEnv;
-    }
-
-    if (kIsWeb) {
-      return 'http://localhost:5000/api';
-    }
-
     if (!kIsWeb && Platform.isAndroid) {
       return 'http://10.0.2.2:5000/api';
     }
-
-    return 'http://localhost:5000/api';
+    return 'http://127.0.0.1:5000/api';
   }
 
   static const Duration timeout = Duration(seconds: 25);
@@ -41,5 +32,6 @@ class ApiEndpoints {
 
   // Notifications
   static const String notifications = '/notifications';
+  static const String unreadNotifications = '/notifications/unread-count';
   static const String readAllNotifications = '/notifications/read-all';
 }

@@ -5,12 +5,17 @@ import User from '../models/User.js';
 import {
   asyncHandler,
   createAuditLog,
-  createNotification,
   generateComplaintNumber,
   generateOBNumber,
   getRequestIp,
-  notifyRole,
 } from '../utils/helpers.js';
+import {
+  actorFields,
+  complaintPath,
+  notifyAdmins,
+  notifyUser,
+  obPath,
+} from '../utils/notifyEvent.js';
 
 const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -121,21 +126,23 @@ export const submitComplaint = asyncHandler(async (req, res) => {
     ],
   });
 
-  await createNotification({
+  await notifyUser({
     userId: req.user._id,
     title: 'Complaint Submitted',
     message: `Your complaint ${complaintNumber} has been submitted successfully.`,
     type: 'complaint_submitted',
     relatedComplaint: complaint._id,
+    ...actorFields(req.user),
   });
 
-  await notifyRole('admin', {
+  await notifyAdmins({
     title: 'New Complaint Submitted',
-    message: `${req.user.name} submitted complaint ${complaintNumber} (${activeCategory.name}).`,
+    message: `A new complaint ${complaintNumber} has been submitted by ${req.user.name} (${activeCategory.name}). Status: Submitted.`,
     type: 'complaint_submitted_admin',
     relatedComplaint: complaint._id,
     relatedUser: req.user._id,
-    linkPath: '/complaints',
+    linkPath: complaintPath(complaint._id),
+    ...actorFields(req.user),
   });
 
   return res.status(201).json({
@@ -435,13 +442,27 @@ export const adminCreateComplaint = asyncHandler(async (req, res) => {
     ],
   });
 
-  await createNotification({
+  await notifyUser({
     userId: citizen._id,
     title: 'Complaint Recorded',
     message: `Complaint ${complaintNumber} has been recorded on your behalf.`,
     type: 'complaint_submitted',
     relatedComplaint: complaint._id,
+    ...actorFields(req.user),
   });
+
+  await notifyAdmins(
+    {
+      title: 'New Complaint Submitted',
+      message: `Complaint ${complaintNumber} was recorded for ${citizen.name} (${activeCategory.name}). Status: ${initialStatus}.`,
+      type: 'complaint_submitted_admin',
+      relatedComplaint: complaint._id,
+      relatedUser: citizen._id,
+      linkPath: complaintPath(complaint._id),
+      ...actorFields(req.user),
+    },
+    { excludeUserId: req.user._id }
+  );
 
   await createAuditLog({
     actor: req.user,
@@ -662,13 +683,26 @@ export const adminReviewComplaint = asyncHandler(async (req, res) => {
       note || 'Complaint is under review.',
       req.user._id
     );
-    await createNotification({
+    await notifyUser({
       userId: complaint.citizen,
-      title: 'Complaint Reviewed',
-      message: `Your complaint ${complaint.complaintNumber} is under review.`,
+      title: 'Complaint Status Updated',
+      message: `Your complaint ${complaint.complaintNumber} is now Under Review.`,
       type: 'complaint_reviewed',
       relatedComplaint: complaint._id,
+      ...actorFields(req.user),
     });
+    await notifyAdmins(
+      {
+        title: 'Complaint Status Changed',
+        message: `Complaint ${complaint.complaintNumber} is now Under Review.`,
+        type: 'complaint_status_changed',
+        relatedComplaint: complaint._id,
+        relatedUser: complaint.citizen,
+        linkPath: complaintPath(complaint._id),
+        ...actorFields(req.user),
+      },
+      { excludeUserId: req.user._id }
+    );
   }
 
   if (action === 'verify') {
@@ -681,13 +715,26 @@ export const adminReviewComplaint = asyncHandler(async (req, res) => {
     complaint.reviewedBy = req.user._id;
     complaint.reviewedAt = new Date();
     await complaint.save();
-    await createNotification({
+    await notifyUser({
       userId: complaint.citizen,
       title: 'Complaint Verified',
       message: `Your complaint ${complaint.complaintNumber} has been verified.`,
       type: 'complaint_verified',
       relatedComplaint: complaint._id,
+      ...actorFields(req.user),
     });
+    await notifyAdmins(
+      {
+        title: 'Complaint Status Changed',
+        message: `Complaint ${complaint.complaintNumber} is now Verified.`,
+        type: 'complaint_status_changed',
+        relatedComplaint: complaint._id,
+        relatedUser: complaint.citizen,
+        linkPath: complaintPath(complaint._id),
+        ...actorFields(req.user),
+      },
+      { excludeUserId: req.user._id }
+    );
   }
 
   if (action === 'reject') {
@@ -698,13 +745,26 @@ export const adminReviewComplaint = asyncHandler(async (req, res) => {
       complaint.rejectionReason,
       req.user._id
     );
-    await createNotification({
+    await notifyUser({
       userId: complaint.citizen,
       title: 'Complaint Rejected',
       message: `Your complaint ${complaint.complaintNumber} was rejected.`,
       type: 'complaint_rejected',
       relatedComplaint: complaint._id,
+      ...actorFields(req.user),
     });
+    await notifyAdmins(
+      {
+        title: 'Complaint Status Changed',
+        message: `Complaint ${complaint.complaintNumber} is now Rejected.`,
+        type: 'complaint_status_changed',
+        relatedComplaint: complaint._id,
+        relatedUser: complaint.citizen,
+        linkPath: complaintPath(complaint._id),
+        ...actorFields(req.user),
+      },
+      { excludeUserId: req.user._id }
+    );
   }
 
   return res.json({
@@ -751,6 +811,7 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
     });
   }
 
+  const isPolice = req.user.role === 'police';
   const obNumber = await generateOBNumber();
   const now = new Date();
   const mappedCategory =
@@ -791,12 +852,16 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
     recordedBy: req.user._id,
     createdBy: req.user._id,
     updatedBy: req.user._id,
-    status: 'Opened',
+    status: isPolice ? 'Assigned' : 'Opened',
+    assignedOfficer: isPolice ? req.user._id : null,
+    assignedAt: isPolice ? new Date() : null,
     citizenSummary: req.body.citizenSummary || 'Occurrence Book opened for your complaint.',
     updates: [
       {
         title: 'OB Created',
-        note: 'An Occurrence Book has been created for your complaint.',
+        note: isPolice
+          ? `Occurrence Book created and assigned to ${req.user.name}.`
+          : 'An Occurrence Book has been created for your complaint.',
         visibleToCitizen: true,
         createdBy: req.user._id,
         createdAt: now,
@@ -807,7 +872,7 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
         action: 'Created',
         user: req.user._id,
         previousValue: '',
-        newValue: 'Opened',
+        newValue: isPolice ? 'Assigned' : 'Opened',
         note: `OB created from complaint ${complaint.complaintNumber}.`,
         createdAt: now,
       },
@@ -821,14 +886,42 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
     req.user._id
   );
 
-  await createNotification({
+  await notifyUser({
     userId: complaint.citizen,
-    title: 'OB Created',
-    message: `Occurrence Book ${obNumber} has been created for complaint ${complaint.complaintNumber}.`,
+    title: 'OB Record Created',
+    message: `Your complaint ${complaint.complaintNumber} has been registered as ${obNumber}.`,
     type: 'ob_created',
     relatedComplaint: complaint._id,
     relatedOB: ob._id,
+    ...actorFields(req.user),
   });
+
+  await notifyAdmins(
+    {
+      title: 'New OB Created',
+      message: `OB ${obNumber} was created from complaint ${complaint.complaintNumber}. Status: ${ob.status}.`,
+      type: 'ob_created_admin',
+      relatedComplaint: complaint._id,
+      relatedOB: ob._id,
+      relatedUser: complaint.citizen,
+      linkPath: obPath(ob._id),
+      ...actorFields(req.user),
+    },
+    { excludeUserId: req.user._id }
+  );
+
+  if (isPolice) {
+    await notifyUser({
+      userId: req.user._id,
+      title: 'New Case Assigned',
+      message: `You have been assigned to ${obNumber}.`,
+      type: 'ob_assigned_officer',
+      relatedComplaint: complaint._id,
+      relatedOB: ob._id,
+      linkPath: obPath(ob._id, { forPolice: true }),
+      ...actorFields(req.user),
+    });
+  }
 
   return res.status(201).json({
     success: true,

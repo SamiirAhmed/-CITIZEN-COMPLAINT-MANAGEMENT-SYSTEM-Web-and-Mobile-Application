@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { USER_ROLE_VALUES } from '../constants/roles.js';
 
 const userSchema = new mongoose.Schema(
   {
@@ -56,7 +57,8 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['citizen', 'admin', 'police'],
+      enum: USER_ROLE_VALUES,
+      required: true,
       default: 'citizen',
     },
     badgeNumber: {
@@ -138,6 +140,7 @@ userSchema.methods.toSafeObject = function toSafeObject() {
           'ob-records',
           'reports',
           'audit-logs',
+          'sms-portal',
           'settings',
           'profile',
         ]

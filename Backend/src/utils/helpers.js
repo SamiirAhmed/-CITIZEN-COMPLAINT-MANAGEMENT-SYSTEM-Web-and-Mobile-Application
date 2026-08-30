@@ -30,24 +30,29 @@ export const createNotification = async ({
 }) => {
   if (!userId) return null;
 
-  return Notification.create({
-    user: userId,
-    title,
-    message,
-    type,
-    status,
-    alertAction,
-    actorName,
-    actorRole,
-    email,
-    ipAddress,
-    accessSource,
-    failureReason,
-    relatedComplaint,
-    relatedOB,
-    relatedUser,
-    linkPath: linkPath || '',
-  });
+  try {
+    return await Notification.create({
+      user: userId,
+      title,
+      message,
+      type,
+      status,
+      alertAction,
+      actorName,
+      actorRole,
+      email,
+      ipAddress,
+      accessSource,
+      failureReason,
+      relatedComplaint,
+      relatedOB,
+      relatedUser,
+      linkPath: linkPath || '',
+    });
+  } catch (error) {
+    console.error('Failed to create notification:', error.message);
+    return null;
+  }
 };
 
 export const notifyRole = async (role, payload, { excludeUserId } = {}) => {

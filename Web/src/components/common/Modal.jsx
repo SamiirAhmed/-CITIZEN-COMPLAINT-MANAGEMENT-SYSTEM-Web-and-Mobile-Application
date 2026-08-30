@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 export default function Modal({
   open,
   title,
+  description,
   onClose,
   children,
   size = 'md',
@@ -41,7 +42,10 @@ export default function Modal({
         onClick={(event) => event.stopPropagation()}
       >
         <div className="modal__header">
-          <h2>{title}</h2>
+          <div className="modal__heading">
+            <h2>{title}</h2>
+            {description ? <p className="modal__subtitle">{description}</p> : null}
+          </div>
           {onClose ? (
             <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
               ×

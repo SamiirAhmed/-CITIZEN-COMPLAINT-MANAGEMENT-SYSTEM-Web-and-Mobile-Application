@@ -25,6 +25,13 @@ import {
 } from '../controllers/categoryController.js';
 import { listGeographyTable } from '../controllers/geographyController.js';
 import { listAuditLogs, getAuditLogById, getAuthTimeline } from '../controllers/auditController.js';
+import {
+  getSmsBalance,
+  getSmsStats,
+  listSmsHistory,
+  listSmsRecipients,
+  sendSms,
+} from '../controllers/smsController.js';
 import { adminOnly } from '../middleware/auth.js';
 import { uploadProfileImageOptional } from '../middleware/uploadProfileImage.js';
 
@@ -63,5 +70,11 @@ router.get('/audit-logs/timeline', getAuthTimeline);
 router.get('/audit-logs/:id', getAuditLogById);
 
 router.get('/geography', listGeographyTable);
+
+router.get('/sms/balance', getSmsBalance);
+router.get('/sms/stats', getSmsStats);
+router.get('/sms/recipients', listSmsRecipients);
+router.post('/sms/send', sendSms);
+router.get('/sms/history', listSmsHistory);
 
 export default router;

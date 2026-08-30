@@ -63,11 +63,11 @@ flutter pub get
 flutter run
 ```
 
-Override API URL if needed:
+The app always uses the local backend:
+- Windows / web: `http://127.0.0.1:5000/api`
+- Android emulator: `http://10.0.2.2:5000/api` (this is your PC localhost)
 
-```bash
-flutter run --dart-define=API_BASE_URL=http://192.168.1.10:5000/api
-```
+Do not pass a hosted API URL. The app uses only the local backend.
 
 ## Branding
 

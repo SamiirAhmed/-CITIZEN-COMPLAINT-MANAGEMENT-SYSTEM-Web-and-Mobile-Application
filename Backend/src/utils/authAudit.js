@@ -1,19 +1,43 @@
-import AuditLog from '../models/AuditLog.js';
 import { createAuditLog, createNotification, notifyRole } from './helpers.js';
+import { actorFields, notifyUser } from './notifyEvent.js';
 import { getRequestContext } from './requestContext.js';
 
-const AUTH_ACTIONS = new Set([
-  'LOGIN_SUCCESS',
-  'LOGIN_FAILED',
-  'LOGOUT',
+const NOTIFY_AUTH_ACTIONS = new Set([
   'PASSWORD_CHANGED',
   'PASSWORD_CHANGE_REQUIRED',
 ]);
 
-const SECURITY_NOTIFICATION_TYPES = new Set([
+export const HIDDEN_NOTIFICATION_TYPES = [
   'login_success',
-  'login_failed',
+  'login',
   'logout',
+  'login_failed',
+  'user_login',
+  'user_logout',
+  'successful_login',
+  'user_logged_out',
+];
+
+export const HIDDEN_ALERT_ACTIONS = [
+  'LOGIN_SUCCESS',
+  'LOGOUT',
+  'LOGIN',
+  'LOGIN_FAILED',
+];
+
+export const HIDDEN_NOTIFICATION_TITLES = [
+  'Successful Login',
+  'User Logged Out',
+  'Failed Login Attempt',
+  'Police Login',
+  'Admin Login',
+  'Police Logout',
+  'Admin Logout',
+  'Citizen Login',
+  'Citizen Logout',
+];
+
+const SECURITY_NOTIFICATION_TYPES = new Set([
   'password_changed',
   'password_change_required',
   'account_activated',
@@ -23,10 +47,15 @@ const SECURITY_NOTIFICATION_TYPES = new Set([
 
 export { SECURITY_NOTIFICATION_TYPES };
 
+export function hiddenNotificationClause() {
+  return {
+    type: { $nin: HIDDEN_NOTIFICATION_TYPES },
+    alertAction: { $nin: HIDDEN_ALERT_ACTIONS },
+    title: { $nin: HIDDEN_NOTIFICATION_TITLES },
+  };
+}
+
 const ALERT_TITLES = {
-  LOGIN_SUCCESS: 'Successful Login',
-  LOGIN_FAILED: 'Failed Login Attempt',
-  LOGOUT: 'User Logged Out',
   PASSWORD_CHANGED: 'Password Changed',
   PASSWORD_CHANGE_REQUIRED: 'Password Change Required',
 };
@@ -83,7 +112,7 @@ export const recordAuthAuditEvent = async (
     location: ctx.location,
   });
 
-  if (notifyAdmins && AUTH_ACTIONS.has(action)) {
+  if (notifyAdmins && NOTIFY_AUTH_ACTIONS.has(action)) {
     const title = ALERT_TITLES[action] || action.replace(/_/g, ' ');
     const message = buildAlertMessage({
       action,
@@ -114,14 +143,6 @@ export const recordAuthAuditEvent = async (
     );
   }
 
-  if (action === 'LOGIN_FAILED') {
-    await detectRepeatedFailedLogins({
-      ipAddress: ctx.ipAddress,
-      email: resolvedEmail,
-      accessSource: resolvedAccess,
-    });
-  }
-
   return audit;
 };
 
@@ -134,12 +155,6 @@ function buildAlertMessage({
   accessSource,
 }) {
   switch (action) {
-    case 'LOGIN_SUCCESS':
-      return `${actorName} (${actorRole || 'user'}) successfully logged in via ${accessSource}.`;
-    case 'LOGIN_FAILED':
-      return `A login attempt failed for ${email || 'an unknown account'}. ${failureReason || 'Invalid credentials'}.`;
-    case 'LOGOUT':
-      return `${actorName} (${actorRole || 'user'}) logged out via ${accessSource}.`;
     case 'PASSWORD_CHANGED':
       return `${actorName} changed their account password via ${accessSource}.`;
     case 'PASSWORD_CHANGE_REQUIRED':
@@ -147,46 +162,6 @@ function buildAlertMessage({
     default:
       return `${actorName} — ${action}`;
   }
-}
-
-async function detectRepeatedFailedLogins({ ipAddress, email, accessSource }) {
-  const since = new Date(Date.now() - 15 * 60 * 1000);
-  const baseFilter = {
-    action: 'LOGIN_FAILED',
-    createdAt: { $gte: since },
-  };
-
-  const [ipCount, emailCount] = await Promise.all([
-    ipAddress
-      ? AuditLog.countDocuments({ ...baseFilter, ipAddress })
-      : Promise.resolve(0),
-    email
-      ? AuditLog.countDocuments({ ...baseFilter, email })
-      : Promise.resolve(0),
-  ]);
-
-  const threshold = 3;
-  if (ipCount < threshold && emailCount < threshold) return;
-
-  const count = Math.max(ipCount, emailCount);
-  const detailParts = [];
-  if (email) detailParts.push(`account ${email}`);
-  if (ipAddress) detailParts.push(`IP ${ipAddress}`);
-
-  await notifyRole('admin', {
-    title: 'Multiple Failed Login Attempts',
-    message: `${count} unsuccessful login attempts detected in the last 15 minutes (${detailParts.join(', ') || 'unknown source'}).`,
-    type: 'security_alert',
-    status: 'warning',
-    alertAction: 'SECURITY_ALERT',
-    actorName: email || 'Unknown',
-    actorRole: '',
-    email: email || '',
-    ipAddress: ipAddress || '',
-    accessSource,
-    failureReason: 'Repeated failed login attempts',
-    linkPath: '/audit-logs',
-  });
 }
 
 export const notifyAccountStatusChange = async (req, { actor, targetUser, isActive }) => {
@@ -208,7 +183,22 @@ export const notifyAccountStatusChange = async (req, { actor, targetUser, isActi
     failureReason: '',
     relatedUser: targetUser._id,
     linkPath: '/settings/users',
+  }, { excludeUserId: actor?._id });
+
+  await notifyUser({
+    userId: targetUser._id,
+    title: isActive ? 'Account Activated' : 'Account Status Updated',
+    message: isActive
+      ? 'Your account has been activated. You can now sign in to the Police Portal.'
+      : 'Your account status has been changed to Inactive.',
+    type: isActive ? 'account_activated' : 'account_deactivated',
+    status: 'info',
+    alertAction,
+    ...actorFields(actor),
+    relatedUser: targetUser._id,
+    linkPath: '/profile',
   });
 };
 
 export const createSecurityNotification = createNotification;
+

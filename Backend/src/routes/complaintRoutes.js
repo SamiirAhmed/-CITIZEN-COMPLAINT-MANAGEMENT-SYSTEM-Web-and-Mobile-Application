@@ -29,6 +29,6 @@ router.get('/admin/:id', ...staffOnly, adminGetComplaintById);
 router.put('/admin/:id', ...adminOnly, adminUpdateComplaint);
 router.delete('/admin/:id', ...adminOnly, adminDeleteComplaint);
 router.patch('/admin/:id/review', ...adminOnly, adminReviewComplaint);
-router.post('/admin/:id/ob', ...adminOnly, adminCreateOB);
+router.post('/admin/:id/ob', ...staffOnly, adminCreateOB);
 
 export default router;

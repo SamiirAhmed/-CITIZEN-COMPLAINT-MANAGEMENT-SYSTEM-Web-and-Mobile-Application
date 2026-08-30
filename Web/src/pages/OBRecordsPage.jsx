@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
@@ -23,6 +24,7 @@ import { listUsers } from '../services/userService';
 
 export default function OBRecordsPage() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
   const isAdmin = user?.role === 'admin';
   const [records, setRecords] = useState([]);
   const [officers, setOfficers] = useState([]);
@@ -78,6 +80,23 @@ export default function OBRecordsPage() {
     }, 250);
     return () => clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (!id) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const details = await getOBById(id);
+        if (!cancelled) setViewing(details || { id });
+      } catch {
+        if (!cancelled) setNotice('Unable to open the selected OB record.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
 
   const refreshRecord = async (id) => {
     try {

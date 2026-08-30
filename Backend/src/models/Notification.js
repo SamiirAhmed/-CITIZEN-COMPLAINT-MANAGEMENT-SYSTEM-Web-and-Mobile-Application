@@ -104,15 +104,16 @@ notificationSchema.methods.toClientObject = function toClientObject() {
   const relatedUser = this.relatedUser ? this.relatedUser.toString() : null;
 
   let resolvedPath = this.linkPath || '';
+  const type = String(this.type || '');
   if (!resolvedPath) {
-    if (relatedUser && String(this.type || '').includes('citizen')) {
+    if (relatedUser && type.includes('citizen')) {
       resolvedPath = `/citizens/${relatedUser}`;
-    } else if (relatedUser) {
-      resolvedPath = '/settings/users';
     } else if (relatedOB) {
-      resolvedPath = '/ob-records';
+      resolvedPath = `/ob-records?id=${relatedOB}`;
     } else if (relatedComplaint) {
-      resolvedPath = '/complaints';
+      resolvedPath = `/complaints?id=${relatedComplaint}`;
+    } else if (relatedUser) {
+      resolvedPath = `/settings/users?id=${relatedUser}`;
     }
   }
 

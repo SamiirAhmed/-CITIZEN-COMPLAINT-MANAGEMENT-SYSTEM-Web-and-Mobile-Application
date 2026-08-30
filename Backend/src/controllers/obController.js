@@ -4,9 +4,14 @@ import User from '../models/User.js';
 import {
   asyncHandler,
   createAuditLog,
-  createNotification,
   getRequestIp,
 } from '../utils/helpers.js';
+import {
+  actorFields,
+  notifyAdmins,
+  notifyUser,
+  obPath,
+} from '../utils/notifyEvent.js';
 import {
   evidencePublicPath,
   removeEvidenceFile,
@@ -191,6 +196,8 @@ export const adminAssignOfficer = asyncHandler(async (req, res) => {
     });
   }
 
+  const previousOfficerId = ob.assignedOfficer ? String(ob.assignedOfficer) : '';
+
   ob.assignedOfficer = officer._id;
   ob.assignedAt = new Date();
   ob.status = 'Assigned';
@@ -203,25 +210,54 @@ export const adminAssignOfficer = asyncHandler(async (req, res) => {
   });
   await ob.save();
 
-  await createNotification({
+  await notifyUser({
     userId: ob.citizen,
-    title: 'Police Assigned',
-    message: `A police officer has been assigned to OB ${ob.obNumber}.`,
+    title: 'Police Officer Assigned',
+    message: `A Police officer has been assigned to handle your case ${ob.obNumber}.`,
     type: 'police_assigned',
     relatedComplaint: ob.complaint,
     relatedOB: ob._id,
+    ...actorFields(req.user),
   });
 
-  await createNotification({
+  await notifyUser({
     userId: officer._id,
-    title: 'New OB Assignment',
-    message: `You have been assigned to OB ${ob.obNumber}.`,
+    title: 'New Case Assigned',
+    message: `You have been assigned to ${ob.obNumber}.`,
     type: 'ob_assigned_officer',
     relatedComplaint: ob.complaint,
     relatedOB: ob._id,
     relatedUser: officer._id,
-    linkPath: `/ob-records/${ob._id}`,
+    linkPath: obPath(ob._id, { forPolice: true }),
+    ...actorFields(req.user),
   });
+
+  if (previousOfficerId && previousOfficerId !== String(officer._id)) {
+    await notifyUser({
+      userId: previousOfficerId,
+      title: 'Case Reassigned',
+      message: `${ob.obNumber} has been reassigned to another officer.`,
+      type: 'case_reassigned',
+      relatedComplaint: ob.complaint,
+      relatedOB: ob._id,
+      linkPath: '/ob-records',
+      ...actorFields(req.user),
+    });
+  }
+
+  await notifyAdmins(
+    {
+      title: 'Police Assigned to Case',
+      message: `${officer.name} was assigned to ${ob.obNumber}.`,
+      type: 'ob_assigned_admin',
+      relatedComplaint: ob.complaint,
+      relatedOB: ob._id,
+      relatedUser: officer._id,
+      linkPath: obPath(ob._id),
+      ...actorFields(req.user),
+    },
+    { excludeUserId: req.user._id }
+  );
 
   return res.json({
     success: true,
@@ -279,14 +315,27 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
     });
     await ob.save();
     await syncComplaintFromOB(ob, 'Under Investigation', note, req.user._id);
-    await createNotification({
+    await notifyUser({
       userId: ob.citizen,
       title: 'Investigation Started',
-      message: `Investigation has started for OB ${ob.obNumber}.`,
+      message: `Investigation has started for ${ob.obNumber}.`,
       type: 'investigation_started',
       relatedComplaint: ob.complaint,
       relatedOB: ob._id,
+      ...actorFields(req.user),
     });
+    await notifyAdmins(
+      {
+        title: 'Investigation Updated',
+        message: `Investigation started for ${ob.obNumber}.`,
+        type: 'investigation_started_admin',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+        linkPath: obPath(ob._id),
+        ...actorFields(req.user),
+      },
+      { excludeUserId: req.user._id }
+    );
   } else if (action === 'progress') {
     if (ob.status !== 'Under Investigation') {
       return res.status(400).json({
@@ -313,6 +362,18 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
       createdAt: new Date(),
     });
     await ob.save();
+    await notifyAdmins(
+      {
+        title: 'Investigation Updated',
+        message: `Investigation progress for ${ob.obNumber} is now ${nextProgress}%.`,
+        type: 'investigation_progress',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+        linkPath: obPath(ob._id),
+        ...actorFields(req.user),
+      },
+      { excludeUserId: req.user._id }
+    );
   } else if (action === 'note') {
     if (!note) {
       return res.status(400).json({
@@ -331,14 +392,27 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
         createdAt: new Date(),
       });
       await ob.save();
-      await createNotification({
+      await notifyUser({
         userId: ob.citizen,
-        title: 'Case Update',
-        message: `There is a new update on OB ${ob.obNumber}.`,
+        title: 'Investigation Updated',
+        message: `There is a new update on your complaint (${ob.obNumber}).`,
         type: 'investigation_update',
         relatedComplaint: ob.complaint,
         relatedOB: ob._id,
+        ...actorFields(req.user),
       });
+      await notifyAdmins(
+        {
+          title: 'Investigation Updated',
+          message: `${ob.obNumber} has a new investigation update.`,
+          type: 'investigation_update_admin',
+          relatedComplaint: ob.complaint,
+          relatedOB: ob._id,
+          linkPath: obPath(ob._id),
+          ...actorFields(req.user),
+        },
+        { excludeUserId: req.user._id }
+      );
     } else {
       await ob.save();
     }
@@ -360,15 +434,28 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
     });
     await ob.save();
     if (shareWithCitizen) {
-      await createNotification({
+      await notifyUser({
         userId: ob.citizen,
-        title: 'Case Update',
-        message: `There is a new update on OB ${ob.obNumber}.`,
+        title: 'Investigation Updated',
+        message: `There is a new update on your complaint (${ob.obNumber}).`,
         type: 'investigation_update',
         relatedComplaint: ob.complaint,
         relatedOB: ob._id,
+        ...actorFields(req.user),
       });
     }
+    await notifyAdmins(
+      {
+        title: 'Investigation Updated',
+        message: `${ob.obNumber} has a new investigation update.`,
+        type: 'investigation_update_admin',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+        linkPath: obPath(ob._id),
+        ...actorFields(req.user),
+      },
+      { excludeUserId: req.user._id }
+    );
   } else if (action === 'complete') {
     if (COMPLETED_STATUSES.includes(ob.status)) {
       return res.status(400).json({
@@ -405,14 +492,27 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
       note,
       req.user._id
     );
-    await createNotification({
+    await notifyUser({
       userId: ob.citizen,
       title: 'Investigation Completed',
-      message: `Investigation completed for OB ${ob.obNumber}.`,
+      message: `Investigation completed for ${ob.obNumber}.`,
       type: 'investigation_completed',
       relatedComplaint: ob.complaint,
       relatedOB: ob._id,
+      ...actorFields(req.user),
     });
+    await notifyAdmins(
+      {
+        title: 'Investigation Updated',
+        message: `Investigation completed for ${ob.obNumber}.`,
+        type: 'investigation_completed_admin',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+        linkPath: obPath(ob._id),
+        ...actorFields(req.user),
+      },
+      { excludeUserId: req.user._id }
+    );
   } else {
     return res.status(400).json({
       success: false,
@@ -479,6 +579,19 @@ export const policeAddEvidence = asyncHandler(async (req, res) => {
     createdAt: new Date(),
   });
   await ob.save();
+
+  await notifyAdmins(
+    {
+      title: 'Investigation Updated',
+      message: `New evidence was added to ${ob.obNumber}.`,
+      type: 'evidence_added',
+      relatedComplaint: ob.complaint,
+      relatedOB: ob._id,
+      linkPath: obPath(ob._id),
+      ...actorFields(req.user),
+    },
+    { excludeUserId: req.user._id }
+  );
 
   const updated = await loadStaffOB(ob._id, { withNotes: true });
 
@@ -636,14 +749,39 @@ export const adminResolveCloseReopen = asyncHandler(async (req, res) => {
     });
     await ob.save();
     await syncComplaintFromOB(ob, 'Resolved', note, req.user._id);
-    await createNotification({
+    await notifyUser({
       userId: ob.citizen,
-      title: 'OB Resolved',
-      message: `OB ${ob.obNumber} has been resolved.`,
+      title: 'Case Resolved',
+      message: `Your complaint has been resolved (${ob.obNumber}).`,
       type: 'ob_resolved',
       relatedComplaint: ob.complaint,
       relatedOB: ob._id,
+      ...actorFields(req.user),
     });
+    if (ob.assignedOfficer && String(ob.assignedOfficer) !== String(req.user._id)) {
+      await notifyUser({
+        userId: ob.assignedOfficer,
+        title: 'Case Status Changed',
+        message: `${ob.obNumber} is now Resolved.`,
+        type: 'ob_status_officer',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+        linkPath: obPath(ob._id, { forPolice: true }),
+        ...actorFields(req.user),
+      });
+    }
+    await notifyAdmins(
+      {
+        title: 'OB Status Changed',
+        message: `${ob.obNumber} is now Resolved.`,
+        type: 'ob_resolved_admin',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+        linkPath: obPath(ob._id),
+        ...actorFields(req.user),
+      },
+      { excludeUserId: req.user._id }
+    );
   }
 
   if (action === 'close') {
@@ -659,14 +797,39 @@ export const adminResolveCloseReopen = asyncHandler(async (req, res) => {
     });
     await ob.save();
     await syncComplaintFromOB(ob, 'Closed', note, req.user._id);
-    await createNotification({
+    await notifyUser({
       userId: ob.citizen,
-      title: 'OB Closed',
-      message: `OB ${ob.obNumber} has been closed.`,
+      title: 'Case Closed',
+      message: `Your complaint has been closed (${ob.obNumber}).`,
       type: 'ob_closed',
       relatedComplaint: ob.complaint,
       relatedOB: ob._id,
+      ...actorFields(req.user),
     });
+    if (ob.assignedOfficer && String(ob.assignedOfficer) !== String(req.user._id)) {
+      await notifyUser({
+        userId: ob.assignedOfficer,
+        title: 'Case Status Changed',
+        message: `${ob.obNumber} is now Closed.`,
+        type: 'ob_status_officer',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+        linkPath: obPath(ob._id, { forPolice: true }),
+        ...actorFields(req.user),
+      });
+    }
+    await notifyAdmins(
+      {
+        title: 'OB Status Changed',
+        message: `${ob.obNumber} is now Closed.`,
+        type: 'ob_closed_admin',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+        linkPath: obPath(ob._id),
+        ...actorFields(req.user),
+      },
+      { excludeUserId: req.user._id }
+    );
   }
 
   if (action === 'reopen') {
@@ -681,14 +844,39 @@ export const adminResolveCloseReopen = asyncHandler(async (req, res) => {
     });
     await ob.save();
     await syncComplaintFromOB(ob, 'Reopened', note, req.user._id);
-    await createNotification({
+    await notifyUser({
       userId: ob.citizen,
-      title: 'OB Reopened',
-      message: `OB ${ob.obNumber} has been reopened.`,
+      title: 'Case Reopened',
+      message: `Your case ${ob.obNumber} has been reopened.`,
       type: 'ob_reopened',
       relatedComplaint: ob.complaint,
       relatedOB: ob._id,
+      ...actorFields(req.user),
     });
+    if (ob.assignedOfficer && String(ob.assignedOfficer) !== String(req.user._id)) {
+      await notifyUser({
+        userId: ob.assignedOfficer,
+        title: 'Case Status Changed',
+        message: `${ob.obNumber} has been reopened.`,
+        type: 'ob_status_officer',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+        linkPath: obPath(ob._id, { forPolice: true }),
+        ...actorFields(req.user),
+      });
+    }
+    await notifyAdmins(
+      {
+        title: 'OB Status Changed',
+        message: `${ob.obNumber} has been reopened.`,
+        type: 'ob_reopened_admin',
+        relatedComplaint: ob.complaint,
+        relatedOB: ob._id,
+        linkPath: obPath(ob._id),
+        ...actorFields(req.user),
+      },
+      { excludeUserId: req.user._id }
+    );
   }
 
   return res.json({

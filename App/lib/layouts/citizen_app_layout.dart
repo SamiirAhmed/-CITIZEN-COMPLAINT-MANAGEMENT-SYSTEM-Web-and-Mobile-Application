@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -29,6 +31,7 @@ class CitizenAppLayoutState extends State<CitizenAppLayout> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   late int _index;
   int _unread = 0;
+  Timer? _pollTimer;
 
   final _pages = const [
     CitizenDashboardScreen(),
@@ -43,6 +46,16 @@ class CitizenAppLayoutState extends State<CitizenAppLayout> {
     super.initState();
     _index = widget.initialIndex;
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadUnread());
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _loadUnread(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   void openDrawer() => _scaffoldKey.currentState?.openDrawer();
@@ -56,10 +69,10 @@ class CitizenAppLayoutState extends State<CitizenAppLayout> {
 
   Future<void> _loadUnread() async {
     try {
-      final result =
-          await context.read<NotificationService>().getNotifications();
+      final count =
+          await context.read<NotificationService>().getUnreadCount();
       if (!mounted) return;
-      setState(() => _unread = result.unreadCount);
+      setState(() => _unread = count);
     } catch (_) {
       // Ignore badge errors; pages handle their own errors.
     }

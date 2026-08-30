@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  getSecurityAlerts,
+  getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from '../../services/notificationService';
@@ -41,10 +41,7 @@ function formatAlertTime(value) {
 
 const FILTER_OPTIONS = [
   { id: 'all', label: 'All' },
-  { id: 'successful', label: 'Successful' },
-  { id: 'failed', label: 'Failed' },
-  { id: 'logout', label: 'Logout' },
-  { id: 'security', label: 'Security' },
+  { id: 'unread', label: 'Unread' },
 ];
 
 const DATE_OPTIONS = [
@@ -56,10 +53,13 @@ const DATE_OPTIONS = [
 ];
 
 function mapAlertType(alert) {
-  if (alert.type === 'failed' || alert.status === 'failed') return 'failed';
-  if (alert.type === 'security' || alert.alertAction === 'SECURITY_ALERT') return 'security';
-  if (alert.type === 'logout') return 'logout';
-  if (alert.type === 'password') return 'password';
+  const type = String(alert.type || alert.alertAction || '').toLowerCase();
+  if (type.includes('reject') || type.includes('fail') || type.includes('deactivat')) {
+    return 'failed';
+  }
+  if (type.includes('assigned') || type.includes('permission') || type.includes('status')) {
+    return 'security';
+  }
   return 'success';
 }
 
@@ -94,8 +94,8 @@ export default function SystemAlerts({
     if (!loadFromApi) return;
     setLoading(true);
     try {
-      const result = await getSecurityAlerts({
-        filter,
+      const result = await getNotifications({
+        filter: filter === 'unread' ? 'unread' : '',
         range,
         search,
         limit: compact ? 8 : 25,
@@ -139,11 +139,7 @@ export default function SystemAlerts({
   const visibleAlerts = useMemo(() => {
     if (loadFromApi) return alerts;
     return alerts.filter((alert) => {
-      const type = mapAlertType(alert);
-      if (filter === 'successful') return type === 'success';
-      if (filter === 'failed') return type === 'failed';
-      if (filter === 'logout') return type === 'logout';
-      if (filter === 'security') return type === 'security';
+      if (filter === 'unread') return !alert.isRead;
       return true;
     });
   }, [alerts, filter, loadFromApi]);
@@ -166,7 +162,7 @@ export default function SystemAlerts({
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllNotificationsRead({ securityOnly: true });
+      await markAllNotificationsRead();
       setAlerts((current) => current.map((item) => ({ ...item, isRead: true })));
       setUnreadCount(0);
     } catch {
@@ -179,7 +175,7 @@ export default function SystemAlerts({
       <div className="panel__header panel__header--spread">
         <div>
           <h2>System Alerts</h2>
-          <p className="muted">Real login and security events from the Backend.</p>
+          <p className="muted">Important citizen, complaint, and OB events.</p>
         </div>
         <div className="system-alerts__meta">
           {unreadCount > 0 ? (
@@ -190,8 +186,8 @@ export default function SystemAlerts({
               Mark all read
             </button>
           ) : null}
-          <Link to="/audit-logs" className="btn btn--ghost btn--small">
-            Audit Logs
+          <Link to="/notifications" className="btn btn--ghost btn--small">
+            View All
           </Link>
         </div>
       </div>
@@ -222,7 +218,7 @@ export default function SystemAlerts({
             </select>
             <input
               type="search"
-              placeholder="Search user, email, IP…"
+              placeholder="Search alerts…"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />

@@ -31,6 +31,12 @@ class NotificationService {
     );
   }
 
+  Future<int> getUnreadCount() async {
+    final response = await _api.get(ApiEndpoints.unreadNotifications);
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    return (data['unreadCount'] as num?)?.toInt() ?? 0;
+  }
+
   Future<AppNotification> markRead(String id) async {
     final response =
         await _api.patch('${ApiEndpoints.notifications}/$id/read');

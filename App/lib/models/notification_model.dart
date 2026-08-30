@@ -7,6 +7,7 @@ class AppNotification {
     required this.isRead,
     this.relatedComplaint,
     this.relatedOB,
+    this.relatedUser,
     this.readAt,
     this.createdAt,
   });
@@ -18,6 +19,7 @@ class AppNotification {
   final bool isRead;
   final String? relatedComplaint;
   final String? relatedOB;
+  final String? relatedUser;
   final DateTime? readAt;
   final DateTime? createdAt;
 
@@ -30,6 +32,7 @@ class AppNotification {
       isRead: json['isRead'] == true,
       relatedComplaint: json['relatedComplaint']?.toString(),
       relatedOB: json['relatedOB']?.toString(),
+      relatedUser: json['relatedUser']?.toString(),
       readAt: json['readAt'] != null
           ? DateTime.tryParse(json['readAt'].toString())
           : null,

@@ -14,11 +14,7 @@ cd Web
 npm install
 ```
 
-Optional: create `.env` to override the API base URL:
-
-```env
-VITE_API_BASE_URL=http://localhost:5000/api
-```
+The admin web uses the local Vite proxy (`/api` → `http://127.0.0.1:5000`). Do not point `VITE_API_BASE_URL` at a hosted/online API.
 
 ## Run
 

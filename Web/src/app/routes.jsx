@@ -22,17 +22,20 @@ import AuditLogsPage from '../pages/AuditLogsPage';
 import ComingSoonPage from '../pages/ComingSoonPage';
 import ProfilePage from '../pages/ProfilePage';
 import ReportsPage from '../pages/ReportsPage';
+import SMSPortalPage from '../pages/SMSPortalPage';
+import UnauthorizedPage from '../pages/UnauthorizedPage';
 import PoliceDashboardPage from '../pages/police/PoliceDashboardPage';
 import PoliceOBRecordsPage from '../pages/police/PoliceOBRecordsPage';
 import PoliceOBDetailsPage from '../pages/police/PoliceOBDetailsPage';
 import PoliceInvestigationPage from '../pages/police/PoliceInvestigationPage';
-import PoliceNotificationsPage from '../pages/police/PoliceNotificationsPage';
+import NotificationsPage from '../pages/NotificationsPage';
 
 const ADMIN_ONLY_MODULES = new Set([
   'citizens',
   'complaints',
   'reports',
   'audit-logs',
+  'sms-portal',
   'settings',
 ]);
 
@@ -112,14 +115,16 @@ export default function AppRoutes() {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<HomeRedirect />} />
+        <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
         <Route
-          path="/dashboard"
+          path="/admin/dashboard"
           element={
             <ModuleRoute moduleKey="dashboard">
               <AdminDashboardRoute />
             </ModuleRoute>
           }
         />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
         <Route
           path="/police/dashboard"
           element={
@@ -176,14 +181,7 @@ export default function AppRoutes() {
             </PoliceRoute>
           }
         />
-        <Route
-          path="/notifications"
-          element={
-            <PoliceRoute>
-              <PoliceNotificationsPage />
-            </PoliceRoute>
-          }
-        />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route
           path="/reports"
           element={
@@ -197,6 +195,14 @@ export default function AppRoutes() {
           element={
             <ModuleRoute moduleKey="audit-logs">
               <AuditLogsPage />
+            </ModuleRoute>
+          }
+        />
+        <Route
+          path="/sms-portal"
+          element={
+            <ModuleRoute moduleKey="sms-portal">
+              <SMSPortalPage />
             </ModuleRoute>
           }
         />

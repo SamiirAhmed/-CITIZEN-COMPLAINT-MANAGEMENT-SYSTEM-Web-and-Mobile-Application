@@ -1,6 +1,5 @@
+import { isMobileOnlyUser, isWebUser, isStaffUser } from '../auth/roles';
 import { apiRequest, clearSession, setSession } from './apiClient';
-
-const STAFF_ROLES = new Set(['admin', 'police']);
 
 export async function login(email, password) {
   const response = await apiRequest('/auth/login', {
@@ -16,8 +15,12 @@ export async function login(email, password) {
     throw new Error('Invalid login response from server.');
   }
 
-  if (!STAFF_ROLES.has(user.role)) {
-    throw new Error('Citizen accounts cannot access the SPO admin portal.');
+  if (isMobileOnlyUser(user)) {
+    throw new Error('Citizen accounts use the mobile application.');
+  }
+
+  if (!isWebUser(user)) {
+    throw new Error('This account cannot sign in to the web portal.');
   }
 
   setSession(token, user);
@@ -33,6 +36,4 @@ export async function logout() {
   clearSession();
 }
 
-export function isStaffUser(user) {
-  return Boolean(user && STAFF_ROLES.has(user.role));
-}
+export { isStaffUser, isWebUser };

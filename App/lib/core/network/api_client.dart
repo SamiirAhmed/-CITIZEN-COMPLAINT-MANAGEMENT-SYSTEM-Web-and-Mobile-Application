@@ -21,9 +21,12 @@ class ApiClient {
   UnauthorizedHandler? onUnauthorized;
 
   Uri _uri(String path, [Map<String, dynamic>? query]) {
-    final base = ApiEndpoints.baseUrl.endsWith('/')
+    var base = ApiEndpoints.baseUrl.endsWith('/')
         ? ApiEndpoints.baseUrl.substring(0, ApiEndpoints.baseUrl.length - 1)
         : ApiEndpoints.baseUrl;
+    if (base.contains('yahyeali.com') || base.startsWith('https://')) {
+      base = ApiEndpoints.baseUrl;
+    }
     final normalized = path.startsWith('/') ? path : '/$path';
     return Uri.parse('$base$normalized').replace(
       queryParameters: query?.map(
@@ -159,18 +162,19 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException(
         message:
-            'The request timed out. Please check your connection and try again.',
+            'Cannot reach the local API server at ${ApiEndpoints.baseUrl}. Start the backend on http://127.0.0.1:5000.',
       );
     } on http.ClientException {
       throw ApiException(
         message:
-            'Unable to reach the server. Please check your internet connection.',
+            'Cannot reach the local API server at ${ApiEndpoints.baseUrl}. Start the backend on http://127.0.0.1:5000.',
       );
     } on ApiException {
       rethrow;
     } catch (_) {
       throw ApiException(
-        message: 'Something went wrong. Please try again.',
+        message:
+            'Cannot reach the local API server at ${ApiEndpoints.baseUrl}. Start the backend on http://127.0.0.1:5000.',
       );
     }
   }

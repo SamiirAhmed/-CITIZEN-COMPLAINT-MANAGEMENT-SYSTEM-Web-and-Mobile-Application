@@ -27,6 +27,7 @@ export default function PoliceDashboardPage() {
   const { user } = useAuth();
   const [records, setRecords] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [now, setNow] = useState(() => new Date());
@@ -41,6 +42,7 @@ export default function PoliceDashboardPage() {
       ]);
       setRecords(nextRecords);
       setNotifications(nextNotes.notifications || []);
+      setUnreadCount(nextNotes.unreadCount || 0);
     } catch (err) {
       setError(err.message || 'Unable to load dashboard.');
     } finally {
@@ -63,12 +65,9 @@ export default function PoliceDashboardPage() {
     const completed = records.filter((item) =>
       ['Investigation Completed', 'Resolved', 'Closed'].includes(item.status)
     ).length;
-    const unread = notifications.filter((item) => !item.isRead).length;
+    const unread = unreadCount;
     return { assigned, investigating, completed, unread };
-  }, [records, notifications]);
-
-  if (loading) return <LoadingState message="Loading dashboard…" />;
-  if (error) return <ErrorState message={error} onRetry={load} />;
+  }, [records, unreadCount]);
 
   const displayName = user?.name || 'Police Officer';
   const { date, time } = formatClock(now);
@@ -80,6 +79,9 @@ export default function PoliceDashboardPage() {
     detail: item.message,
     createdAt: item.createdAt,
   }));
+
+  if (loading) return <LoadingState message="Loading dashboard…" />;
+  if (error) return <ErrorState message={error} onRetry={load} />;
 
   return (
     <div className="page-stack dashboard-page">
@@ -137,8 +139,9 @@ export default function PoliceDashboardPage() {
           </div>
           <PoliceOBTable
             records={recentRecords}
+            showActions={false}
             emptyTitle="No assigned OB records"
-            emptyMessage="When an administrator assigns a case to you, it will appear here."
+            emptyMessage="When a case is assigned to you, it will appear here."
           />
         </article>
         <SystemAlerts alerts={alerts} />

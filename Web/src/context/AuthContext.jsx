@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { isWebUser } from '../auth/roles';
 import { apiRequest, getStoredToken, getStoredUser, setSession } from '../services/apiClient';
-import { isStaffUser, login as loginRequest, logout as logoutRequest } from '../services/authService';
+import { login as loginRequest, logout as logoutRequest } from '../services/authService';
 
 const AuthContext = createContext(null);
 
@@ -8,14 +9,14 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => getStoredToken());
   const [user, setUser] = useState(() => {
     const stored = getStoredUser();
-    return isStaffUser(stored) ? stored : null;
+    return isWebUser(stored) ? stored : null;
   });
 
   const refreshUser = useCallback(async () => {
     if (!getStoredToken()) return null;
     const response = await apiRequest('/auth/me');
     const nextUser = response?.data?.user;
-    if (!isStaffUser(nextUser)) {
+    if (!isWebUser(nextUser)) {
       logoutRequest();
       setToken(null);
       setUser(null);
@@ -27,7 +28,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const applyUser = useCallback((nextUser) => {
-    if (!isStaffUser(nextUser)) return;
+    if (!isWebUser(nextUser)) return;
     setSession(getStoredToken(), nextUser);
     setUser(nextUser);
   }, []);
@@ -56,7 +57,7 @@ export function AuthProvider({ children }) {
     () => ({
       token,
       user,
-      isAuthenticated: Boolean(token && isStaffUser(user)),
+      isAuthenticated: Boolean(token && isWebUser(user)),
       login,
       logout,
       refreshUser,

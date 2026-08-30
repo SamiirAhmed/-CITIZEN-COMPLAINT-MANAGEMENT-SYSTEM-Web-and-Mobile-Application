@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ComplaintDetails from '../components/complaints/ComplaintDetails';
 import ComplaintForm from '../components/complaints/ComplaintForm';
 import ComplaintTable from '../components/complaints/ComplaintTable';
@@ -19,6 +20,7 @@ import {
 } from '../services/complaintService';
 
 export default function ComplaintsPage() {
+  const [searchParams] = useSearchParams();
   const [complaints, setComplaints] = useState([]);
   const [citizens, setCitizens] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -68,6 +70,26 @@ export default function ComplaintsPage() {
     }, 250);
     return () => clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (!id) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const details = await getComplaintById(id);
+        if (!cancelled) {
+          setViewing(details?.complaint || { id });
+          setViewLinkedOB(details?.ob || null);
+        }
+      } catch {
+        if (!cancelled) setNotice('Unable to open the selected complaint.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
 
   const handleCreate = async (payload) => {
     setSubmitting(true);

@@ -94,7 +94,7 @@ export default function EditProfilePage() {
   }
 
   function handleCancel() {
-    navigate('/dashboard');
+    navigate('/admin/dashboard');
   }
 
   function handleUploadClick() {

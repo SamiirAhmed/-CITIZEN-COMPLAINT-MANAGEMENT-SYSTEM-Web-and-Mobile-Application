@@ -20,7 +20,10 @@ function resolveTitle(pathname) {
 
   const match = flat.find((item) => item.path === pathname);
   if (pathname === '/reports') return 'Reports & Analytics';
-  return match?.label || 'SPO Admin';
+  if (pathname === '/sms-portal') return 'SMS Portal';
+  if (pathname === '/unauthorized') return 'Access unavailable';
+  if (pathname === '/notifications') return 'Notifications';
+  return match?.label || 'SPO';
 }
 
 export default function AdminLayout() {

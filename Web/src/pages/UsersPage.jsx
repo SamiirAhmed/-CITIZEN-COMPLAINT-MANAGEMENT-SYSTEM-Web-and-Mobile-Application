@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Modal from '../components/common/Modal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import ErrorState from '../components/common/ErrorState';
@@ -12,10 +13,12 @@ import {
   registerStaff,
   setUserStatus,
   updateUser,
+  getUserById,
 } from '../services/userService';
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
+  const [searchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
@@ -49,6 +52,23 @@ export default function UsersPage() {
     }, 250);
     return () => clearTimeout(timer);
   }, [load]);
+
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (!id) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const user = await getUserById(id);
+        if (!cancelled) setViewing(user);
+      } catch {
+        if (!cancelled) setNotice('Unable to open the selected user.');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams]);
 
   const handleRegister = async (payload) => {
     setSubmitting(true);

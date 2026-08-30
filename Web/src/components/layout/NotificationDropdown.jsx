@@ -11,15 +11,32 @@ function formatRelative(value) {
     const diffMs = Date.now() - date.getTime();
     const minutes = Math.floor(diffMs / 60000);
     if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
+    if (minutes < 60) return `${minutes} min ago`;
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
     const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d ago`;
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days} days ago`;
     return date.toLocaleDateString();
   } catch {
     return '';
   }
+}
+
+function iconKind(type = '') {
+  const value = String(type).toLowerCase();
+  if (value.includes('citizen')) return 'citizen';
+  if (value.includes('complaint')) return 'complaint';
+  if (value.includes('investigation') || value.includes('evidence')) return 'status';
+  if (value.includes('ob') || value.includes('case') || value.includes('assigned')) return 'ob';
+  if (value.includes('police') || value.includes('permission') || value.includes('account') || value.includes('staff')) {
+    return 'police';
+  }
+  if (value.includes('login') || value.includes('logout') || value.includes('security') || value.includes('password')) {
+    return 'security';
+  }
+  if (value.includes('sms')) return 'sms';
+  return 'info';
 }
 
 const BELL_ICON = (
@@ -45,7 +62,7 @@ export default function NotificationDropdown() {
     setLoading(true);
     setError('');
     try {
-      const data = await getNotifications();
+      const data = await getNotifications({ limit: 12 });
       setUnreadCount(data.unreadCount || 0);
       setNotifications(data.notifications || []);
     } catch (err) {
@@ -57,8 +74,15 @@ export default function NotificationDropdown() {
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 60000);
-    return () => clearInterval(timer);
+    const timer = setInterval(load, 10000);
+    const onFocus = () => load();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
   }, [load]);
 
   useEffect(() => {
@@ -132,9 +156,9 @@ export default function NotificationDropdown() {
         <div className="header-popover notification-popover" role="menu">
           <div className="notification-popover__header">
             <strong>Notifications</strong>
-            {unreadCount > 0 ? (
-              <span className="notification-popover__count">{unreadCount} unread</span>
-            ) : null}
+            <span className="notification-popover__count">
+              {unreadCount} unread
+            </span>
           </div>
 
           <div className="notification-popover__body">
@@ -143,7 +167,7 @@ export default function NotificationDropdown() {
             ) : error ? (
               <p className="notification-empty notification-empty--error">{error}</p>
             ) : !preview.length ? (
-              <p className="muted notification-empty">No new notifications.</p>
+              <p className="muted notification-empty">No notifications yet.</p>
             ) : (
               <ul className="notification-list">
                 {preview.map((item) => (
@@ -153,27 +177,31 @@ export default function NotificationDropdown() {
                       className={`notification-item ${item.isRead ? '' : 'is-unread'}`}
                       onClick={() => handleItemClick(item)}
                     >
-                      <strong>{item.title}</strong>
-                      <span>{item.message}</span>
-                      <em>{formatRelative(item.createdAt)}</em>
+                      <span
+                        className={`notification-item__icon notification-item__icon--${iconKind(item.type)}`}
+                        aria-hidden="true"
+                      />
+                      <span className="notification-item__body">
+                        <strong>{item.title}</strong>
+                        <span>{item.message}</span>
+                        <em>{formatRelative(item.createdAt)}</em>
+                      </span>
                     </button>
                   </li>
                 ))}
               </ul>
             )}
           </div>
-          {user?.role === 'police' ? (
-            <button
-              type="button"
-              className="notification-popover__footer"
-              onClick={() => {
-                setOpen(false);
-                navigate('/notifications');
-              }}
-            >
-              View all notifications
-            </button>
-          ) : null}
+          <button
+            type="button"
+            className="notification-popover__footer"
+            onClick={() => {
+              setOpen(false);
+              navigate('/notifications');
+            }}
+          >
+            View all
+          </button>
         </div>
       ) : null}
     </div>

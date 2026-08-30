@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = '/api';
 
 const TOKEN_KEY = 'spo_admin_token';
 const USER_KEY = 'spo_admin_user';

@@ -1,6 +1,6 @@
 import Notification from '../models/Notification.js';
 import { asyncHandler } from '../utils/helpers.js';
-import { SECURITY_NOTIFICATION_TYPES } from '../utils/authAudit.js';
+import { hiddenNotificationClause, SECURITY_NOTIFICATION_TYPES } from '../utils/authAudit.js';
 
 const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -60,21 +60,39 @@ function buildNotificationFilter(req) {
     range = '',
     from = '',
     to = '',
+    unread = '',
+    type = '',
   } = req.query;
 
+  const securityOnly = String(req.query.security || '').trim() === '1';
   const query = {
     user: req.user._id,
-    type: { $in: SECURITY_TYPES },
+    ...hiddenNotificationClause(),
   };
+
+  if (securityOnly) {
+    query.type = {
+      $in: SECURITY_TYPES,
+      $nin: hiddenNotificationClause().type.$nin,
+    };
+  }
+
+  if (String(unread).trim() === '1' || String(filter).trim() === 'unread') {
+    query.isRead = false;
+  } else if (String(filter).trim() === 'read') {
+    query.isRead = true;
+  }
+
+  if (String(type).trim() && !securityOnly) {
+    query.type = String(type).trim();
+  }
 
   if (String(filter).trim() === 'successful') {
     query.status = 'success';
   } else if (String(filter).trim() === 'failed') {
     query.status = 'failed';
-  } else if (String(filter).trim() === 'logout') {
-    query.type = 'logout';
   } else if (String(filter).trim() === 'security') {
-    query.type = { $in: ['security_alert', 'login_failed', 'account_deactivated'] };
+    query.type = { $in: ['security_alert', 'account_deactivated'] };
   }
 
   if (String(status).trim()) {
@@ -109,39 +127,54 @@ function buildNotificationFilter(req) {
   return query;
 }
 
+export const getUnreadCount = asyncHandler(async (req, res) => {
+  const unreadCount = await Notification.countDocuments({
+    user: req.user._id,
+    isRead: false,
+    ...hiddenNotificationClause(),
+  });
+
+  return res.json({
+    success: true,
+    data: { unreadCount },
+  });
+});
+
 export const getMyNotifications = asyncHandler(async (req, res) => {
   const securityOnly = String(req.query.security || '').trim() === '1';
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
   const skip = (page - 1) * limit;
+  const filter = buildNotificationFilter(req);
 
-  const filter = securityOnly
-    ? buildNotificationFilter(req)
-    : { user: req.user._id };
-
-  const [notifications, total, unreadCount] = await Promise.all([
+  const [notifications, total, unreadCount, securityUnreadCount] = await Promise.all([
     Notification.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
     Notification.countDocuments(filter),
     Notification.countDocuments({
       user: req.user._id,
       isRead: false,
+      ...hiddenNotificationClause(),
+    }),
+    Notification.countDocuments({
+      user: req.user._id,
+      isRead: false,
       type: { $in: SECURITY_TYPES },
+      alertAction: hiddenNotificationClause().alertAction,
     }),
   ]);
 
   return res.json({
     success: true,
     data: {
-      unreadCount,
+      unreadCount: securityOnly ? securityUnreadCount : unreadCount,
+      securityUnreadCount,
       notifications: notifications.map((item) => item.toClientObject()),
-      pagination: securityOnly
-        ? {
-            page,
-            limit,
-            total,
-            pages: Math.ceil(total / limit) || 1,
-          }
-        : undefined,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit) || 1,
+      },
     },
   });
 });
@@ -163,10 +196,16 @@ export const markNotificationRead = asyncHandler(async (req, res) => {
   notification.readAt = new Date();
   await notification.save();
 
+  const unreadCount = await Notification.countDocuments({
+    user: req.user._id,
+    isRead: false,
+    ...hiddenNotificationClause(),
+  });
+
   return res.json({
     success: true,
     message: 'Notification marked as read.',
-    data: { notification: notification.toClientObject() },
+    data: { notification: notification.toClientObject(), unreadCount },
   });
 });
 
@@ -188,5 +227,6 @@ export const markAllNotificationsRead = asyncHandler(async (req, res) => {
   return res.json({
     success: true,
     message: 'All notifications marked as read.',
+    data: { unreadCount: 0 },
   });
 });

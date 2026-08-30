@@ -6,6 +6,7 @@ import {
   filterNavigationForUser,
   isSettingsPath,
 } from '../../navigation/adminNavigation';
+import { getPortalLabel } from '../../auth/roles';
 
 const ICONS = {
   dashboard: (
@@ -41,6 +42,11 @@ const ICONS = {
   audit: (
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5l-8-3zm0 4 5 2v3.5c0 3.4-2.1 6.4-5 7.7-2.9-1.3-5-4.3-5-7.7V8l5-2z" />
+    </svg>
+  ),
+  sms: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.2L4 17.2V4h16v12zM7 9h10v2H7V9zm0-3h10v2H7V6zm0 6h7v2H7v-2z" />
     </svg>
   ),
   settings: (
@@ -142,7 +148,7 @@ function NavItem({ item, collapsed, onNavigate, settingsOpen, onToggleSettings }
   return (
     <NavLink
       to={item.path}
-      end={item.path === '/dashboard' || item.path === '/police/dashboard'}
+      end={item.path === '/admin/dashboard' || item.path === '/police/dashboard'}
       title={collapsed ? item.label : undefined}
       className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}
       onClick={onNavigate}
@@ -187,13 +193,11 @@ export default function AdminSidebar({ collapsed, mobileOpen, onNavigate }) {
         <div className="admin-sidebar__brand-text">
           <strong>SPO</strong>
           <span>Somali Police OBE</span>
-          <em className="admin-sidebar__portal">
-            {user?.role === 'police' ? 'POLICE PORTAL' : 'ADMIN PORTAL'}
-          </em>
+          <em className="admin-sidebar__portal">{getPortalLabel(user?.role)}</em>
         </div>
       </div>
 
-      <nav className="admin-sidebar__nav" aria-label={user?.role === 'police' ? 'Police navigation' : 'Admin navigation'}>
+      <nav className="admin-sidebar__nav" aria-label={`${getPortalLabel(user?.role)} navigation`}>
         {mainItems.length ? (
           <div className="nav-section">
             {!collapsed ? <p className="nav-section__label">MAIN MENU</p> : null}

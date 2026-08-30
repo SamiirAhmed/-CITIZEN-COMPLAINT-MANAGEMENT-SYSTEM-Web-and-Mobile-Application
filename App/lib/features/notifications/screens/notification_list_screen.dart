@@ -89,6 +89,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
 
     final relatedOb = item.relatedOB;
     final relatedComplaint = item.relatedComplaint;
+    final type = item.type.toLowerCase();
 
     if (relatedOb != null && relatedOb.isNotEmpty) {
       await Navigator.pushNamed(
@@ -102,6 +103,8 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
         AppRoutes.complaintDetails,
         arguments: relatedComplaint,
       );
+    } else if (type.contains('registered') || type.contains('account')) {
+      CitizenAppLayout.of(context)?.selectTab(4);
     }
 
     if (!mounted) return;
@@ -111,13 +114,33 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
     }
   }
 
+  IconData _iconFor(AppNotification item) {
+    final type = item.type.toLowerCase();
+    if (type.contains('complaint')) return Icons.description_outlined;
+    if (type.contains('ob') || type.contains('case') || type.contains('assigned')) {
+      return Icons.folder_outlined;
+    }
+    if (type.contains('investigation')) return Icons.manage_search_outlined;
+    if (type.contains('citizen') || type.contains('registered')) {
+      return Icons.person_outline;
+    }
+    if (type.contains('resolved') || type.contains('closed')) {
+      return Icons.check_circle_outline;
+    }
+    return item.isRead
+        ? Icons.notifications_none
+        : Icons.notifications_active;
+  }
+
   @override
   Widget build(BuildContext context) {
     final unread = _items.where((e) => !e.isRead).length;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Notifications'),
+        title: Text(
+          unread > 0 ? 'Notifications ($unread unread)' : 'Notifications',
+        ),
         leading: IconButton(
           icon: const Icon(Icons.menu),
           onPressed: () => CitizenAppLayout.of(context)?.openDrawer(),
@@ -198,9 +221,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                       backgroundColor: AppColors.spfBlue
                                           .withValues(alpha: 0.12),
                                       child: Icon(
-                                        item.isRead
-                                            ? Icons.notifications_none
-                                            : Icons.notifications_active,
+                                        _iconFor(item),
                                         color: AppColors.spfBlue,
                                         size: 18,
                                       ),
@@ -239,7 +260,7 @@ class _NotificationListScreenState extends State<NotificationListScreen> {
                                           Text(item.message),
                                           const SizedBox(height: 8),
                                           Text(
-                                            DateFormatters.dateTime(
+                                            DateFormatters.relative(
                                               item.createdAt,
                                             ),
                                             style:

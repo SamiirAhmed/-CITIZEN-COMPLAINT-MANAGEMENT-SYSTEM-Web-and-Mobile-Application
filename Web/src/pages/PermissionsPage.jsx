@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import EmptyState from '../components/common/EmptyState';
@@ -19,6 +20,7 @@ const DETAILS_ICON = (
 );
 
 export default function PermissionsPage() {
+  const [searchParams] = useSearchParams();
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [loadingPermissions, setLoadingPermissions] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -38,7 +40,13 @@ export default function PermissionsPage() {
       setError('');
       try {
         const users = await getPoliceUsersForPermissions();
-        if (active) setPoliceUsers(users);
+        if (active) {
+          setPoliceUsers(users);
+          const requested = searchParams.get('userId');
+          if (requested && users.some((user) => user.id === requested)) {
+            setSelectedUserId(requested);
+          }
+        }
       } catch (err) {
         if (active) setError(err.message || 'Unable to load police users.');
       } finally {
@@ -49,7 +57,7 @@ export default function PermissionsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     if (!selectedUserId) {

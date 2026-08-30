@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import LOGO_SRC from '../assets/branding';
+import { getHomePath } from '../auth/roles';
 import { useAuth } from '../context/AuthContext';
-import { getHomePath } from '../navigation/adminNavigation';
 import { validateLogin } from '../validation/authenticationValidation';
 
 export default function LoginPage() {
@@ -54,7 +54,7 @@ export default function LoginPage() {
           <img src={LOGO_SRC} alt="SPO logo" />
           <div>
             <p className="login-page__system">SPO — Somali Police OBE</p>
-            <h1>Sign In</h1>
+            <h1>Login</h1>
           </div>
         </div>
 
@@ -71,7 +71,6 @@ export default function LoginPage() {
               autoComplete="username"
               placeholder="you@spf.gov.so"
             />
-            <small className="field-hint">Enter your registered email address.</small>
             {errors.email ? <em className="field-error">{errors.email}</em> : null}
           </label>
 
@@ -84,12 +83,11 @@ export default function LoginPage() {
               onChange={handleChange}
               autoComplete="current-password"
             />
-            <small className="field-hint">Enter your account password.</small>
             {errors.password ? <em className="field-error">{errors.password}</em> : null}
           </label>
 
           <button type="submit" className="btn btn--primary btn--block" disabled={submitting}>
-            {submitting ? 'Signing in…' : 'Sign In'}
+            {submitting ? 'Signing in…' : 'Login'}
           </button>
         </form>
       </div>

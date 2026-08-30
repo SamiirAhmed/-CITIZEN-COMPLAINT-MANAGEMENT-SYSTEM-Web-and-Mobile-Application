@@ -3,6 +3,13 @@ import Complaint from '../models/Complaint.js';
 import OBRecord from '../models/OBRecord.js';
 import Notification from '../models/Notification.js';
 import { asyncHandler, createAuditLog, getRequestIp } from '../utils/helpers.js';
+import {
+  actorFields,
+  citizenPath,
+  notifyAdmins,
+  notifyUser,
+  staffUserPath,
+} from '../utils/notifyEvent.js';
 import { isValidEmail } from '../utils/citizenValidation.js';
 import {
   DEFAULT_POLICE_PERMISSIONS,
@@ -15,7 +22,7 @@ import {
 } from '../middleware/uploadProfileImage.js';
 import { getDefaultUserPassword } from '../utils/defaultPassword.js';
 import { applyGeographicLocation, applyGeographicSelection } from '../utils/geographyHelpers.js';
-import { SECURITY_NOTIFICATION_TYPES, notifyAccountStatusChange } from '../utils/authAudit.js';
+import { hiddenNotificationClause, notifyAccountStatusChange } from '../utils/authAudit.js';
 
 const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -139,30 +146,31 @@ export const getAdminDashboard = asyncHandler(async (req, res) => {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 8);
 
-  const securityNotifications = await Notification.find({
+  const applicationNotifications = await Notification.find({
     user: req.user._id,
-    type: { $in: [...SECURITY_NOTIFICATION_TYPES] },
+    ...hiddenNotificationClause(),
   })
     .sort({ createdAt: -1 })
     .limit(8);
 
-  const securityUnreadCount = await Notification.countDocuments({
+  const applicationUnreadCount = await Notification.countDocuments({
     user: req.user._id,
     isRead: false,
-    type: { $in: [...SECURITY_NOTIFICATION_TYPES] },
+    ...hiddenNotificationClause(),
   });
 
   const mapAlertType = (notification) => {
-    if (notification.status === 'failed' || notification.type === 'login_failed') {
+    const type = String(notification.type || '');
+    if (type.includes('reject') || type.includes('fail') || type.includes('deactivat')) {
       return 'failed';
     }
-    if (notification.type === 'security_alert') return 'security';
-    if (notification.type === 'logout') return 'logout';
-    if (notification.type === 'password_changed') return 'password';
+    if (type.includes('assigned') || type.includes('permission') || type.includes('status')) {
+      return 'warning';
+    }
     return 'success';
   };
 
-  const systemAlerts = securityNotifications.map((item) => {
+  const systemAlerts = applicationNotifications.map((item) => {
     const alert = item.toClientObject();
     return {
       id: alert.id,
@@ -179,6 +187,7 @@ export const getAdminDashboard = asyncHandler(async (req, res) => {
       accessSource: alert.accessSource,
       isRead: alert.isRead,
       createdAt: alert.createdAt,
+      linkPath: alert.linkPath,
     };
   });
 
@@ -228,7 +237,7 @@ export const getAdminDashboard = asyncHandler(async (req, res) => {
       complaintStatus,
       recentActivities,
       systemAlerts,
-      securityUnreadCount,
+      securityUnreadCount: applicationUnreadCount,
     },
   });
 });
@@ -548,6 +557,27 @@ export const registerCitizen = asyncHandler(async (req, res) => {
     ipAddress: getRequestIp(req),
   });
 
+  await notifyAdmins(
+    {
+      title: 'New Citizen Registered',
+      message: `A new citizen has been registered: ${citizen.name}.`,
+      type: 'citizen_registered',
+      relatedUser: citizen._id,
+      linkPath: citizenPath(citizen._id),
+      ...actorFields(req.user),
+    },
+    { excludeUserId: req.user._id }
+  );
+
+  await notifyUser({
+    userId: citizen._id,
+    title: 'Registration Complete',
+    message: 'Your Citizen Portal account has been created successfully.',
+    type: 'citizen_registered_self',
+    relatedUser: citizen._id,
+    ...actorFields(req.user),
+  });
+
   return res.status(201).json({
     success: true,
     message: 'Citizen registered successfully.',
@@ -697,6 +727,30 @@ export const registerStaffUser = asyncHandler(async (req, res) => {
     details: `${staffRole} user ${user.email} registered with profile image.`,
     ipAddress: getRequestIp(req),
   });
+
+  if (staffRole === 'police') {
+    await notifyUser({
+      userId: user._id,
+      title: 'Police Account Created',
+      message: 'Your Police account has been created by the System Administrator.',
+      type: 'police_account_created',
+      relatedUser: user._id,
+      linkPath: '/profile',
+      ...actorFields(req.user),
+    });
+  }
+
+  await notifyAdmins(
+    {
+      title: staffRole === 'police' ? 'Police User Created' : 'Admin User Created',
+      message: `${user.name} was registered as ${staffRole}.`,
+      type: 'staff_user_created',
+      relatedUser: user._id,
+      linkPath: staffUserPath(user._id),
+      ...actorFields(req.user),
+    },
+    { excludeUserId: req.user._id }
+  );
 
   return res.status(201).json({
     success: true,
@@ -860,6 +914,28 @@ export const updateStaffUser = asyncHandler(async (req, res) => {
     removeProfileImageFile(previousImage);
   }
 
+  await notifyUser({
+    userId: user._id,
+    title: 'Profile Updated',
+    message: 'Your account information has been updated.',
+    type: 'police_profile_updated',
+    relatedUser: user._id,
+    linkPath: '/profile',
+    ...actorFields(req.user),
+  });
+
+  await notifyAdmins(
+    {
+      title: user.role === 'police' ? 'Police User Updated' : 'Staff User Updated',
+      message: `${user.name}'s account information was updated.`,
+      type: 'staff_user_updated',
+      relatedUser: user._id,
+      linkPath: staffUserPath(user._id),
+      ...actorFields(req.user),
+    },
+    { excludeUserId: req.user._id }
+  );
+
   return res.json({
     success: true,
     message: 'User updated successfully.',
@@ -1005,6 +1081,28 @@ export const updateUserPermissions = asyncHandler(async (req, res) => {
     details: `Menu permissions updated for ${user.name}.`,
     ipAddress: getRequestIp(req),
   });
+
+  await notifyUser({
+    userId: user._id,
+    title: 'Permissions Updated',
+    message: 'Your portal permissions have been updated by the System Administrator.',
+    type: 'permissions_updated',
+    relatedUser: user._id,
+    linkPath: '/profile',
+    ...actorFields(req.user),
+  });
+
+  await notifyAdmins(
+    {
+      title: 'Police User Permissions Changed',
+      message: `Menu permissions were updated for ${user.name}.`,
+      type: 'permissions_updated_admin',
+      relatedUser: user._id,
+      linkPath: `/settings/permissions?userId=${user._id}`,
+      ...actorFields(req.user),
+    },
+    { excludeUserId: req.user._id }
+  );
 
   return res.json({
     success: true,

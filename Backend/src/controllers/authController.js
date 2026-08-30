@@ -8,12 +8,16 @@ import {
   asyncHandler,
   createAuditLog,
   getRequestIp,
-  notifyRole,
   signToken,
 } from '../utils/helpers.js';
 import {
+  actorFields,
+  citizenPath,
+  notifyAdmins,
+  notifyUser,
+} from '../utils/notifyEvent.js';
+import {
   recordAuthAuditEvent,
-  shouldNotifyAdminsForFailedLogin,
 } from '../utils/authAudit.js';
 import { getAccessSource } from '../utils/requestContext.js';
 import {
@@ -104,12 +108,22 @@ export const registerCitizen = asyncHandler(async (req, res) => {
 
   const token = signToken(user._id, user.role);
 
-  await notifyRole('admin', {
-    title: 'Citizen Registered',
-    message: `${user.name} registered as a citizen.`,
+  await notifyAdmins({
+    title: 'New Citizen Registered',
+    message: `A new citizen has registered in the Citizen Portal: ${user.name}.`,
     type: 'citizen_registered',
     relatedUser: user._id,
-    linkPath: `/citizens/${user._id}`,
+    linkPath: citizenPath(user._id),
+    ...actorFields(user),
+  });
+
+  await notifyUser({
+    userId: user._id,
+    title: 'Registration Complete',
+    message: 'Your Citizen Portal account has been created successfully.',
+    type: 'citizen_registered_self',
+    relatedUser: user._id,
+    ...actorFields(user),
   });
 
   return res.status(201).json({
@@ -164,7 +178,7 @@ export const login = asyncHandler(async (req, res) => {
       status: 'failed',
       failureReason: 'Invalid credentials',
       accessSource,
-      notifyAdmins: shouldNotifyAdminsForFailedLogin({ user, accessSource }),
+      notifyAdmins: false,
     });
 
     return res.status(401).json({
@@ -181,7 +195,7 @@ export const login = asyncHandler(async (req, res) => {
       status: 'failed',
       failureReason: 'Account inactive',
       accessSource,
-      notifyAdmins: user.role === 'admin' || user.role === 'police',
+      notifyAdmins: false,
     });
 
     return res.status(403).json({
@@ -196,10 +210,7 @@ export const login = asyncHandler(async (req, res) => {
     await recordAuthAuditEvent(req, {
       actor: user,
       email,
-      action: 'LOGIN_SUCCESS',
-      status: 'success',
-      accessSource,
-      notifyAdmins: true,
+      notifyAdmins: false,
       excludeNotificationUserId: user._id,
     });
 
@@ -470,7 +481,7 @@ export const logout = asyncHandler(async (req, res) => {
       email: req.user.email,
       action: 'LOGOUT',
       status: 'success',
-      notifyAdmins: true,
+      notifyAdmins: false,
       excludeNotificationUserId: req.user._id,
     });
   }
