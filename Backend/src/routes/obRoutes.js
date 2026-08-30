@@ -5,18 +5,14 @@ import {
   adminResolveCloseReopen,
   getMyOBById,
   getMyOBRecords,
-<<<<<<< HEAD
   getOBMeta,
+  policeAddEvidence,
   policeUpdateInvestigation,
   staffChangeStatus,
   staffCloseOB,
   staffCreateOB,
   staffDeleteOB,
   staffExportOBs,
-=======
-  policeAddEvidence,
-  policeUpdateInvestigation,
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   staffGetOBById,
   staffListOBs,
   staffOBStats,
@@ -39,7 +35,6 @@ router.get('/staff/export', ...staffOnly, staffExportOBs);
 
 // Staff CRUD
 router.get('/staff', ...staffOnly, staffListOBs);
-<<<<<<< HEAD
 router.post('/staff', ...staffOnly, staffCreateOB);
 router.get('/staff/:id', ...staffOnly, staffGetOBById);
 router.put('/staff/:id', ...staffOnly, staffUpdateOB);
@@ -48,11 +43,8 @@ router.patch('/staff/:id/close', ...adminOnly, staffCloseOB);
 router.patch('/staff/:id/reopen', ...adminOnly, staffReopenOB);
 router.delete('/staff/:id', ...adminOnly, staffDeleteOB);
 
-// Existing admin / police workflow
-=======
-router.get('/staff/:id', ...staffOnly, staffGetOBById);
+// Admin / police workflow
 router.delete('/admin/:id', ...adminOnly, adminDeleteOB);
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 router.patch('/admin/:id/assign', ...adminOnly, adminAssignOfficer);
 router.patch('/admin/:id/status', ...adminOnly, adminResolveCloseReopen);
 router.patch('/police/:id/investigation', ...staffOnly, policeUpdateInvestigation);

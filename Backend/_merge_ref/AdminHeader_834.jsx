@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminProfileMenu from './AdminProfileMenu';
@@ -86,7 +86,7 @@ export default function AdminHeader({ title, onToggleSidebar }) {
           onClick={onToggleSidebar}
           aria-label="Toggle navigation"
         >
-          ☰
+          Γÿ░
         </button>
         <div>
           <h1>{title}</h1>
@@ -101,7 +101,7 @@ export default function AdminHeader({ title, onToggleSidebar }) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={user?.role === 'police' ? 'Search OB records…' : 'Search citizens…'}
+          placeholder={user?.role === 'police' ? 'Search OB recordsΓÇª' : 'Search citizensΓÇª'}
           aria-label={user?.role === 'police' ? 'Search OB records' : 'Search citizens'}
         />
         <kbd className="header-search__kbd">Ctrl K</kbd>

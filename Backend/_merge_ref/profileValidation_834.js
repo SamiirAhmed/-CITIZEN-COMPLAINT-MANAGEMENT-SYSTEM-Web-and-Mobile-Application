@@ -1,4 +1,4 @@
-import { validateProfileImageFile } from './imageValidation';
+﻿import { validateProfileImageFile } from './imageValidation';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -76,5 +76,5 @@ export function getRoleDisplayLabel(role) {
   if (role === 'admin') return 'Admin';
   if (role === 'police') return 'Police Officer';
   if (role === 'citizen') return 'Citizen';
-  return role || '—';
+  return role || 'ΓÇö';
 }

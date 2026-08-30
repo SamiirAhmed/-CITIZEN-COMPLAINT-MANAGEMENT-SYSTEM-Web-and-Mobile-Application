@@ -19,6 +19,7 @@ function resolveTitle(pathname) {
   }
 
   const match = flat.find((item) => item.path === pathname);
+  if (pathname === '/reports') return 'Reports & Analytics';
   return match?.label || 'SPO Admin';
 }
 

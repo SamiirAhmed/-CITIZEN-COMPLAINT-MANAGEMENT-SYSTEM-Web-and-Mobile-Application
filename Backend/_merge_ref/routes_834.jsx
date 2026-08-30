@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+﻿import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import AdminLayout from '../components/layout/AdminLayout';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -20,7 +20,6 @@ import CategoriesPage from '../pages/CategoriesPage';
 import AuditLogsPage from '../pages/AuditLogsPage';
 import ComingSoonPage from '../pages/ComingSoonPage';
 import ProfilePage from '../pages/ProfilePage';
-import ReportsPage from '../pages/ReportsPage';
 import PoliceDashboardPage from '../pages/police/PoliceDashboardPage';
 import PoliceOBRecordsPage from '../pages/police/PoliceOBRecordsPage';
 import PoliceOBDetailsPage from '../pages/police/PoliceOBDetailsPage';
@@ -185,7 +184,7 @@ export default function AppRoutes() {
           path="/reports"
           element={
             <ModuleRoute moduleKey="reports">
-              <ReportsPage />
+              <ComingSoonPage moduleKey="reports" />
             </ModuleRoute>
           }
         />

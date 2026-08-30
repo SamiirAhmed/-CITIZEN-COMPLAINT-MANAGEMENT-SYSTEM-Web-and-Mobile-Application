@@ -1,4 +1,4 @@
-import { policeNavigation } from './policeNavigation';
+﻿import { policeNavigation } from './policeNavigation';
 
 export const adminNavigation = [
   {
@@ -27,7 +27,7 @@ export const adminNavigation = [
   },
   {
     id: 'ob-records',
-    label: 'Occurrences / OB Records',
+    label: 'OB Records',
     path: '/ob-records',
     icon: 'ob',
     moduleKey: 'ob-records',
@@ -38,6 +38,7 @@ export const adminNavigation = [
     label: 'Reports',
     path: '/reports',
     icon: 'reports',
+    comingSoon: true,
     moduleKey: 'reports',
     section: 'main',
   },

@@ -1,13 +1,9 @@
-<<<<<<< HEAD
 import OBRecord, {
   COMPLAINT_CATEGORY_TO_OB,
   OB_CATEGORIES,
   OB_PRIORITIES,
   OB_STATUSES,
 } from '../models/OBRecord.js';
-=======
-import OBRecord, { OB_STATUSES } from '../models/OBRecord.js';
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 import Complaint from '../models/Complaint.js';
 import User from '../models/User.js';
 import mongoose from 'mongoose';
@@ -15,11 +11,8 @@ import {
   asyncHandler,
   createAuditLog,
   createNotification,
-<<<<<<< HEAD
   generateOBNumber,
-=======
   getRequestIp,
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 } from '../utils/helpers.js';
 import {
   evidencePublicPath,
@@ -51,20 +44,25 @@ const appendInvestigationNote = (ob, note, userId) => {
   });
 };
 
-const populateStaffOB = (query) =>
-  query
-    .populate('complaint')
-    .populate('citizen', 'name email phone niraId')
-    .populate('assignedOfficer', 'name badgeNumber station');
+const escapeRegex = (value = '') =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const STAFF_POPULATE = [
+  { path: 'complaint', select: 'complaintNumber category status description location incidentDate' },
+  { path: 'citizen', select: 'name email phone niraId' },
+  { path: 'assignedOfficer', select: 'name badgeNumber station role email' },
+  { path: 'recordedBy', select: 'name badgeNumber station role' },
+  { path: 'createdBy', select: 'name badgeNumber station role email' },
+  { path: 'updatedBy', select: 'name badgeNumber station role' },
+  { path: 'closedBy', select: 'name badgeNumber station role' },
+  { path: 'activityHistory.user', select: 'name badgeNumber station role' },
+];
 
 const loadStaffOB = async (id, { withNotes = false } = {}) => {
   let query = OBRecord.findById(id);
   if (withNotes) query = query.select('+investigationNotes');
-  return populateStaffOB(query);
+  return query.populate(STAFF_POPULATE);
 };
-
-const escapeRegex = (value = '') =>
-  String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const mapUserRef = (user) => {
   if (!user) return null;
@@ -115,20 +113,6 @@ const toAdminOB = (record) => {
     updatedAt: obj.updatedAt,
   };
 };
-
-const escapeRegex = (value = '') =>
-  String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-const STAFF_POPULATE = [
-  { path: 'complaint', select: 'complaintNumber category status description location incidentDate' },
-  { path: 'citizen', select: 'name email phone niraId' },
-  { path: 'assignedOfficer', select: 'name badgeNumber station role' },
-  { path: 'recordedBy', select: 'name badgeNumber station role' },
-  { path: 'createdBy', select: 'name badgeNumber station role' },
-  { path: 'updatedBy', select: 'name badgeNumber station role' },
-  { path: 'closedBy', select: 'name badgeNumber station role' },
-  { path: 'activityHistory.user', select: 'name badgeNumber station role' },
-];
 
 const OPEN_STATUSES = ['Opened', 'Assigned', 'Reopened'];
 const CLOSED_LIKE = ['Closed', 'Resolved'];
@@ -262,10 +246,6 @@ function buildStaffFilter(req) {
   }
 
   return filter;
-}
-
-async function loadStaffOB(id) {
-  return OBRecord.findById(id).populate(STAFF_POPULATE);
 }
 
 function validateOccurrencePayload(body, { partial = false } = {}) {
@@ -954,21 +934,7 @@ export const staffDeleteOB = asyncHandler(async (req, res) => {
 });
 
 export const staffOBStats = asyncHandler(async (req, res) => {
-  const baseFilter = {};
-  if (req.user.role === 'police') {
-    baseFilter.$or = [
-      { assignedOfficer: req.user._id },
-      { createdBy: req.user._id },
-      { recordedBy: req.user._id },
-    ];
-  }
-
-  const { from, to } = resolveDateRange(req.query);
-  if (from || to) {
-    baseFilter.occurrenceDate = {};
-    if (from) baseFilter.occurrenceDate.$gte = from;
-    if (to) baseFilter.occurrenceDate.$lte = to;
-  }
+  const baseFilter = buildStaffFilter(req);
 
   const [total, byStatus, byCategory, byPriority, byDistrict, byStation, openCount, closedCount] =
     await Promise.all([
@@ -1009,6 +975,49 @@ export const staffOBStats = asyncHandler(async (req, res) => {
     ]);
 
   const statusMap = Object.fromEntries(byStatus.map((s) => [s._id, s.count]));
+
+  const trendGranularity = ['day', 'week', 'month'].includes(req.query.trend)
+    ? req.query.trend
+    : 'month';
+  const dateField = { $ifNull: ['$occurrenceDate', '$createdAt'] };
+
+  let trendGroupId;
+  if (trendGranularity === 'day') {
+    trendGroupId = {
+      year: { $year: dateField },
+      month: { $month: dateField },
+      day: { $dayOfMonth: dateField },
+    };
+  } else if (trendGranularity === 'week') {
+    trendGroupId = {
+      year: { $isoWeekYear: dateField },
+      week: { $isoWeek: dateField },
+    };
+  } else {
+    trendGroupId = {
+      year: { $year: dateField },
+      month: { $month: dateField },
+    };
+  }
+
+  const trendLimit = trendGranularity === 'day' ? 31 : trendGranularity === 'week' ? 12 : 24;
+
+  const trendRows = await OBRecord.aggregate([
+    { $match: baseFilter },
+    { $group: { _id: trendGroupId, count: { $sum: 1 } } },
+    { $sort: trendGranularity === 'day' ? { '_id.year': 1, '_id.month': 1, '_id.day': 1 } : trendGranularity === 'week' ? { '_id.year': 1, '_id.week': 1 } : { '_id.year': 1, '_id.month': 1 } },
+    { $limit: trendLimit },
+  ]);
+
+  const formatTrendLabel = (id) => {
+    if (trendGranularity === 'day') {
+      return `${id.year}-${String(id.month).padStart(2, '0')}-${String(id.day).padStart(2, '0')}`;
+    }
+    if (trendGranularity === 'week') {
+      return `${id.year}-W${String(id.week).padStart(2, '0')}`;
+    }
+    return `${id.year}-${String(id.month).padStart(2, '0')}`;
+  };
 
   const monthly = await OBRecord.aggregate([
     { $match: baseFilter },
@@ -1052,6 +1061,11 @@ export const staffOBStats = asyncHandler(async (req, res) => {
         label: `${m._id.year}-${String(m._id.month).padStart(2, '0')}`,
         count: m.count,
       })),
+      trends: trendRows.map((row) => ({
+        label: formatTrendLabel(row._id),
+        count: row.count,
+      })),
+      trendGranularity,
     },
   });
 });
@@ -1171,9 +1185,6 @@ export const adminAssignOfficer = asyncHandler(async (req, res) => {
     });
   }
 
-<<<<<<< HEAD
-  const populated = await loadStaffOB(ob._id);
-=======
   await createNotification({
     userId: officer._id,
     title: 'New OB Assignment',
@@ -1185,7 +1196,7 @@ export const adminAssignOfficer = asyncHandler(async (req, res) => {
     linkPath: `/ob-records/${ob._id}`,
   });
 
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
+  const populated = await loadStaffOB(ob._id);
   return res.json({
     success: true,
     message: 'Officer assigned successfully.',
@@ -1213,9 +1224,6 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
   }
 
   if (action === 'start') {
-<<<<<<< HEAD
-    const previous = ob.status;
-=======
     if (COMPLETED_STATUSES.includes(ob.status)) {
       return res.status(400).json({
         success: false,
@@ -1228,19 +1236,15 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
         message: 'Investigation has already been started.',
       });
     }
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
+    const previous = ob.status;
     ob.status = 'Under Investigation';
     if (!ob.investigationStartedAt) {
       ob.investigationStartedAt = new Date();
     }
     ob.investigationCompletedAt = null;
     if (note) {
-<<<<<<< HEAD
-      ob.investigationNotes = `${ob.investigationNotes || ''}\n${note}`.trim();
-      ob.actionTaken = note;
-=======
       appendInvestigationNote(ob, note, req.user._id);
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
+      ob.actionTaken = note;
     }
     ob.updatedBy = req.user._id;
     ob.updates.push({
@@ -1259,7 +1263,6 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
     });
     await ob.save();
     await syncComplaintFromOB(ob, 'Under Investigation', note, req.user._id);
-<<<<<<< HEAD
     if (ob.citizen) {
       await createNotification({
         userId: ob.citizen,
@@ -1270,15 +1273,6 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
         relatedOB: ob._id,
       });
     }
-=======
-    await createNotification({
-      userId: ob.citizen,
-      title: 'Investigation Started',
-      message: `Investigation has started for OB ${ob.obNumber}.`,
-      type: 'investigation_started',
-      relatedComplaint: ob.complaint,
-      relatedOB: ob._id,
-    });
   } else if (action === 'progress') {
     if (ob.status !== 'Under Investigation') {
       return res.status(400).json({
@@ -1305,7 +1299,6 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
       createdAt: new Date(),
     });
     await ob.save();
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   } else if (action === 'note') {
     if (!note) {
       return res.status(400).json({
@@ -1335,16 +1328,8 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
     } else {
       await ob.save();
     }
-<<<<<<< HEAD
     ob.followUpNotes = note;
     ob.updatedBy = req.user._id;
-    ob.updates.push({
-      title: 'Investigation Update',
-      note: citizenSummary || 'An investigation update is available.',
-      visibleToCitizen: Boolean(ob.citizen),
-      createdBy: req.user._id,
-      createdAt: new Date(),
-    });
     pushActivity(ob, {
       action: 'Action added',
       userId: req.user._id,
@@ -1353,8 +1338,6 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
       note: 'Investigation note added.',
     });
     await ob.save();
-    if (ob.citizen) {
-=======
   } else if (action === 'update') {
     const updateNote = String(note || '').trim();
     if (!updateNote) {
@@ -1372,8 +1355,7 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
       createdAt: new Date(),
     });
     await ob.save();
-    if (shareWithCitizen) {
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
+    if (shareWithCitizen && ob.citizen) {
       await createNotification({
         userId: ob.citizen,
         title: 'Case Update',
@@ -1384,9 +1366,6 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
       });
     }
   } else if (action === 'complete') {
-<<<<<<< HEAD
-    const previous = ob.status;
-=======
     if (COMPLETED_STATUSES.includes(ob.status)) {
       return res.status(400).json({
         success: false,
@@ -1399,17 +1378,13 @@ export const policeUpdateInvestigation = asyncHandler(async (req, res) => {
         message: 'Start the investigation before completing it.',
       });
     }
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
+    const previous = ob.status;
     ob.status = 'Investigation Completed';
     ob.investigationCompletedAt = new Date();
     ob.investigationProgress = 100;
     if (note) {
-<<<<<<< HEAD
-      ob.investigationNotes = `${ob.investigationNotes || ''}\n${note}`.trim();
-      ob.outcome = note;
-=======
       appendInvestigationNote(ob, note, req.user._id);
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
+      ob.outcome = note;
     }
     if (citizenSummary) {
       ob.citizenSummary = citizenSummary;
@@ -1522,91 +1497,6 @@ export const policeAddEvidence = asyncHandler(async (req, res) => {
   });
 });
 
-export const staffListOBs = asyncHandler(async (req, res) => {
-  const { status, search = '' } = req.query;
-  const filter = {};
-
-  if (req.user.role === 'police') {
-    filter.assignedOfficer = req.user._id;
-  }
-
-  if (status) {
-    filter.status = status;
-  }
-
-  if (search.trim()) {
-    const regex = new RegExp(escapeRegex(search.trim()), 'i');
-    const matchingCitizens = await User.find({
-      role: 'citizen',
-      $or: [{ name: regex }, { email: regex }, { phone: regex }, { niraId: regex }],
-    }).select('_id');
-    const matchingComplaints = await Complaint.find({
-      $or: [{ complaintNumber: regex }, { category: regex }, { location: regex }],
-    }).select('_id');
-
-    filter.$or = [
-      { obNumber: regex },
-      { citizenSummary: regex },
-      { citizen: { $in: matchingCitizens.map((c) => c._id) } },
-      { complaint: { $in: matchingComplaints.map((c) => c._id) } },
-    ];
-  }
-
-  const records = await OBRecord.find(filter)
-    .populate('complaint')
-    .populate('citizen', 'name email phone niraId')
-    .populate('assignedOfficer', 'name badgeNumber station email')
-    .populate('createdBy', 'name email')
-    .sort({ updatedAt: -1 });
-
-  return res.json({
-    success: true,
-    data: {
-      records: records.map((item) =>
-        req.user.role === 'police'
-          ? item.toStaffObject(item.complaint, item.citizen)
-          : toAdminOB(item)
-      ),
-    },
-  });
-});
-
-export const staffGetOBById = asyncHandler(async (req, res) => {
-  const filter = { _id: req.params.id };
-  if (req.user.role === 'police') {
-    filter.assignedOfficer = req.user._id;
-  }
-
-  const record = await OBRecord.findOne(filter)
-    .select('+investigationNotes')
-    .populate('complaint')
-    .populate('citizen', 'name email phone niraId')
-    .populate('assignedOfficer', 'name badgeNumber station email')
-    .populate('createdBy', 'name email');
-
-  if (!record) {
-    return res.status(404).json({
-      success: false,
-      message: 'OB record not found.',
-    });
-  }
-
-  const populated = await loadStaffOB(ob._id);
-  return res.json({
-    success: true,
-<<<<<<< HEAD
-    message: 'OB updated successfully.',
-    data: { record: populated.toStaffObject(), ob: populated },
-=======
-    data: {
-      record:
-        req.user.role === 'police'
-          ? record.toStaffObject(record.complaint, record.citizen)
-          : toAdminOB(record),
-    },
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
-  });
-});
 export const adminResolveCloseReopen = asyncHandler(async (req, res) => {
   const { action, note } = req.body;
   const ob = await OBRecord.findById(req.params.id);
@@ -1734,9 +1624,6 @@ export const adminResolveCloseReopen = asyncHandler(async (req, res) => {
   });
 });
 
-<<<<<<< HEAD
-export { COMPLAINT_CATEGORY_TO_OB };
-=======
 export const adminDeleteOB = asyncHandler(async (req, res) => {
   const ob = await OBRecord.findById(req.params.id);
   if (!ob) {
@@ -1780,5 +1667,4 @@ export const adminDeleteOB = asyncHandler(async (req, res) => {
   });
 });
 
-export { OB_STATUSES };
->>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
+export { COMPLAINT_CATEGORY_TO_OB, OB_STATUSES };
