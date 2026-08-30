@@ -67,9 +67,6 @@ export default function PoliceDashboardPage() {
     return { assigned, investigating, completed, unread };
   }, [records, notifications]);
 
-  if (loading) return <LoadingState message="Loading dashboard…" />;
-  if (error) return <ErrorState message={error} onRetry={load} />;
-
   const displayName = user?.name || 'Police Officer';
   const { date, time } = formatClock(now);
   const recentRecords = records.slice(0, 6);
@@ -80,6 +77,9 @@ export default function PoliceDashboardPage() {
     detail: item.message,
     createdAt: item.createdAt,
   }));
+
+  if (loading) return <LoadingState message="Loading dashboard…" />;
+  if (error) return <ErrorState message={error} onRetry={load} />;
 
   return (
     <div className="page-stack dashboard-page">
@@ -137,8 +137,9 @@ export default function PoliceDashboardPage() {
           </div>
           <PoliceOBTable
             records={recentRecords}
+            showActions={false}
             emptyTitle="No assigned OB records"
-            emptyMessage="When an administrator assigns a case to you, it will appear here."
+            emptyMessage="When a case is assigned to you, it will appear here."
           />
         </article>
         <SystemAlerts alerts={alerts} />

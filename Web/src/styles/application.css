@@ -1190,6 +1190,36 @@ select:focus {
   color: #64748b;
 }
 
+.th-sort {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.th-sort.is-active {
+  color: var(--spo-navy);
+}
+
+.table-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 0.25rem 0;
+}
+
+.table-pager__page {
+  font-size: 0.85rem;
+  color: var(--spo-muted);
+  font-weight: 600;
+}
+
 .action-row {
   display: flex;
   flex-wrap: nowrap;

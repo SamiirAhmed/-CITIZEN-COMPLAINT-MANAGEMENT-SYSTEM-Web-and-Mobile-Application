@@ -1,10 +1,11 @@
+import { getHomePath } from '../auth/roles';
 import { policeNavigation } from './policeNavigation';
 
 export const adminNavigation = [
   {
     id: 'dashboard',
     label: 'Dashboard',
-    path: '/dashboard',
+    path: '/admin/dashboard',
     icon: 'dashboard',
     moduleKey: 'dashboard',
     section: 'main',
@@ -38,10 +39,6 @@ export const adminNavigation = [
     label: 'Reports',
     path: '/reports',
     icon: 'reports',
-<<<<<<< HEAD
-=======
-    comingSoon: true,
->>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
     moduleKey: 'reports',
     section: 'main',
   },
@@ -115,19 +112,17 @@ export function userHasModule(user, moduleKey) {
 
 export function filterNavigationForUser(user) {
   if (!user) return [];
-  if (user.role === 'police') {
-    return policeNavigation;
+  if (user.role === 'police') return policeNavigation;
+  if (user.role === 'admin') {
+    return adminNavigation.filter((item) => userHasModule(user, item.moduleKey));
   }
-  return adminNavigation.filter((item) => userHasModule(user, item.moduleKey));
+  return adminNavigation.filter((item) => item.id === 'profile');
 }
 
-export function getHomePath(user) {
-  if (user?.role === 'police') return '/police/dashboard';
-  return '/dashboard';
-}
+export { getHomePath };
 
 export function getFirstAllowedPath(user) {
-  if (user?.role === 'police') return getHomePath(user);
+  if (user?.role !== 'admin') return getHomePath(user);
   const items = filterNavigationForUser(user);
   if (!items.length) return '/profile';
   const first = items[0];
@@ -139,11 +134,11 @@ export function getFirstAllowedPath(user) {
 
 export function resolveNotificationPath(notification, user) {
   if (user?.role === 'police' && notification?.relatedOB) {
-    return `/ob-records/${notification.relatedOB}`;
+    return '/ob-records';
   }
   if (notification?.linkPath) {
-    if (user?.role === 'police' && notification.linkPath === '/dashboard') {
-      return '/police/dashboard';
+    if (notification.linkPath === '/dashboard' || notification.linkPath === '/admin/dashboard') {
+      return getHomePath(user);
     }
     return notification.linkPath;
   }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import ErrorState from '../components/common/ErrorState';import RecentOccurrencesTable from '../components/reports/RecentOccurrencesTable';
+import ErrorState from '../components/common/ErrorState';
+import RecentOccurrencesTable from '../components/reports/RecentOccurrencesTable';
 import {
   CategoryBarChart,
   OccurrenceTrendChart,

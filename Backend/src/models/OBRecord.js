@@ -21,7 +21,6 @@ const updateSchema = new mongoose.Schema(
   { _id: false }
 );
 
-<<<<<<< HEAD
 const activitySchema = new mongoose.Schema(
   {
     action: { type: String, required: true },
@@ -34,8 +33,6 @@ const activitySchema = new mongoose.Schema(
   { _id: false }
 );
 
-=======
->>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
 const investigationNoteSchema = new mongoose.Schema(
   {
     note: { type: String, required: true },
@@ -312,7 +309,6 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
       title: item.title,
       note: item.note || '',
       visibleToCitizen: item.visibleToCitizen !== false,
-<<<<<<< HEAD
       createdAt: item.createdAt,
       createdBy: item.createdBy?.toString?.() || item.createdBy || null,
     })),
@@ -322,8 +318,6 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
       previousValue: item.previousValue || '',
       newValue: item.newValue || '',
       note: item.note || '',
-=======
->>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
       createdAt: item.createdAt,
     })),
     createdAt: this.createdAt,

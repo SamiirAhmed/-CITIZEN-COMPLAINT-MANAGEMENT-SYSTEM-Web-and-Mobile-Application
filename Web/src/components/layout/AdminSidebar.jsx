@@ -6,6 +6,7 @@ import {
   filterNavigationForUser,
   isSettingsPath,
 } from '../../navigation/adminNavigation';
+import { getPortalLabel } from '../../auth/roles';
 
 const ICONS = {
   dashboard: (
@@ -142,7 +143,7 @@ function NavItem({ item, collapsed, onNavigate, settingsOpen, onToggleSettings }
   return (
     <NavLink
       to={item.path}
-      end={item.path === '/dashboard' || item.path === '/police/dashboard'}
+      end={item.path === '/admin/dashboard' || item.path === '/police/dashboard'}
       title={collapsed ? item.label : undefined}
       className={({ isActive }) => `nav-link ${isActive ? 'is-active' : ''}`}
       onClick={onNavigate}
@@ -187,13 +188,11 @@ export default function AdminSidebar({ collapsed, mobileOpen, onNavigate }) {
         <div className="admin-sidebar__brand-text">
           <strong>SPO</strong>
           <span>Somali Police OBE</span>
-          <em className="admin-sidebar__portal">
-            {user?.role === 'police' ? 'POLICE PORTAL' : 'ADMIN PORTAL'}
-          </em>
+          <em className="admin-sidebar__portal">{getPortalLabel(user?.role)}</em>
         </div>
       </div>
 
-      <nav className="admin-sidebar__nav" aria-label={user?.role === 'police' ? 'Police navigation' : 'Admin navigation'}>
+      <nav className="admin-sidebar__nav" aria-label={`${getPortalLabel(user?.role)} navigation`}>
         {mainItems.length ? (
           <div className="nav-section">
             {!collapsed ? <p className="nav-section__label">MAIN MENU</p> : null}

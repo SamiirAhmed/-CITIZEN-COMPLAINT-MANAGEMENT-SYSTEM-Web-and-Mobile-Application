@@ -115,12 +115,10 @@ export default function ProfilePage() {
           />
         </div>
         <div className="profile-hero-card__copy">
-          <p className="settings-hub__eyebrow">
-            {profile.role === 'police' ? 'Police Profile' : 'Admin Profile'}
-          </p>
+          <p className="settings-hub__eyebrow">{roleLabel} Profile</p>
           <h1>
             {profile.name ||
-              (profile.role === 'police' ? 'Police Officer' : 'System Administrator')}
+              (profile.role === 'police' ? 'Police Officer' : roleLabel)}
           </h1>
           <p className="profile-hero-card__role">{roleLabel}</p>
           <div className="profile-hero__badges">

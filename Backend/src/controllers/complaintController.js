@@ -751,6 +751,7 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
     });
   }
 
+  const isPolice = req.user.role === 'police';
   const obNumber = await generateOBNumber();
   const now = new Date();
   const mappedCategory =
@@ -791,12 +792,16 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
     recordedBy: req.user._id,
     createdBy: req.user._id,
     updatedBy: req.user._id,
-    status: 'Opened',
+    status: isPolice ? 'Assigned' : 'Opened',
+    assignedOfficer: isPolice ? req.user._id : null,
+    assignedAt: isPolice ? new Date() : null,
     citizenSummary: req.body.citizenSummary || 'Occurrence Book opened for your complaint.',
     updates: [
       {
         title: 'OB Created',
-        note: 'An Occurrence Book has been created for your complaint.',
+        note: isPolice
+          ? `Occurrence Book created and assigned to ${req.user.name}.`
+          : 'An Occurrence Book has been created for your complaint.',
         visibleToCitizen: true,
         createdBy: req.user._id,
         createdAt: now,
@@ -807,7 +812,7 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
         action: 'Created',
         user: req.user._id,
         previousValue: '',
-        newValue: 'Opened',
+        newValue: isPolice ? 'Assigned' : 'Opened',
         note: `OB created from complaint ${complaint.complaintNumber}.`,
         createdAt: now,
       },

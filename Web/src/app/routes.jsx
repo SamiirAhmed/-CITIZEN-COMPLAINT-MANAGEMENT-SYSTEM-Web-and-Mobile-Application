@@ -1,17 +1,11 @@
-<<<<<<< HEAD
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-=======
 import { Navigate, Route, Routes } from 'react-router-dom';
->>>>>>> d269264ca61b14242d16ca766361ed8ac7cfe9a9
-import AdminLayout from '../components/layout/AdminLayout';
+import { getHomePath } from '../auth/roles';
+import { ProtectedRoute, RoleProtectedRoute } from '../components/auth/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
-import {
-  getFirstAllowedPath,
-  getHomePath,
-  userHasModule,
-} from '../navigation/adminNavigation';
+import { getFirstAllowedPath, userHasModule } from '../navigation/adminNavigation';
 import LoginPage from '../pages/LoginPage';
 import ForceChangePasswordPage from '../pages/ForceChangePasswordPage';
+import UnauthorizedPage from '../pages/UnauthorizedPage';
 import DashboardPage from '../pages/DashboardPage';
 import CitizensPage from '../pages/CitizensPage';
 import CitizenDetailsPage from '../pages/CitizenDetailsPage';
@@ -23,7 +17,6 @@ import PermissionsPage from '../pages/PermissionsPage';
 import CategoriesPage from '../pages/CategoriesPage';
 import DistrictsPage from '../pages/DistrictsPage';
 import AuditLogsPage from '../pages/AuditLogsPage';
-import ComingSoonPage from '../pages/ComingSoonPage';
 import ProfilePage from '../pages/ProfilePage';
 import ReportsPage from '../pages/ReportsPage';
 import PoliceDashboardPage from '../pages/police/PoliceDashboardPage';
@@ -40,42 +33,18 @@ const ADMIN_ONLY_MODULES = new Set([
   'settings',
 ]);
 
-function ProtectedRoute() {
-  const { isAuthenticated, user } = useAuth();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (user?.passwordChangeRequired) {
-    return <Navigate to="/change-password-required" replace />;
-  }
-
-  return <AdminLayout />;
-}
-
 function ModuleRoute({ moduleKey, children }) {
   const { user } = useAuth();
 
   if (user?.role === 'police') {
     if (ADMIN_ONLY_MODULES.has(moduleKey)) {
-      return <Navigate to="/police/dashboard" replace />;
+      return <Navigate to={getHomePath(user)} replace />;
     }
     return children;
   }
 
   if (!userHasModule(user, moduleKey)) {
     return <Navigate to={getFirstAllowedPath(user)} replace />;
-  }
-
-  return children;
-}
-
-function PoliceRoute({ children }) {
-  const { user } = useAuth();
-
-  if (user?.role !== 'police') {
-    return <Navigate to={getHomePath(user)} replace />;
   }
 
   return children;
@@ -94,17 +63,14 @@ function CatchAllRedirect() {
   return <Navigate to={getHomePath(user)} replace />;
 }
 
-function AdminDashboardRoute() {
-  const { user } = useAuth();
-  if (user?.role === 'police') {
-    return <Navigate to="/police/dashboard" replace />;
-  }
-  return <DashboardPage />;
-}
-
 function OBRecordsRoute() {
   const { user } = useAuth();
-  if (user?.role === 'police') return <PoliceOBRecordsPage />;
+  if (user?.role === 'police') {
+    return <PoliceOBRecordsPage />;
+  }
+  if (!userHasModule(user, 'ob-records')) {
+    return <Navigate to={getFirstAllowedPath(user)} replace />;
+  }
   return <OBRecordsPage />;
 }
 
@@ -112,136 +78,163 @@ export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/police/login" element={<Navigate to="/login" replace />} />
       <Route path="/change-password-required" element={<ForceChangePasswordPage />} />
 
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<HomeRedirect />} />
+        <Route path="/dashboard" element={<HomeRedirect />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
         <Route
-          path="/dashboard"
+          path="/admin/dashboard"
           element={
-            <ModuleRoute moduleKey="dashboard">
-              <AdminDashboardRoute />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <DashboardPage />
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/police/dashboard"
           element={
-            <PoliceRoute>
+            <RoleProtectedRoute roles={['police']}>
               <PoliceDashboardPage />
-            </PoliceRoute>
+            </RoleProtectedRoute>
           }
         />
+
         <Route
           path="/citizens"
           element={
-            <ModuleRoute moduleKey="citizens">
-              <CitizensPage />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <ModuleRoute moduleKey="citizens">
+                <CitizensPage />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/citizens/:id"
           element={
-            <ModuleRoute moduleKey="citizens">
-              <CitizenDetailsPage />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <ModuleRoute moduleKey="citizens">
+                <CitizenDetailsPage />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/complaints"
           element={
-            <ModuleRoute moduleKey="complaints">
-              <ComplaintsPage />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <ModuleRoute moduleKey="complaints">
+                <ComplaintsPage />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/ob-records"
           element={
-            <ModuleRoute moduleKey="ob-records">
-              <OBRecordsRoute />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin', 'police']}>
+              <ModuleRoute moduleKey="ob-records">
+                <OBRecordsRoute />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/ob-records/:id"
           element={
-            <PoliceRoute>
+            <RoleProtectedRoute roles={['police']}>
               <PoliceOBDetailsPage />
-            </PoliceRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/investigation"
           element={
-            <PoliceRoute>
+            <RoleProtectedRoute roles={['police']}>
               <PoliceInvestigationPage />
-            </PoliceRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/notifications"
           element={
-            <PoliceRoute>
+            <RoleProtectedRoute roles={['police']}>
               <PoliceNotificationsPage />
-            </PoliceRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/reports"
           element={
-            <ModuleRoute moduleKey="reports">
-              <ReportsPage />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <ModuleRoute moduleKey="reports">
+                <ReportsPage />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/audit-logs"
           element={
-            <ModuleRoute moduleKey="audit-logs">
-              <AuditLogsPage />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <ModuleRoute moduleKey="audit-logs">
+                <AuditLogsPage />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/settings"
           element={
-            <ModuleRoute moduleKey="settings">
-              <SettingsPage />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <ModuleRoute moduleKey="settings">
+                <SettingsPage />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/settings/users"
           element={
-            <ModuleRoute moduleKey="settings">
-              <UsersPage />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <ModuleRoute moduleKey="settings">
+                <UsersPage />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/settings/permissions"
           element={
-            <ModuleRoute moduleKey="settings">
-              <PermissionsPage />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <ModuleRoute moduleKey="settings">
+                <PermissionsPage />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/settings/categories"
           element={
-            <ModuleRoute moduleKey="settings">
-              <CategoriesPage />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <ModuleRoute moduleKey="settings">
+                <CategoriesPage />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route
           path="/settings/districts"
           element={
-            <ModuleRoute moduleKey="settings">
-              <DistrictsPage />
-            </ModuleRoute>
+            <RoleProtectedRoute roles={['admin']}>
+              <ModuleRoute moduleKey="settings">
+                <DistrictsPage />
+              </ModuleRoute>
+            </RoleProtectedRoute>
           }
         />
         <Route

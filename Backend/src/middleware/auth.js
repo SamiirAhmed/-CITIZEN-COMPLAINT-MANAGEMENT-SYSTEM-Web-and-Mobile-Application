@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { databaseUnavailableMessage, isDatabaseError, isDbReady } from '../config/db.js';
+import { ROLES, WEB_STAFF_ROLES } from '../constants/roles.js';
 
 const getTokenFromHeader = (req) => {
   const header = req.headers.authorization;
@@ -83,6 +84,7 @@ export const authorize =
     return next();
   };
 
-export const citizenOnly = [protect, authorize('citizen')];
-export const staffOnly = [protect, authorize('admin', 'police'), requirePasswordChanged];
-export const adminOnly = [protect, authorize('admin'), requirePasswordChanged];
+export const citizenOnly = [protect, authorize(ROLES.CITIZEN)];
+export const staffOnly = [protect, authorize(...WEB_STAFF_ROLES), requirePasswordChanged];
+export const adminOnly = [protect, authorize(ROLES.ADMIN), requirePasswordChanged];
+export const policeOnly = [protect, authorize(ROLES.POLICE), requirePasswordChanged];
