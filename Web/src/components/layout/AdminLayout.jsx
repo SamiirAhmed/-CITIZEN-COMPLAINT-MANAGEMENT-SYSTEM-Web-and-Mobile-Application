@@ -3,14 +3,19 @@ import { Outlet, useLocation } from 'react-router-dom';
 import AdminHeader from './AdminHeader';
 import AdminSidebar from './AdminSidebar';
 import { adminNavigation } from '../../navigation/adminNavigation';
+import { policeNavigation } from '../../navigation/policeNavigation';
 
 function resolveTitle(pathname) {
-  const flat = adminNavigation.flatMap((item) =>
+  const flat = [...adminNavigation, ...policeNavigation].flatMap((item) =>
     item.children ? [item, ...item.children] : [item]
   );
 
   if (pathname.startsWith('/citizens/') && pathname !== '/citizens') {
     return 'Citizen Details';
+  }
+
+  if (pathname.startsWith('/ob-records/') && pathname !== '/ob-records') {
+    return 'OB Details';
   }
 
   const match = flat.find((item) => item.path === pathname);

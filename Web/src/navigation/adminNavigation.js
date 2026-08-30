@@ -1,4 +1,10 @@
+<<<<<<< HEAD
+﻿export const adminNavigation = [
+=======
+import { policeNavigation } from './policeNavigation';
+
 export const adminNavigation = [
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   {
     id: 'dashboard',
     label: 'Dashboard',
@@ -28,17 +34,30 @@ export const adminNavigation = [
     label: 'OB Records',
     path: '/ob-records',
     icon: 'ob',
+<<<<<<< HEAD
+=======
     moduleKey: 'ob-records',
     section: 'main',
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   },
   {
     id: 'reports',
     label: 'Reports',
     path: '/reports',
     icon: 'reports',
+<<<<<<< HEAD
+  },
+  {
+    id: 'notifications',
+    label: 'Notifications',
+    path: '/notifications',
+    icon: 'notifications',
+    comingSoon: true,
+=======
     comingSoon: true,
     moduleKey: 'reports',
     section: 'main',
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   },
   {
     id: 'audit-logs',
@@ -89,11 +108,14 @@ export const adminNavigation = [
   },
   {
     id: 'profile',
-    label: 'Profile',
+    label: 'Edit Profile',
     path: '/profile',
     icon: 'profile',
+<<<<<<< HEAD
+=======
     moduleKey: 'profile',
     section: 'system',
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   },
 ];
 
@@ -101,6 +123,8 @@ export function isSettingsPath(pathname) {
   return pathname === '/settings' || pathname.startsWith('/settings/');
 }
 
+<<<<<<< HEAD
+=======
 export function userHasModule(user, moduleKey) {
   if (!user) return false;
   if (user.role === 'admin') return true;
@@ -109,10 +133,20 @@ export function userHasModule(user, moduleKey) {
 }
 
 export function filterNavigationForUser(user) {
+  if (!user) return [];
+  if (user.role === 'police') {
+    return policeNavigation;
+  }
   return adminNavigation.filter((item) => userHasModule(user, item.moduleKey));
 }
 
+export function getHomePath(user) {
+  if (user?.role === 'police') return '/police/dashboard';
+  return '/dashboard';
+}
+
 export function getFirstAllowedPath(user) {
+  if (user?.role === 'police') return getHomePath(user);
   const items = filterNavigationForUser(user);
   if (!items.length) return '/profile';
   const first = items[0];
@@ -122,13 +156,22 @@ export function getFirstAllowedPath(user) {
   return first.path;
 }
 
-export function resolveNotificationPath(notification) {
-  if (notification?.linkPath) return notification.linkPath;
+export function resolveNotificationPath(notification, user) {
+  if (user?.role === 'police' && notification?.relatedOB) {
+    return `/ob-records/${notification.relatedOB}`;
+  }
+  if (notification?.linkPath) {
+    if (user?.role === 'police' && notification.linkPath === '/dashboard') {
+      return '/police/dashboard';
+    }
+    return notification.linkPath;
+  }
   if (notification?.relatedUser && String(notification.type || '').includes('citizen')) {
     return `/citizens/${notification.relatedUser}`;
   }
   if (notification?.relatedUser) return '/settings/users';
   if (notification?.relatedOB) return '/ob-records';
   if (notification?.relatedComplaint) return '/complaints';
-  return '/dashboard';
+  return getHomePath(user);
 }
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706

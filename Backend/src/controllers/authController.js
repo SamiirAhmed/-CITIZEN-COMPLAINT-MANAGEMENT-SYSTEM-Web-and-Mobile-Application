@@ -1,5 +1,10 @@
 import User from '../models/User.js';
 import {
+  databaseUnavailableMessage,
+  isDatabaseError,
+  isDbReady,
+} from '../config/db.js';
+import {
   asyncHandler,
   createAuditLog,
   getRequestIp,
@@ -122,9 +127,28 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!isDbReady()) {
+    return res.status(503).json({
+      success: false,
+      message: databaseUnavailableMessage(),
+    });
+  }
+
   const { email, password } = validation.data;
 
-  const user = await User.findOne({ email }).select('+password');
+  let user;
+  try {
+    user = await User.findOne({ email }).select('+password');
+  } catch (error) {
+    if (isDatabaseError(error)) {
+      console.error('Login database error:', error.message);
+      return res.status(503).json({
+        success: false,
+        message: databaseUnavailableMessage(),
+      });
+    }
+    throw error;
+  }
 
   if (!user || !(await user.comparePassword(password))) {
     return res.status(401).json({
@@ -136,7 +160,7 @@ export const login = asyncHandler(async (req, res) => {
   if (!user.isActive) {
     return res.status(403).json({
       success: false,
-      message: 'This account has been deactivated.',
+      message: 'Your account is inactive. Please contact an administrator.',
     });
   }
 
@@ -175,6 +199,11 @@ export const getMe = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
+<<<<<<< HEAD
+  const { name, phone, tell, email, address, username, avatar } = req.body;
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const usernamePattern = /^[a-z0-9._-]{3,30}$/i;
+=======
   // Never allow role/status changes from self-service profile.
   const { name, phone, email } = req.body;
   const previousImage = req.user.profileImage || '';
@@ -182,6 +211,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   const previousPhone = req.user.phone || '';
   const previousEmail = req.user.email;
   const changed = [];
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 
   if (name !== undefined) {
     const trimmedName = String(name).trim();
@@ -220,6 +250,86 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
   }
 
+<<<<<<< HEAD
+  if (tell !== undefined) {
+    req.user.tell = String(tell).trim();
+  }
+
+  if (address !== undefined) {
+    req.user.address = String(address).trim();
+  }
+
+  if (email !== undefined) {
+    const trimmedEmail = String(email).trim().toLowerCase();
+    if (!trimmedEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required.',
+      });
+    }
+    if (!emailPattern.test(trimmedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please enter a valid email address.',
+      });
+    }
+    const existingEmail = await User.findOne({
+      email: trimmedEmail,
+      _id: { $ne: req.user._id },
+    });
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        message: 'An account with this email already exists.',
+      });
+    }
+    req.user.email = trimmedEmail;
+  }
+
+  if (username !== undefined) {
+    const trimmedUsername = String(username).trim().toLowerCase();
+    if (!trimmedUsername) {
+      return res.status(400).json({
+        success: false,
+        message: 'Username is required.',
+      });
+    }
+    if (!usernamePattern.test(trimmedUsername)) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'Username must be 3-30 characters and contain only letters, numbers, dots, underscores, or hyphens.',
+      });
+    }
+    const existingUsername = await User.findOne({
+      username: trimmedUsername,
+      _id: { $ne: req.user._id },
+    });
+    if (existingUsername) {
+      return res.status(409).json({
+        success: false,
+        message: 'This username is already taken.',
+      });
+    }
+    req.user.username = trimmedUsername;
+  }
+
+  if (avatar !== undefined) {
+    const nextAvatar = String(avatar || '');
+    if (nextAvatar && !nextAvatar.startsWith('data:image/')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Avatar must be a valid image.',
+      });
+    }
+    if (nextAvatar.length > 750000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Profile photo is too large. Please upload a smaller image.',
+      });
+    }
+    req.user.avatar = nextAvatar;
+=======
   if (email !== undefined) {
     const trimmedEmail = String(email).trim().toLowerCase();
     if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
@@ -249,6 +359,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
   if (req.file) {
     req.user.profileImage = profileImagePublicPath(req.file.filename);
     changed.push('profileImage');
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
   }
 
   await req.user.save();
@@ -302,7 +413,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   return res.json({
     success: true,
-    message: 'Profile updated successfully.',
+    message: 'Profile updated successfully!',
     data: {
       user: req.user.toSafeObject(),
     },

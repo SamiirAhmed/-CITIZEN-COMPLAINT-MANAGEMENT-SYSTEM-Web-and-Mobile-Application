@@ -145,6 +145,11 @@ export default function PoliceRegistrationForm({
       />
 
       <label className="field">
+        <span>Role</span>
+        <input value="Police Officer" readOnly disabled className="input--readonly" />
+      </label>
+
+      <label className="field">
         <span>Badge Number</span>
         <input name="badgeNumber" value={values.badgeNumber} onChange={handleChange} />
         <small className="field-hint">Optional for admin accounts; required for police officers.</small>

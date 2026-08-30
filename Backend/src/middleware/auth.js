@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { databaseUnavailableMessage, isDatabaseError, isDbReady } from '../config/db.js';
 
 const getTokenFromHeader = (req) => {
   const header = req.headers.authorization;
@@ -11,6 +12,13 @@ const getTokenFromHeader = (req) => {
 
 export const protect = async (req, res, next) => {
   try {
+    if (!isDbReady()) {
+      return res.status(503).json({
+        success: false,
+        message: databaseUnavailableMessage(),
+      });
+    }
+
     const token = getTokenFromHeader(req);
 
     if (!token) {
@@ -33,6 +41,13 @@ export const protect = async (req, res, next) => {
     req.user = user;
     return next();
   } catch (error) {
+    if (isDatabaseError(error)) {
+      console.error('Auth database error:', error.message);
+      return res.status(503).json({
+        success: false,
+        message: databaseUnavailableMessage(),
+      });
+    }
     return res.status(401).json({
       success: false,
       message: 'Session expired or invalid. Please log in again.',

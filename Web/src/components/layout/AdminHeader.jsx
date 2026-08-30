@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+﻿import { useAuth } from '../../context/AuthContext';
+=======
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
@@ -13,6 +16,19 @@ const SEARCH_ICON = (
   </svg>
 );
 
+<<<<<<< HEAD
+=======
+const FULLSCREEN_ICON = (
+  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+    <path
+      fill="currentColor"
+      d="M7 14H5v5h5v-2H7v-3zm12 0h-2v3h-3v2h5v-5zM7 7h3V5H5v5h2V7zm12-2h-5v2h3v3h2V5z"
+    />
+  </svg>
+);
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
+
+>>>>>>> da921d70880b08e5b0f04686ff0264e78d57ccae
 export default function AdminHeader({ title, onToggleSidebar }) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -34,6 +50,14 @@ export default function AdminHeader({ title, onToggleSidebar }) {
   const handleSearch = (event) => {
     event.preventDefault();
     const trimmed = query.trim();
+    if (user?.role === 'police') {
+      if (!trimmed) {
+        navigate('/ob-records');
+        return;
+      }
+      navigate(`/ob-records?search=${encodeURIComponent(trimmed)}`);
+      return;
+    }
     if (!trimmed) {
       navigate('/citizens');
       return;
@@ -50,7 +74,7 @@ export default function AdminHeader({ title, onToggleSidebar }) {
           onClick={onToggleSidebar}
           aria-label="Toggle navigation"
         >
-          ☰
+          â˜°
         </button>
         <div>
           <h1>{title}</h1>
@@ -65,8 +89,8 @@ export default function AdminHeader({ title, onToggleSidebar }) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search citizens…"
-          aria-label="Search citizens"
+          placeholder={user?.role === 'police' ? 'Search OB records…' : 'Search citizens…'}
+          aria-label={user?.role === 'police' ? 'Search OB records' : 'Search citizens'}
         />
         <kbd className="header-search__kbd">Ctrl K</kbd>
       </form>
@@ -78,3 +102,4 @@ export default function AdminHeader({ title, onToggleSidebar }) {
     </header>
   );
 }
+

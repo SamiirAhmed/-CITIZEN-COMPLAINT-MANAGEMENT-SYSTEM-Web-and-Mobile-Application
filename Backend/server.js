@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
 import helmet from 'helmet';
-import { connectDB } from './src/config/db.js';
+import { connectDB, isDbReady, isDatabaseError, requireDatabase } from './src/config/db.js';
 import { seedStaffUsers } from './src/utils/seed.js';
 import { seedComplaintCategories } from './src/utils/seedCategories.js';
 import authRoutes from './src/routes/authRoutes.js';
@@ -43,12 +43,20 @@ app.get('/', (_req, res) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    message: 'Backend is running successfully',
+  const connected = isDbReady();
+  return res.status(connected ? 200 : 503).json({
+    status: connected ? 'ok' : 'unavailable',
+    message: connected
+      ? 'Backend is running successfully'
+      : 'Authentication service is temporarily unavailable. Please try again.',
+    database: {
+      connected,
+      name: 'Citizen_Police_Portal',
+    },
   });
 });
 
+app.use(requireDatabase);
 app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/ob', obRoutes);
@@ -68,9 +76,15 @@ app.use((err, _req, res, _next) => {
 
   if (err?.code === 11000) {
     const field = Object.keys(err.keyPattern || {})[0] || 'field';
+    const friendly =
+      field === 'obNumber'
+        ? 'An occurrence with this OB number already exists. Please try again.'
+        : field === 'complaint'
+          ? 'An Occurrence Book already exists for this complaint.'
+          : `Duplicate value for ${field}.`;
     return res.status(409).json({
       success: false,
-      message: `Duplicate value for ${field}.`,
+      message: friendly,
     });
   }
 
@@ -83,20 +97,34 @@ app.use((err, _req, res, _next) => {
     });
   }
 
+  if (isDatabaseError(err)) {
+    console.error('Database error:', err.message);
+    return res.status(503).json({
+      success: false,
+      message: 'Authentication service is temporarily unavailable. Please try again.',
+    });
+  }
+
   return res.status(err.statusCode || 500).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message: 'Unable to complete the request. Please try again.',
   });
 });
 
 const startServer = async () => {
   try {
+<<<<<<< HEAD
     const connected = await connectDB();
     if (connected) {
       await seedStaffUsers();
       await seedComplaintCategories();
       await seedGeography();
     }
+=======
+    await connectDB();
+    await seedStaffUsers();
+    await seedComplaintCategories();
+>>>>>>> da921d70880b08e5b0f04686ff0264e78d57ccae
 
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);

@@ -25,6 +25,22 @@ const userSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    address: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    username: {
+      type: String,
+      trim: true,
+      sparse: true,
+      unique: true,
+      lowercase: true,
+    },
+    avatar: {
+      type: String,
+      default: '',
+    },
     email: {
       type: String,
       required: [true, 'Email is required'],
@@ -135,6 +151,9 @@ userSchema.methods.toSafeObject = function toSafeObject() {
     niraId: this.niraId || '',
     phone: this.phone || '',
     tell: this.tell || '',
+    address: this.address || '',
+    username: this.username || '',
+    avatar: this.avatar || '',
     email: this.email,
     role: this.role,
     badgeNumber: this.badgeNumber || '',

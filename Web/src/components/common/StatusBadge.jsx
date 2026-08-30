@@ -13,8 +13,20 @@ const STATUS_MAP = {
   reopened: { label: 'Reopened', tone: 'warning' },
   opened: { label: 'Opened', tone: 'warning' },
   open: { label: 'Open', tone: 'warning' },
+  opened: { label: 'Opened', tone: 'warning' },
+  pending: { label: 'Pending', tone: 'warning' },
   assigned: { label: 'Assigned', tone: 'info' },
   investigating: { label: 'Investigating', tone: 'warning' },
+<<<<<<< HEAD
+  'under investigation': { label: 'Under Investigation', tone: 'warning' },
+  'investigation completed': { label: 'Investigation Completed', tone: 'info' },
+  reopened: { label: 'Reopened', tone: 'danger' },
+=======
+  opened: { label: 'Opened', tone: 'info' },
+  'under investigation': { label: 'Under Investigation', tone: 'warning' },
+  'investigation completed': { label: 'Investigation Completed', tone: 'success' },
+  reopened: { label: 'Reopened', tone: 'warning' },
+>>>>>>> 834c738e84d4ed71400294b8465c96e8bc0c6706
 };
 
 export default function StatusBadge({ status }) {
