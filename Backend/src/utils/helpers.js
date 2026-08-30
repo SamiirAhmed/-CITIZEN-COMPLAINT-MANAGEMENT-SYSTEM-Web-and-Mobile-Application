@@ -7,7 +7,7 @@ import User from '../models/User.js';
 
 export const signToken = (userId, role) =>
   jwt.sign({ id: userId, role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+    expiresIn: process.env.JWT_EXPIRES_IN || '15m',
   });
 
 export const createNotification = async ({
@@ -15,6 +15,14 @@ export const createNotification = async ({
   title,
   message,
   type = 'general',
+  status = 'info',
+  alertAction = '',
+  actorName = '',
+  actorRole = '',
+  email = '',
+  ipAddress = '',
+  accessSource = '',
+  failureReason = '',
   relatedComplaint = null,
   relatedOB = null,
   relatedUser = null,
@@ -27,6 +35,14 @@ export const createNotification = async ({
     title,
     message,
     type,
+    status,
+    alertAction,
+    actorName,
+    actorRole,
+    email,
+    ipAddress,
+    accessSource,
+    failureReason,
     relatedComplaint,
     relatedOB,
     relatedUser,
@@ -34,14 +50,23 @@ export const createNotification = async ({
   });
 };
 
-export const notifyRole = async (role, payload) => {
+export const notifyRole = async (role, payload, { excludeUserId } = {}) => {
   const users = await User.find({ role, isActive: true }).select('_id');
-  await Promise.all(users.map((user) => createNotification({ ...payload, userId: user._id })));
+  await Promise.all(
+    users
+      .filter(
+        (user) =>
+          !excludeUserId || user._id.toString() !== String(excludeUserId)
+      )
+      .map((user) => createNotification({ ...payload, userId: user._id }))
+  );
 };
 
 export const createAuditLog = async ({
   actor = null,
+  email = '',
   action,
+  status = '',
   recordType = '',
   recordId = '',
   recordLabel = '',
@@ -49,15 +74,25 @@ export const createAuditLog = async ({
   newValue = '',
   details = '',
   ipAddress = '',
+  userAgent = '',
+  device = '',
+  browser = '',
+  operatingSystem = '',
+  accessSource = '',
+  location = '',
+  actorName = '',
+  actorRole = '',
 }) => {
   if (!action) return null;
 
   try {
     return await AuditLog.create({
       actor: actor?._id || actor || null,
-      actorName: actor?.name || 'System',
-      actorRole: actor?.role || '',
+      actorName: actorName || actor?.name || 'System',
+      actorRole: actorRole || actor?.role || '',
+      email: email || actor?.email || '',
       action,
+      status,
       recordType,
       recordId: recordId ? String(recordId) : '',
       recordLabel,
@@ -69,6 +104,12 @@ export const createAuditLog = async ({
         newValue === undefined || newValue === null ? '' : String(newValue),
       details,
       ipAddress: ipAddress || '',
+      userAgent: userAgent || '',
+      device: device || '',
+      browser: browser || '',
+      operatingSystem: operatingSystem || '',
+      accessSource: accessSource || '',
+      location: location || 'Not available',
     });
   } catch (error) {
     console.error('Failed to create audit log:', error.message);

@@ -46,8 +46,8 @@ export function AuthProvider({ children }) {
     return result;
   }, []);
 
-  const logout = useCallback(() => {
-    logoutRequest();
+  const logout = useCallback(async () => {
+    await logoutRequest();
     setToken(null);
     setUser(null);
   }, []);

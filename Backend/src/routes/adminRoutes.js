@@ -24,7 +24,7 @@ import {
   updateCategory,
 } from '../controllers/categoryController.js';
 import { listGeographyTable } from '../controllers/geographyController.js';
-import { listAuditLogs } from '../controllers/auditController.js';
+import { listAuditLogs, getAuditLogById, getAuthTimeline } from '../controllers/auditController.js';
 import { adminOnly } from '../middleware/auth.js';
 import { uploadProfileImageOptional } from '../middleware/uploadProfileImage.js';
 
@@ -59,6 +59,8 @@ router.put('/categories/:id', updateCategory);
 router.patch('/categories/:id/status', setCategoryStatus);
 
 router.get('/audit-logs', listAuditLogs);
+router.get('/audit-logs/timeline', getAuthTimeline);
+router.get('/audit-logs/:id', getAuditLogById);
 
 router.get('/geography', listGeographyTable);
 

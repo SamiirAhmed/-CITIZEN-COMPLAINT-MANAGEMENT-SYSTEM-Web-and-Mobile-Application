@@ -43,10 +43,10 @@ export default function AdminProfileMenu({ showMeta = false }) {
     setSignOutOpen(true);
   };
 
-  const confirmSignOut = () => {
-    const loginPath = user?.role === 'police' ? '/police/login' : '/login';
+  const confirmSignOut = async () => {
+    const loginPath = '/login';
     setSignOutOpen(false);
-    logout();
+    await logout();
     navigate(loginPath, { replace: true });
   };
 

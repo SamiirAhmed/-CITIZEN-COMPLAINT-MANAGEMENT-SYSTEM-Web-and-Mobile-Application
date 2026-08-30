@@ -12,6 +12,11 @@ import {
   signToken,
 } from '../utils/helpers.js';
 import {
+  recordAuthAuditEvent,
+  shouldNotifyAdminsForFailedLogin,
+} from '../utils/authAudit.js';
+import { getAccessSource } from '../utils/requestContext.js';
+import {
   validateCitizenRegistration,
   validateLoginInput,
   isValidEmail,
@@ -135,6 +140,7 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   const { email, password } = validation.data;
+  const accessSource = getAccessSource(req);
 
   let user;
   try {
@@ -151,6 +157,16 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   if (!user || !(await user.comparePassword(password))) {
+    await recordAuthAuditEvent(req, {
+      actor: user,
+      email,
+      action: 'LOGIN_FAILED',
+      status: 'failed',
+      failureReason: 'Invalid credentials',
+      accessSource,
+      notifyAdmins: shouldNotifyAdminsForFailedLogin({ user, accessSource }),
+    });
+
     return res.status(401).json({
       success: false,
       message: 'Invalid email or password.',
@@ -158,6 +174,16 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   if (!user.isActive) {
+    await recordAuthAuditEvent(req, {
+      actor: user,
+      email,
+      action: 'LOGIN_FAILED',
+      status: 'failed',
+      failureReason: 'Account inactive',
+      accessSource,
+      notifyAdmins: user.role === 'admin' || user.role === 'police',
+    });
+
     return res.status(403).json({
       success: false,
       message: 'Your account is inactive. Please contact an administrator.',
@@ -167,16 +193,27 @@ export const login = asyncHandler(async (req, res) => {
   const token = signToken(user._id, user.role);
 
   if (user.role === 'admin' || user.role === 'police') {
-    await createAuditLog({
+    await recordAuthAuditEvent(req, {
       actor: user,
-      action: 'LOGIN',
-      recordType: 'Session',
-      recordId: user._id,
-      recordLabel: user.name,
-      newValue: 'Signed in',
-      details: `${user.role} signed in.`,
-      ipAddress: getRequestIp(req),
+      email,
+      action: 'LOGIN_SUCCESS',
+      status: 'success',
+      accessSource,
+      notifyAdmins: true,
+      excludeNotificationUserId: user._id,
     });
+
+    if (user.passwordChangeRequired) {
+      await recordAuthAuditEvent(req, {
+        actor: user,
+        email,
+        action: 'PASSWORD_CHANGE_REQUIRED',
+        status: 'info',
+        accessSource,
+        notifyAdmins: true,
+        excludeNotificationUserId: user._id,
+      });
+    }
   }
 
   return res.json({
@@ -406,16 +443,14 @@ export const changePassword = asyncHandler(async (req, res) => {
   await user.save();
 
   if (user.role === 'admin' || user.role === 'police') {
-    await createAuditLog({
+    await recordAuthAuditEvent(req, {
       actor: user,
-      action: 'UPDATE',
-      recordType: 'Profile',
-      recordId: user._id,
-      recordLabel: user.name,
-      previousValue: '',
-      newValue: 'Password changed',
+      email: user.email,
+      action: 'PASSWORD_CHANGED',
+      status: 'success',
       details: 'Account password was changed. Password values were not logged.',
-      ipAddress: getRequestIp(req),
+      notifyAdmins: true,
+      excludeNotificationUserId: user._id,
     });
   }
 
@@ -428,7 +463,18 @@ export const changePassword = asyncHandler(async (req, res) => {
   });
 });
 
-export const logout = asyncHandler(async (_req, res) => {
+export const logout = asyncHandler(async (req, res) => {
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'police')) {
+    await recordAuthAuditEvent(req, {
+      actor: req.user,
+      email: req.user.email,
+      action: 'LOGOUT',
+      status: 'success',
+      notifyAdmins: true,
+      excludeNotificationUserId: req.user._id,
+    });
+  }
+
   return res.json({
     success: true,
     message: 'Logged out successfully.',

@@ -3,6 +3,12 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 const TOKEN_KEY = 'spo_admin_token';
 const USER_KEY = 'spo_admin_user';
 
+function resolveAccessSource() {
+  if (typeof window === 'undefined') return 'Web';
+  if (window.location.pathname.startsWith('/police')) return 'Police Web';
+  return 'Admin Web';
+}
+
 export function getStoredToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
@@ -55,6 +61,7 @@ export async function apiRequest(path, options = {}) {
 
   const requestHeaders = {
     Accept: 'application/json',
+    'X-Access-Source': resolveAccessSource(),
     ...headers,
   };
 

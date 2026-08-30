@@ -15,6 +15,7 @@ import {
 } from '../middleware/uploadProfileImage.js';
 import { getDefaultUserPassword } from '../utils/defaultPassword.js';
 import { applyGeographicLocation, applyGeographicSelection } from '../utils/geographyHelpers.js';
+import { SECURITY_NOTIFICATION_TYPES, notifyAccountStatusChange } from '../utils/authAudit.js';
 
 const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -138,13 +139,48 @@ export const getAdminDashboard = asyncHandler(async (req, res) => {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 8);
 
-  const systemAlerts = recentActivities.slice(0, 5).map((item) => ({
-    id: `alert-${item.id}`,
-    type: item.type,
-    title: item.type === 'citizen' ? 'New citizen registered' : 'Complaint update',
-    detail: item.detail,
-    createdAt: item.createdAt,
-  }));
+  const securityNotifications = await Notification.find({
+    user: req.user._id,
+    type: { $in: [...SECURITY_NOTIFICATION_TYPES] },
+  })
+    .sort({ createdAt: -1 })
+    .limit(8);
+
+  const securityUnreadCount = await Notification.countDocuments({
+    user: req.user._id,
+    isRead: false,
+    type: { $in: [...SECURITY_NOTIFICATION_TYPES] },
+  });
+
+  const mapAlertType = (notification) => {
+    if (notification.status === 'failed' || notification.type === 'login_failed') {
+      return 'failed';
+    }
+    if (notification.type === 'security_alert') return 'security';
+    if (notification.type === 'logout') return 'logout';
+    if (notification.type === 'password_changed') return 'password';
+    return 'success';
+  };
+
+  const systemAlerts = securityNotifications.map((item) => {
+    const alert = item.toClientObject();
+    return {
+      id: alert.id,
+      type: mapAlertType(item),
+      alertAction: alert.alertAction || item.type,
+      status: alert.status,
+      title: alert.title,
+      detail: alert.message,
+      actorName: alert.actorName,
+      actorRole: alert.actorRole,
+      email: alert.email,
+      failureReason: alert.failureReason,
+      ipAddress: alert.ipAddress,
+      accessSource: alert.accessSource,
+      isRead: alert.isRead,
+      createdAt: alert.createdAt,
+    };
+  });
 
   const complaintStatus = statusGroups.map((item) => ({
     status: item._id || 'Unknown',
@@ -192,6 +228,7 @@ export const getAdminDashboard = asyncHandler(async (req, res) => {
       complaintStatus,
       recentActivities,
       systemAlerts,
+      securityUnreadCount,
     },
   });
 });
@@ -873,6 +910,12 @@ export const setStaffUserStatus = asyncHandler(async (req, res) => {
     newValue: next,
     details: `${user.role} account status changed to ${next}.`,
     ipAddress: getRequestIp(req),
+  });
+
+  await notifyAccountStatusChange(req, {
+    actor: req.user,
+    targetUser: user,
+    isActive,
   });
 
   return res.json({

@@ -24,7 +24,12 @@ export async function login(email, password) {
   return { token, user, message: response.message };
 }
 
-export function logout() {
+export async function logout() {
+  try {
+    await apiRequest('/auth/logout', { method: 'POST' });
+  } catch {
+    // Clear local session even if the server call fails.
+  }
   clearSession();
 }
 

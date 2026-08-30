@@ -133,7 +133,10 @@ export default function DashboardPage() {
           </div>
           <RecentActivityTable activities={data?.recentActivities || []} />
         </article>
-        <SystemAlerts alerts={data?.systemAlerts || []} />
+        <SystemAlerts
+          alerts={data?.systemAlerts || []}
+          unreadCount={data?.securityUnreadCount || 0}
+        />
       </section>
     </div>
   );
