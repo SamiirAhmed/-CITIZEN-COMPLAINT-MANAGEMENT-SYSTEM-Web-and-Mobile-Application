@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import { listGeographyTable } from '../services/geographyService';
@@ -14,7 +14,7 @@ export default function DistrictsPage() {
     setError('');
     try {
       const rows = await listGeographyTable({ search });
-      setLocations(rows.filter((row) => row.village || row.area));
+      setLocations(rows);
     } catch (err) {
       setError(err.message || 'Unable to load district data.');
     } finally {
@@ -27,6 +27,37 @@ export default function DistrictsPage() {
     return () => clearTimeout(timer);
   }, [load]);
 
+  const districtRows = useMemo(() => {
+    const map = new Map();
+    locations.forEach((row) => {
+      const key = `${row.region}::${row.district}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          id: key,
+          region: row.region,
+          district: row.district,
+          villages: new Set(),
+          areas: new Set(),
+        });
+      }
+      const entry = map.get(key);
+      if (row.village) entry.villages.add(row.village);
+      if (row.area) entry.areas.add(row.area);
+    });
+    return Array.from(map.values())
+      .map((item) => ({
+        ...item,
+        villages: Array.from(item.villages).sort((a, b) => a.localeCompare(b)),
+        areas: Array.from(item.areas).sort((a, b) => a.localeCompare(b)),
+      }))
+      .sort((a, b) => {
+        const regionCmp = a.region.localeCompare(b.region);
+        return regionCmp !== 0 ? regionCmp : a.district.localeCompare(b.district);
+      });
+  }, [locations]);
+
+  const banaadirCount = districtRows.filter((row) => row.region === 'Banaadir').length;
+
   return (
     <div className="page-stack">
       <section className="panel">
@@ -34,7 +65,8 @@ export default function DistrictsPage() {
           <div>
             <h2>Districts</h2>
             <p className="muted">
-              Geographic locations loaded from the Citizen Police Portal database.
+              Registered geographic districts from the Citizen Police Portal database.
+              {banaadirCount ? ` Banaadir currently has ${banaadirCount} districts.` : ''}
             </p>
           </div>
         </div>
@@ -43,7 +75,7 @@ export default function DistrictsPage() {
           <input
             className="toolbar__search"
             type="search"
-            placeholder="Search district, village, or area"
+            placeholder="Search region, district, village, or area"
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
@@ -58,24 +90,26 @@ export default function DistrictsPage() {
             <table className="data-table">
               <thead>
                 <tr>
+                  <th>Region</th>
                   <th>District</th>
                   <th>Village</th>
                   <th>Area</th>
                 </tr>
               </thead>
               <tbody>
-                {locations.length ? (
-                  locations.map((row) => (
+                {districtRows.length ? (
+                  districtRows.map((row) => (
                     <tr key={row.id}>
+                      <td>{row.region}</td>
                       <td>{row.district}</td>
-                      <td>{row.village || '—'}</td>
-                      <td>{row.area || '—'}</td>
+                      <td>{row.villages.length ? row.villages.join(', ') : '—'}</td>
+                      <td>{row.areas.length ? row.areas.join(', ') : '—'}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="table-empty">
-                      No village or area records found.
+                    <td colSpan={4} className="table-empty">
+                      No district records found.
                     </td>
                   </tr>
                 )}

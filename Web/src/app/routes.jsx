@@ -23,11 +23,13 @@ import ComingSoonPage from '../pages/ComingSoonPage';
 import ProfilePage from '../pages/ProfilePage';
 import ReportsPage from '../pages/ReportsPage';
 import SMSPortalPage from '../pages/SMSPortalPage';
+import ChatbotPage from '../pages/ChatbotPage';
 import UnauthorizedPage from '../pages/UnauthorizedPage';
 import PoliceDashboardPage from '../pages/police/PoliceDashboardPage';
 import PoliceOBRecordsPage from '../pages/police/PoliceOBRecordsPage';
 import PoliceOBDetailsPage from '../pages/police/PoliceOBDetailsPage';
 import PoliceInvestigationPage from '../pages/police/PoliceInvestigationPage';
+import PoliceChatbotPage from '../pages/police/PoliceChatbotPage';
 import NotificationsPage from '../pages/NotificationsPage';
 
 const ADMIN_ONLY_MODULES = new Set([
@@ -36,6 +38,7 @@ const ADMIN_ONLY_MODULES = new Set([
   'reports',
   'audit-logs',
   'sms-portal',
+  'chatbot',
   'settings',
 ]);
 
@@ -181,6 +184,14 @@ export default function AppRoutes() {
             </PoliceRoute>
           }
         />
+        <Route
+          path="/police/chatbot"
+          element={
+            <PoliceRoute>
+              <PoliceChatbotPage />
+            </PoliceRoute>
+          }
+        />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route
           path="/reports"
@@ -203,6 +214,14 @@ export default function AppRoutes() {
           element={
             <ModuleRoute moduleKey="sms-portal">
               <SMSPortalPage />
+            </ModuleRoute>
+          }
+        />
+        <Route
+          path="/chatbot"
+          element={
+            <ModuleRoute moduleKey="chatbot">
+              <ChatbotPage />
             </ModuleRoute>
           }
         />

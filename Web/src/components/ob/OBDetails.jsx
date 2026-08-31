@@ -7,7 +7,12 @@ export default function OBDetails({ record }) {
   const updates = Array.isArray(record.updates) ? record.updates : [];
 
   return (
-    <div className="detail-stack">
+    <div className="detail-stack ob-print">
+      <div className="print-only print-ob-header">
+        <h1>OB Record</h1>
+        <p>{record.obNumber || 'Occurrence Book'}</p>
+        <p className="print-ob-header__meta">Printed {new Date().toLocaleString()}</p>
+      </div>
       <section className="detail-section">
         <h3>OB Summary</h3>
         <div className="detail-grid">

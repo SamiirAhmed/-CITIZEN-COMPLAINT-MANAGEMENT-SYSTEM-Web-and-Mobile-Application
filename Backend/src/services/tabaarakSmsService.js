@@ -18,6 +18,17 @@ function safeLog(event, extra = {}) {
   console.info('[Tabaarak]', payload);
 }
 
+function normalizeEnvValue(value = '') {
+  let text = String(value ?? '').trim();
+  if (
+    (text.startsWith('"') && text.endsWith('"')) ||
+    (text.startsWith("'") && text.endsWith("'"))
+  ) {
+    text = text.slice(1, -1);
+  }
+  return text;
+}
+
 export function isSmsConfigured() {
   return Boolean(
     String(process.env.TABAARAK_SMS_USERNAME || '').trim() &&
@@ -26,9 +37,10 @@ export function isSmsConfigured() {
 }
 
 function getCredentials() {
-  const username = String(process.env.TABAARAK_SMS_USERNAME || '').trim();
-  const password = String(process.env.TABAARAK_SMS_PASSWORD || '').trim();
-  const senderId = String(process.env.TABAARAK_SMS_SENDER_ID || 'Appeal').trim() || 'Appeal';
+  const username = normalizeEnvValue(process.env.TABAARAK_SMS_USERNAME);
+  const password = normalizeEnvValue(process.env.TABAARAK_SMS_PASSWORD);
+  const senderId =
+    normalizeEnvValue(process.env.TABAARAK_SMS_SENDER_ID) || 'Appeal';
 
   if (!username || !password) {
     const error = new Error(
@@ -47,6 +59,12 @@ export function normalizeSomaliMobile(phone = '') {
   else if (digits.startsWith('252')) digits = digits.slice(3);
   digits = digits.replace(/^0+/, '');
   return digits;
+}
+
+export function formatMobileForTabaarak(phone = '') {
+  const local = normalizeSomaliMobile(phone);
+  if (!local) return '';
+  return `252${local}`;
 }
 
 export function isValidSomaliMobile(phone = '') {
@@ -110,18 +128,24 @@ function extractAccountType(payload) {
 }
 
 function extractProviderMessage(payload, fallback) {
-  const text = payload?.message || payload?.data?.message || payload?.error || '';
-  if (/invalid.?login|unauthorized|authentication|password/i.test(String(text))) {
-    return 'Tabaarak SMS authentication failed.';
+  const text = String(payload?.message || payload?.data?.message || payload?.error || '').trim();
+  if (!text) return fallback;
+
+  // Prefer the provider's own wording for credential problems.
+  if (/invalid username or password/i.test(text)) {
+    return 'Invalid Tabaarak username or password. Update Backend/.env and restart the backend.';
   }
-  if (/balance|credit/i.test(String(text))) {
+  if (/invalid.?login|unauthorized|authentication failed/i.test(text)) {
+    return 'Tabaarak SMS authentication failed. Check TABAARAK_SMS_USERNAME and TABAARAK_SMS_PASSWORD.';
+  }
+  if (/balance|credit|insufficient/i.test(text)) {
     return 'Insufficient SMS balance.';
   }
-  if (/mobile|phone|number/i.test(String(text))) {
+  if (/mobile|phone|number/i.test(text)) {
     return 'Invalid recipient number.';
   }
-  if (text && !/token|bearer|password/i.test(String(text))) {
-    return String(text);
+  if (!/token|bearer|password/i.test(text)) {
+    return text;
   }
   return fallback;
 }
@@ -168,6 +192,7 @@ export async function getTabaarakAccessToken(forceRefresh = false) {
     dataKeys: responseKeys(payload?.data),
     hasToken: Boolean(token),
     accountType: extractAccountType(payload) || null,
+    providerMessage: String(payload?.message || '').slice(0, 120) || null,
   });
 
   if (!response.ok || payload?.success === false || !token) {
@@ -246,8 +271,11 @@ export async function fetchSmsBalance() {
 
 export async function sendTabaarakSms(mobiles, message) {
   const numbers = (Array.isArray(mobiles) ? mobiles : [mobiles])
-    .map((item) => normalizeSomaliMobile(item))
-    .filter((item) => isValidSomaliMobile(item));
+    .map((item) => formatMobileForTabaarak(item))
+    .filter((item) => {
+      const local = normalizeSomaliMobile(item);
+      return isValidSomaliMobile(local);
+    });
 
   if (!numbers.length) {
     return {
@@ -259,10 +287,24 @@ export async function sendTabaarakSms(mobiles, message) {
     };
   }
 
-  const token = await getTabaarakAccessToken();
+  const { senderId } = getCredentials();
+  let token;
+  try {
+    token = await getTabaarakAccessToken();
+  } catch (error) {
+    return {
+      success: false,
+      acceptedForDelivery: false,
+      totalNumber: 0,
+      providerRef: '',
+      error: error.message || 'Tabaarak SMS authentication failed.',
+    };
+  }
+
   const body = {
     smsMessage: message,
     mobile: numbers,
+    senderId,
   };
 
   let response;
@@ -296,6 +338,7 @@ export async function sendTabaarakSms(mobiles, message) {
     totalNumber: Number.isFinite(totalNumber) ? totalNumber : null,
     keys: responseKeys(payload),
     dataKeys: responseKeys(payload?.data),
+    providerMessage: String(payload?.message || payload?.data?.message || '').slice(0, 160) || null,
   });
 
   return {

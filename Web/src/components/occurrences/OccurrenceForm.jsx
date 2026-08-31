@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import GeographicSelect from '../common/GeographicSelect';
 import {
   EMPTY_OCCURRENCE_FORM,
   FALLBACK_CATEGORIES,
@@ -204,17 +205,19 @@ export default function OccurrenceForm({
         {errors.station ? <span className="field-error">{errors.station}</span> : null}
       </label>
 
-      <label className="field">
-        <span>District *</span>
-        <input
-          type="text"
-          value={values.district}
-          onChange={(e) => setField('district', e.target.value)}
-          disabled={submitting}
-          required
-        />
-        {errors.district ? <span className="field-error">{errors.district}</span> : null}
-      </label>
+      <GeographicSelect
+        region={values.region || ''}
+        district={values.district || ''}
+        districtRequired
+        onRegionChange={(nextRegion) => {
+          setField('region', nextRegion);
+          setField('district', '');
+        }}
+        onDistrictChange={(nextDistrict) => setField('district', nextDistrict)}
+        regionError={errors.region}
+        districtError={errors.district}
+        disabled={submitting}
+      />
 
       <label className="field">
         <span>Complainant name *</span>

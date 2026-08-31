@@ -1,10 +1,31 @@
 import GeographicLocation from '../models/GeographicLocation.js';
 
-/** 18 official Somali regions (gobollada) with representative districts. */
-const SOMALI_REGIONS = [
+/** Official 18 districts of Banaadir (Mogadishu), English names. */
+export const BANAADIR_DISTRICTS = [
+  'Abdiaziz',
+  'Bondhere',
+  'Daynile',
+  'Dharkenley',
+  'Hamar Jajab',
+  'Hamar Weyne',
+  'Hodan',
+  'Howlwadag',
+  'Huriwa',
+  'Karan',
+  'Shangani',
+  'Shibis',
+  'Waberi',
+  'Wadajir',
+  'Warta Nabada',
+  'Yaqshid',
+  'Kahda',
+  'Garasbaley',
+];
+
+/** Other Somali regions with a representative district seat. */
+const OTHER_REGION_SEATS = [
   { region: 'Awdal', district: 'Borama' },
   { region: 'Bakool', district: 'Hudur' },
-  { region: 'Banaadir', district: 'Hodan', villages: [{ village: 'Hodan', areas: ['Wadajir Zone', 'KM4 Area'] }] },
   { region: 'Bari', district: 'Bosaso' },
   { region: 'Bay', district: 'Baidoa' },
   { region: 'Galgaduud', district: 'Dhusamareb' },
@@ -12,7 +33,7 @@ const SOMALI_REGIONS = [
   { region: 'Hiiraan', district: 'Beledweyne' },
   { region: 'Lower Juba', district: 'Kismayo' },
   { region: 'Lower Shabelle', district: 'Marka' },
-  { region: 'Middle Juba', district: 'Bu\'aale' },
+  { region: 'Middle Juba', district: "Bu'aale" },
   { region: 'Middle Shabelle', district: 'Jowhar' },
   { region: 'Mudug', district: 'Galkacyo' },
   { region: 'Nugaal', district: 'Garowe' },
@@ -22,40 +43,51 @@ const SOMALI_REGIONS = [
   { region: 'Woqooyi Galbeed', district: 'Hargeisa' },
 ];
 
+/** Sample villages/areas under Hodan for dropdown demos. */
+const HODAN_VILLAGES = [
+  { village: 'Hodan', areas: ['Wadajir Zone', 'KM4 Area', 'Ex-Control'] },
+];
+
+async function ensureLocation(row) {
+  const exists = await GeographicLocation.findOne(row);
+  if (exists) return false;
+  await GeographicLocation.create({ ...row, isActive: true });
+  return true;
+}
+
 export async function seedGeography() {
   let created = 0;
 
-  for (const entry of SOMALI_REGIONS) {
-    const base = {
+  for (const district of BANAADIR_DISTRICTS) {
+    const added = await ensureLocation({
+      region: 'Banaadir',
+      district,
+      village: '',
+      area: '',
+    });
+    if (added) created += 1;
+  }
+
+  for (const villageEntry of HODAN_VILLAGES) {
+    for (const areaName of villageEntry.areas) {
+      const added = await ensureLocation({
+        region: 'Banaadir',
+        district: 'Hodan',
+        village: villageEntry.village,
+        area: areaName,
+      });
+      if (added) created += 1;
+    }
+  }
+
+  for (const entry of OTHER_REGION_SEATS) {
+    const added = await ensureLocation({
       region: entry.region,
       district: entry.district,
       village: '',
       area: '',
-    };
-
-    const exists = await GeographicLocation.findOne(base);
-    if (!exists) {
-      await GeographicLocation.create({ ...base, isActive: true });
-      created += 1;
-    }
-
-    if (Array.isArray(entry.villages)) {
-      for (const villageEntry of entry.villages) {
-        for (const areaName of villageEntry.areas || ['']) {
-          const row = {
-            region: entry.region,
-            district: entry.district,
-            village: villageEntry.village,
-            area: areaName,
-          };
-          const rowExists = await GeographicLocation.findOne(row);
-          if (!rowExists) {
-            await GeographicLocation.create({ ...row, isActive: true });
-            created += 1;
-          }
-        }
-      }
-    }
+    });
+    if (added) created += 1;
   }
 
   if (created > 0) {

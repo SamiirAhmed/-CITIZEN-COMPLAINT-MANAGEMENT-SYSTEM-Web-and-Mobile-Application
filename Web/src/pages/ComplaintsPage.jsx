@@ -13,9 +13,9 @@ import { listCitizens } from '../services/citizenService';
 import {
   createComplaint,
   createOBFromComplaint,
-  deleteComplaint,
   getComplaintById,
   listComplaints,
+  setComplaintActive,
   updateComplaint,
 } from '../services/complaintService';
 
@@ -146,18 +146,21 @@ export default function ComplaintsPage() {
     }
   };
 
-  const runDelete = async () => {
+  const runToggleActive = async () => {
     if (!confirmTarget) return;
     const id = getRecordId(confirmTarget);
+    const nextActive = confirmTarget.isActive === false;
     setBusyId(id);
     setNotice('');
     try {
-      await deleteComplaint(id);
-      setComplaints((prev) => prev.filter((item) => getRecordId(item) !== id));
-      setNotice('Complaint deleted successfully.');
+      const updated = await setComplaintActive(id, nextActive);
+      setComplaints((prev) =>
+        prev.map((item) => (getRecordId(item) === id ? { ...item, ...updated } : item))
+      );
+      setNotice(nextActive ? 'Complaint activated.' : 'Complaint deactivated.');
       setConfirmTarget(null);
     } catch (err) {
-      setNotice(err.message || 'Unable to delete complaint.');
+      setNotice(err.message || 'Unable to update complaint status.');
       setConfirmTarget(null);
     } finally {
       setBusyId(null);
@@ -215,7 +218,7 @@ export default function ComplaintsPage() {
             busyId={busyId}
             onView={handleView}
             onEdit={setEditing}
-            onDelete={setConfirmTarget}
+            onToggleActive={setConfirmTarget}
             onCreateOB={handleCreateOB}
           />
         )}
@@ -252,6 +255,10 @@ export default function ComplaintsPage() {
               description: editing.description || '',
               incidentDate: editing.incidentDate || '',
               location: editing.location || '',
+              region: editing.region || '',
+              district: editing.district || '',
+              village: editing.village || '',
+              area: editing.area || '',
               relatedInformation: editing.relatedInformation || '',
               evidenceNotes: editing.evidenceNotes || '',
               status: editing.status || 'Submitted',
@@ -280,18 +287,20 @@ export default function ComplaintsPage() {
 
       <ConfirmDialog
         open={Boolean(confirmTarget)}
-        title="Delete Complaint"
+        title={confirmTarget?.isActive === false ? 'Activate Complaint' : 'Deactivate Complaint'}
         message={
           confirmTarget
-            ? `Are you sure you want to delete ${confirmTarget.complaintNumber}? Linked OB records will also be removed.`
+            ? confirmTarget.isActive === false
+              ? `Activate ${confirmTarget.complaintNumber}?`
+              : `Deactivate ${confirmTarget.complaintNumber}? Linked OB records will also be deactivated.`
             : ''
         }
-        confirmLabel="Delete"
+        confirmLabel={confirmTarget?.isActive === false ? 'Activate' : 'Deactivate'}
         cancelLabel="Cancel"
-        tone="danger"
+        tone={confirmTarget?.isActive === false ? 'default' : 'danger'}
         busy={Boolean(busyId)}
         onCancel={() => setConfirmTarget(null)}
-        onConfirm={runDelete}
+        onConfirm={runToggleActive}
       />
     </div>
   );

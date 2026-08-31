@@ -1,5 +1,6 @@
 import StatusBadge from '../common/StatusBadge';
 import { formatDateTime } from '../../constants/domain';
+import { resolveMediaUrl } from '../../utils/mediaUrl';
 
 export default function ComplaintDetails({ complaint, linkedOB = null }) {
   if (!complaint) return null;
@@ -30,6 +31,22 @@ export default function ComplaintDetails({ complaint, linkedOB = null }) {
           <div>
             <span className="detail-label">Location</span>
             <strong>{complaint.location || '—'}</strong>
+          </div>
+          <div>
+            <span className="detail-label">Region</span>
+            <strong>{complaint.region || '—'}</strong>
+          </div>
+          <div>
+            <span className="detail-label">District</span>
+            <strong>{complaint.district || '—'}</strong>
+          </div>
+          <div>
+            <span className="detail-label">Village</span>
+            <strong>{complaint.village || '—'}</strong>
+          </div>
+          <div>
+            <span className="detail-label">Area</span>
+            <strong>{complaint.area || '—'}</strong>
           </div>
           <div>
             <span className="detail-label">Submitted</span>
@@ -73,6 +90,41 @@ export default function ComplaintDetails({ complaint, linkedOB = null }) {
           <>
             <span className="detail-label">Evidence Notes</span>
             <p>{complaint.evidenceNotes}</p>
+          </>
+        ) : null}
+        {Array.isArray(complaint.evidence) && complaint.evidence.length ? (
+          <>
+            <span className="detail-label">Evidence Files</span>
+            <ul className="evidence-list">
+              {complaint.evidence.map((item) => {
+                const isImage = String(item.mimeType || '').startsWith('image/');
+                const isVideo = String(item.mimeType || '').startsWith('video/');
+                const href = item.url ? resolveMediaUrl(item.url) : '';
+                return (
+                  <li key={item.id || item.url} className="evidence-list__item">
+                    <div>
+                      <strong>{item.originalName || item.fileName || 'Evidence'}</strong>
+                      {item.note ? <p>{item.note}</p> : null}
+                      {isImage && href ? (
+                        <img
+                          className="evidence-list__media"
+                          src={href}
+                          alt={item.originalName || 'Evidence'}
+                        />
+                      ) : null}
+                      {isVideo && href ? (
+                        <video className="evidence-list__media" src={href} controls />
+                      ) : null}
+                      {!isImage && !isVideo && href ? (
+                        <a href={href} target="_blank" rel="noreferrer">
+                          Open file
+                        </a>
+                      ) : null}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           </>
         ) : null}
         {complaint.rejectionReason ? (

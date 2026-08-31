@@ -8,7 +8,7 @@ import OBDetails from '../../components/ob/OBDetails';
 import OBStatusForm from '../../components/ob/OBStatusForm';
 import { OB_STATUSES } from '../../constants/domain';
 import {
-  deleteOBRecord,
+  setOBRecordActive,
   getStaffOBById,
   listStaffOBRecords,
   updateInvestigation,
@@ -119,16 +119,17 @@ export default function PoliceInvestigationPanel() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleToggleActive = async () => {
     if (!deleting) return;
+    const nextActive = deleting.isActive === false;
     setBusyId(deleting.id);
     try {
-      await deleteOBRecord(deleting.id);
+      await setOBRecordActive(deleting.id, nextActive);
       setDeleting(null);
-      setNotice('Investigation deleted.');
+      setNotice(nextActive ? 'Investigation activated.' : 'Investigation deactivated.');
       await load();
     } catch (err) {
-      setError(err.message || 'Unable to delete investigation.');
+      setError(err.message || 'Unable to update investigation status.');
     } finally {
       setBusyId(null);
     }
@@ -240,16 +241,18 @@ export default function PoliceInvestigationPanel() {
 
       <ConfirmDialog
         open={Boolean(deleting)}
-        title="Delete investigation"
+        title={deleting?.isActive === false ? 'Activate investigation' : 'Deactivate investigation'}
         message={
           deleting
-            ? `Delete the investigation for ${deleting.obNumber}? This removes the OB record.`
-            : 'Delete this investigation?'
+            ? deleting.isActive === false
+              ? `Activate the investigation for ${deleting.obNumber}?`
+              : `Deactivate the investigation for ${deleting.obNumber}? The OB record will be kept but marked inactive.`
+            : 'Deactivate this investigation?'
         }
-        confirmLabel="Delete"
-        tone="danger"
+        confirmLabel={deleting?.isActive === false ? 'Activate' : 'Deactivate'}
+        tone={deleting?.isActive === false ? 'default' : 'danger'}
         onCancel={() => setDeleting(null)}
-        onConfirm={handleDelete}
+        onConfirm={handleToggleActive}
       />
     </section>
   );

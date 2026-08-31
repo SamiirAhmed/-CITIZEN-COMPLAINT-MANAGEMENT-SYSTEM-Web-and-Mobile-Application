@@ -1,4 +1,7 @@
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NAME_LETTERS_REGEX = /^[A-Za-z\s]+$/;
+const DIGITS_ONLY_REGEX = /^\d+$/;
+const NIRA_ID_REGEX = /^\d{11}$/;
 
 export const isValidEmail = (email) =>
   EMAIL_REGEX.test(String(email || '').trim());
@@ -29,19 +32,28 @@ export const validateCitizenRegistration = ({
     return { ok: false, message: 'Name must be at most 30 characters.' };
   }
 
+  if (!NAME_LETTERS_REGEX.test(trimmedName)) {
+    return { ok: false, message: 'Name must contain letters only.' };
+  }
+
   if (!trimmedNira) {
     return { ok: false, message: 'NIRA ID is required.' };
   }
 
-  if (trimmedNira.length !== 11) {
-    return { ok: false, message: 'NIRA ID must be exactly 11 characters.' };
+  if (!NIRA_ID_REGEX.test(trimmedNira)) {
+    return { ok: false, message: 'NIRA ID must be exactly 11 numbers.' };
   }
 
   if (!trimmedPhone) {
     return { ok: false, message: 'Phone is required.' };
   }
 
-  if (trimmedPhone.replace(/[\s-]/g, '').length < 7) {
+  const phoneDigits = trimmedPhone.replace(/[\s-]/g, '').replace(/^\+/, '');
+  if (!DIGITS_ONLY_REGEX.test(phoneDigits)) {
+    return { ok: false, message: 'Phone must contain numbers only.' };
+  }
+
+  if (phoneDigits.length < 7 || phoneDigits.length > 15) {
     return { ok: false, message: 'Please enter a valid phone number.' };
   }
 

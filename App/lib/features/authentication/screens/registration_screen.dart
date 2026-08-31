@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -231,6 +232,10 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   label: 'Full Name',
                   prefixIcon: Icons.person_outline,
                   maxLength: 30,
+                  keyboardType: TextInputType.name,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z\s]')),
+                  ],
                   validator: CitizenValidator.name,
                 ),
                 const SizedBox(height: 14),
@@ -239,6 +244,11 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   label: 'NIRA ID',
                   prefixIcon: Icons.badge_outlined,
                   maxLength: 11,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(11),
+                  ],
                   validator: CitizenValidator.niraId,
                 ),
                 const SizedBox(height: 14),
@@ -247,6 +257,9 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                   label: 'Phone',
                   keyboardType: TextInputType.phone,
                   prefixIcon: Icons.phone_outlined,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d+\s-]')),
+                  ],
                   validator: CitizenValidator.phone,
                 ),
                 const SizedBox(height: 14),

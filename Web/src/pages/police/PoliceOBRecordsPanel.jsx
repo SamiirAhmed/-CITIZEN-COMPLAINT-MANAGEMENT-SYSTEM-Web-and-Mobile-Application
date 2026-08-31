@@ -9,7 +9,7 @@ import OBDetails from '../../components/ob/OBDetails';
 import { OB_STATUSES } from '../../constants/domain';
 import { createOBFromComplaint, listComplaints } from '../../services/complaintService';
 import {
-  deleteOBRecord,
+  setOBRecordActive,
   getStaffOBById,
   listStaffOBRecords,
   updateInvestigation,
@@ -17,6 +17,7 @@ import {
 import { matchesOBSearch, paginateRecords, sortRecords } from './policeFormat';
 import PoliceEditOBForm from './PoliceEditOBForm';
 import PoliceOBTable from './PoliceOBTable';
+import { PRINT_MODES, triggerPrint } from '../../utils/printPage';
 
 const PAGE_SIZE = 10;
 
@@ -132,16 +133,17 @@ export default function PoliceOBRecordsPanel({ initialSearch = '' }) {
     }
   };
 
-  const handleDelete = async () => {
+  const handleToggleActive = async () => {
     if (!deleting) return;
+    const nextActive = deleting.isActive === false;
     setBusyId(deleting.id);
     try {
-      await deleteOBRecord(deleting.id);
+      await setOBRecordActive(deleting.id, nextActive);
       setDeleting(null);
-      setNotice('OB record deleted successfully.');
+      setNotice(nextActive ? 'OB record activated.' : 'OB record deactivated.');
       await load();
     } catch (err) {
-      setError(err.message || 'Unable to delete OB record.');
+      setError(err.message || 'Unable to update OB record status.');
     } finally {
       setBusyId(null);
     }
@@ -223,6 +225,17 @@ export default function PoliceOBRecordsPanel({ initialSearch = '' }) {
         size="lg"
       >
         <OBDetails record={viewing} />
+        {viewing ? (
+          <div className="form-actions">
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => triggerPrint(PRINT_MODES.obDetails)}
+            >
+              Print OB
+            </button>
+          </div>
+        ) : null}
       </Modal>
 
       <Modal
@@ -241,16 +254,18 @@ export default function PoliceOBRecordsPanel({ initialSearch = '' }) {
 
       <ConfirmDialog
         open={Boolean(deleting)}
-        title="Delete OB record"
+        title={deleting?.isActive === false ? 'Activate OB record' : 'Deactivate OB record'}
         message={
           deleting
-            ? `Delete ${deleting.obNumber}? This cannot be undone.`
-            : 'Delete this OB record?'
+            ? deleting.isActive === false
+              ? `Activate ${deleting.obNumber}?`
+              : `Deactivate ${deleting.obNumber}? The record will be kept but marked inactive.`
+            : 'Deactivate this OB record?'
         }
-        confirmLabel="Delete"
-        tone="danger"
+        confirmLabel={deleting?.isActive === false ? 'Activate' : 'Deactivate'}
+        tone={deleting?.isActive === false ? 'default' : 'danger'}
         onCancel={() => setDeleting(null)}
-        onConfirm={handleDelete}
+        onConfirm={handleToggleActive}
       />
     </section>
   );

@@ -47,7 +47,15 @@ export default function CitizenForm({
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setValues((prev) => ({ ...prev, [name]: value }));
+    let next = value;
+
+    if (name === 'name') {
+      next = value.replace(/[^A-Za-z\s]/g, '').slice(0, 30);
+    } else if (name === 'niraId') {
+      next = value.replace(/\D/g, '').slice(0, 11);
+    }
+
+    setValues((prev) => ({ ...prev, [name]: next }));
   };
 
   const handleSubmit = async (event) => {
@@ -88,13 +96,22 @@ export default function CitizenForm({
           onChange={handleChange}
           maxLength={30}
           autoComplete="name"
+          inputMode="text"
+          pattern="[A-Za-z\s]+"
         />
         {errors.name ? <em className="field-error">{errors.name}</em> : null}
       </label>
 
       <label className="field">
         <span>NIRA ID</span>
-        <input name="niraId" value={values.niraId} onChange={handleChange} maxLength={11} />
+        <input
+          name="niraId"
+          value={values.niraId}
+          onChange={handleChange}
+          maxLength={11}
+          inputMode="numeric"
+          pattern="\d{11}"
+        />
         {errors.niraId ? <em className="field-error">{errors.niraId}</em> : null}
       </label>
 

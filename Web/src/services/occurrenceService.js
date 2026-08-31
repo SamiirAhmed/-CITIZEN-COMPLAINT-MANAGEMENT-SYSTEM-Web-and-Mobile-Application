@@ -90,11 +90,17 @@ export async function reopenOccurrence(id, note = '') {
   return response?.data?.record;
 }
 
-export async function deleteOccurrence(id) {
-  const response = await apiRequest(`/ob/staff/${id}`, {
-    method: 'DELETE',
+export async function setOccurrenceActive(id, isActive) {
+  const response = await apiRequest(`/ob/admin/${id}/active`, {
+    method: 'PATCH',
+    body: { isActive: Boolean(isActive) },
   });
-  return response;
+  return response?.data?.ob;
+}
+
+/** @deprecated Use setOccurrenceActive */
+export async function deleteOccurrence(id) {
+  return setOccurrenceActive(id, false);
 }
 
 export async function getOccurrenceStats(params = {}) {

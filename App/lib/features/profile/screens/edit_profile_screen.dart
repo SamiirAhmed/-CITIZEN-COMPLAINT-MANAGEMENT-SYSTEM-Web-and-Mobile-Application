@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../application/application_theme.dart';
@@ -86,6 +87,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   label: 'Name',
                   prefixIcon: Icons.person_outline,
                   maxLength: 30,
+                  keyboardType: TextInputType.name,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z\s]')),
+                  ],
                   validator: CitizenValidator.name,
                 ),
                 const SizedBox(height: 14),
@@ -94,6 +99,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   label: 'Phone',
                   keyboardType: TextInputType.phone,
                   prefixIcon: Icons.phone_outlined,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d+\s-]')),
+                  ],
                   validator: CitizenValidator.phone,
                 ),
                 const SizedBox(height: 14),
@@ -102,6 +110,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   label: 'Tell',
                   keyboardType: TextInputType.phone,
                   prefixIcon: Icons.call_outlined,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[\d+\s-]')),
+                  ],
                   validator: CitizenValidator.tell,
                 ),
                 const SizedBox(height: 24),

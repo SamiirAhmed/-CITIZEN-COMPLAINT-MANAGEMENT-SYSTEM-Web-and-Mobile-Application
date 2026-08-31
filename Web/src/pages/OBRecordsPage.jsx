@@ -14,13 +14,14 @@ import { useAuth } from '../context/AuthContext';
 import { createOBFromComplaint, listComplaints } from '../services/complaintService';
 import {
   assignOfficer,
-  deleteOBRecord,
   getOBById,
   listOBRecords,
+  setOBRecordActive,
   updateInvestigation,
   updateOBStatus,
 } from '../services/obService';
 import { listUsers } from '../services/userService';
+import { PRINT_MODES, triggerPrint } from '../utils/printPage';
 
 export default function OBRecordsPage() {
   const { user } = useAuth();
@@ -175,19 +176,22 @@ export default function OBRecordsPage() {
     }
   };
 
-  const runDelete = async () => {
+  const runToggleActive = async () => {
     if (!confirmTarget) return;
     const id = getRecordId(confirmTarget);
+    const nextActive = confirmTarget.isActive === false;
     setBusyId(id);
     setNotice('');
     try {
-      await deleteOBRecord(id);
-      setRecords((prev) => prev.filter((item) => getRecordId(item) !== id));
-      setNotice('OB record deleted successfully.');
+      const updated = await setOBRecordActive(id, nextActive);
+      setRecords((prev) =>
+        prev.map((item) => (getRecordId(item) === id ? { ...item, ...updated } : item))
+      );
+      setNotice(nextActive ? 'OB record activated.' : 'OB record deactivated.');
       setConfirmTarget(null);
       await loadLookups();
     } catch (err) {
-      setNotice(err.message || 'Unable to delete OB record.');
+      setNotice(err.message || 'Unable to update OB record status.');
       setConfirmTarget(null);
     } finally {
       setBusyId(null);
@@ -245,7 +249,7 @@ export default function OBRecordsPage() {
             records={records}
             busyId={busyId}
             canAssign={isAdmin}
-            canDelete={isAdmin}
+            canToggleActive={isAdmin}
             canUpdateStatus
             onView={handleView}
             onAssign={setAssigning}
@@ -256,7 +260,7 @@ export default function OBRecordsPage() {
                 setInvestigationTarget(record);
               }
             }}
-            onDelete={setConfirmTarget}
+            onToggleActive={setConfirmTarget}
           />
         )}
       </section>
@@ -282,29 +286,40 @@ export default function OBRecordsPage() {
         size="lg"
       >
         <OBDetails record={viewing} />
-        {viewing && (isAdmin || user?.role === 'police') ? (
+        {viewing ? (
           <div className="form-actions">
-            {isAdmin ? (
-              <button
-                type="button"
-                className="btn btn--secondary"
-                onClick={() => {
-                  setAssigning(viewing);
-                }}
-              >
-                Assign officer
-              </button>
-            ) : null}
             <button
               type="button"
               className="btn btn--secondary"
-              onClick={() => {
-                if (isAdmin) setStatusTarget(viewing);
-                else setInvestigationTarget(viewing);
-              }}
+              onClick={() => triggerPrint(PRINT_MODES.obDetails)}
             >
-              Update status
+              Print OB
             </button>
+            {isAdmin || user?.role === 'police' ? (
+              <>
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => {
+                      setAssigning(viewing);
+                    }}
+                  >
+                    Assign officer
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn--secondary"
+                  onClick={() => {
+                    if (isAdmin) setStatusTarget(viewing);
+                    else setInvestigationTarget(viewing);
+                  }}
+                >
+                  Update status
+                </button>
+              </>
+            ) : null}
           </div>
         ) : null}
       </Modal>
@@ -360,16 +375,20 @@ export default function OBRecordsPage() {
 
       <ConfirmDialog
         open={Boolean(confirmTarget)}
-        title="Delete OB Record"
+        title={confirmTarget?.isActive === false ? 'Activate OB Record' : 'Deactivate OB Record'}
         message={
-          confirmTarget ? `Are you sure you want to delete ${confirmTarget.obNumber}?` : ''
+          confirmTarget
+            ? confirmTarget.isActive === false
+              ? `Activate ${confirmTarget.obNumber}?`
+              : `Deactivate ${confirmTarget.obNumber}? The record will be kept but marked inactive.`
+            : ''
         }
-        confirmLabel="Delete"
+        confirmLabel={confirmTarget?.isActive === false ? 'Activate' : 'Deactivate'}
         cancelLabel="Cancel"
-        tone="danger"
+        tone={confirmTarget?.isActive === false ? 'default' : 'danger'}
         busy={Boolean(busyId)}
         onCancel={() => setConfirmTarget(null)}
-        onConfirm={runDelete}
+        onConfirm={runToggleActive}
       />
     </div>
   );

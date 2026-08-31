@@ -11,6 +11,7 @@ import {
   updateInvestigation,
 } from '../../services/obService';
 import { formatDateTime } from './policeFormat';
+import { PRINT_MODES, triggerPrint } from '../../utils/printPage';
 
 export default function PoliceOBDetailsPage() {
   const { id } = useParams();
@@ -159,6 +160,13 @@ export default function PoliceOBDetailsPage() {
           ← Back to My OB Records
         </Link>
         <div className="action-row">
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={() => triggerPrint(PRINT_MODES.obDetails)}
+          >
+            Print OB
+          </button>
           {canStart ? (
             <button
               type="button"
@@ -184,6 +192,13 @@ export default function PoliceOBDetailsPage() {
 
       {notice ? <div className="alert alert--success">{notice}</div> : null}
       {error ? <div className="alert alert--error">{error}</div> : null}
+
+      <div className="ob-print">
+      <div className="print-only print-ob-header">
+        <h1>OB Record</h1>
+        <p>{record.obNumber}</p>
+        <p className="print-ob-header__meta">Printed {new Date().toLocaleString()}</p>
+      </div>
 
       <section className="panel">
         <div className="panel__header panel__header--spread">
@@ -284,6 +299,7 @@ export default function PoliceOBDetailsPage() {
           </div>
         </div>
       </section>
+      </div>
 
       <section className="panel" id="investigation">
         <div className="panel__header">
