@@ -20,6 +20,21 @@ class ApiEndpoints {
   static const String me = '/auth/me';
   static const String profile = '/auth/profile';
   static const String changePassword = '/auth/change-password';
+  static const String otpSend = '/auth/otp/send';
+  static const String otpVerify = '/auth/otp/verify';
+  static const String otpSkip = '/auth/otp/skip';
+  static const String otpCompleteAccount = '/auth/otp/complete-account';
+  static const String completeProfile = '/auth/complete-profile';
+
+  // Geography
+  static const String geographyRegions = '/geography/regions';
+  static const String geographyAllDistricts = '/geography/districts';
+  static String geographyDistricts(String region) =>
+      '/geography/districts?region=${Uri.encodeComponent(region)}';
+  static String geographyVillages(String region, String district) =>
+      '/geography/villages?region=${Uri.encodeComponent(region)}&district=${Uri.encodeComponent(district)}';
+  static String geographyAreas(String region, String district, String village) =>
+      '/geography/areas?region=${Uri.encodeComponent(region)}&district=${Uri.encodeComponent(district)}&village=${Uri.encodeComponent(village)}';
 
   // Complaints
   static const String categories = '/complaints/categories';

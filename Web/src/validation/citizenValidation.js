@@ -1,6 +1,5 @@
 import { validateProfileImageFile } from './imageValidation';
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { EMAIL_PATTERN } from './userValidation';
 
 export function validateCitizenRegistration(values, { profileImageFile } = {}) {
   const errors = {};
@@ -42,7 +41,7 @@ export function validateCitizenRegistration(values, { profileImageFile } = {}) {
   if (!confirmPassword) {
     errors.confirmPassword = 'Confirm password is required.';
   } else if (password !== confirmPassword) {
-    errors.confirmPassword = 'Password and confirm password do not match.';
+    errors.confirmPassword = 'Passwords do not match.';
   }
 
   const imageCheck = validateProfileImageFile(profileImageFile, { required: true });

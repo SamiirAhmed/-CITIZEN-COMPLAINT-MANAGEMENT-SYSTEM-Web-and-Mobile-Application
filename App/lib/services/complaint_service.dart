@@ -5,21 +5,29 @@ import '../models/complaint_model.dart';
 class DashboardData {
   DashboardData({
     required this.totalComplaints,
+    required this.totalOBRecords,
     required this.activeComplaints,
     required this.activeOBs,
+    required this.activeCases,
+    required this.closedCases,
     required this.closedComplaints,
     this.activeComplaint,
     this.activeOB,
+    this.recentOB,
     this.latestStatus,
     this.recentUpdates = const [],
   });
 
   final int totalComplaints;
+  final int totalOBRecords;
   final int activeComplaints;
   final int activeOBs;
+  final int activeCases;
+  final int closedCases;
   final int closedComplaints;
   final ComplaintModel? activeComplaint;
   final Map<String, dynamic>? activeOB;
+  final Map<String, dynamic>? recentOB;
   final Map<String, dynamic>? latestStatus;
   final List<Map<String, dynamic>> recentUpdates;
 
@@ -27,8 +35,13 @@ class DashboardData {
     final summary = Map<String, dynamic>.from(json['summary'] as Map? ?? {});
     return DashboardData(
       totalComplaints: (summary['totalComplaints'] as num?)?.toInt() ?? 0,
+      totalOBRecords: (summary['totalOBRecords'] as num?)?.toInt() ?? 0,
       activeComplaints: (summary['activeComplaints'] as num?)?.toInt() ?? 0,
       activeOBs: (summary['activeOBs'] as num?)?.toInt() ?? 0,
+      activeCases: (summary['activeCases'] as num?)?.toInt() ??
+          (summary['activeOBs'] as num?)?.toInt() ??
+          0,
+      closedCases: (summary['closedCases'] as num?)?.toInt() ?? 0,
       closedComplaints: (summary['closedComplaints'] as num?)?.toInt() ?? 0,
       activeComplaint: json['activeComplaint'] is Map
           ? ComplaintModel.fromJson(
@@ -37,6 +50,9 @@ class DashboardData {
           : null,
       activeOB: json['activeOB'] is Map
           ? Map<String, dynamic>.from(json['activeOB'] as Map)
+          : null,
+      recentOB: json['recentOB'] is Map
+          ? Map<String, dynamic>.from(json['recentOB'] as Map)
           : null,
       latestStatus: json['latestStatus'] is Map
           ? Map<String, dynamic>.from(json['latestStatus'] as Map)

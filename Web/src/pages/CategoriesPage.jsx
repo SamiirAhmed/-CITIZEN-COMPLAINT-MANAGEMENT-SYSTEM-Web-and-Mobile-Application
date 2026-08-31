@@ -6,6 +6,7 @@ import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import Modal from '../components/common/Modal';
 import StatusBadge from '../components/common/StatusBadge';
+import { SettingsShell } from '../components/layout/SettingsShell';
 import {
   createCategory,
   listCategories,
@@ -109,21 +110,14 @@ export default function CategoriesPage() {
   };
 
   return (
-    <div className="page-stack">
-      <section className="panel">
-        <div className="panel__header panel__header--spread">
-          <div>
-            <h2>Categories</h2>
-            <p className="muted">
-              Manage complaint categories shared with the Citizen App through the same Backend.
-            </p>
-          </div>
-          <button type="button" className="btn btn--primary" onClick={() => setCreateOpen(true)}>
-            Add Category
-          </button>
-        </div>
-
-        <div className="toolbar">
+    <SettingsShell
+      actions={
+        <button type="button" className="btn btn--primary" onClick={() => setCreateOpen(true)}>
+          Add Category
+        </button>
+      }
+    >
+      <div className="toolbar">
           <input
             className="toolbar__search"
             type="search"
@@ -153,7 +147,6 @@ export default function CategoriesPage() {
             onToggleStatus={handleToggleStatus}
           />
         )}
-      </section>
 
       <Modal
         open={createOpen}
@@ -225,6 +218,6 @@ export default function CategoriesPage() {
         onCancel={() => setConfirmTarget(null)}
         onConfirm={runStatusChange}
       />
-    </div>
+    </SettingsShell>
   );
 }

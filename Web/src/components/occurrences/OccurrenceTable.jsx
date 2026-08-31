@@ -86,51 +86,45 @@ export default function OccurrenceTable({
                     >
                       View
                     </button>
-                    <button
-                      type="button"
-                      className="btn btn--small btn--secondary"
-                      onClick={() => onEdit(record)}
-                      disabled={busy}
-                    >
-                      Edit
-                    </button>
-                    {isAdmin ? (
-                      <button
-                        type="button"
-                        className="btn btn--small btn--ghost"
-                        onClick={() => onAssign(record)}
-                        disabled={busy}
-                      >
-                        Assign
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="btn btn--small btn--ghost"
-                      onClick={() => onChangeStatus(record)}
-                      disabled={busy}
-                    >
-                      Status
-                    </button>
-                    {isAdmin && !closed ? (
-                      <button
-                        type="button"
-                        className="btn btn--small btn--danger"
-                        onClick={() => onClose(record)}
-                        disabled={busy}
-                      >
-                        Close
-                      </button>
-                    ) : null}
-                    {isAdmin && closed ? (
-                      <button
-                        type="button"
-                        className="btn btn--small btn--success"
-                        onClick={() => onReopen(record)}
-                        disabled={busy}
-                      >
-                        Reopen
-                      </button>
+                    {!closed ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn--small btn--secondary"
+                          onClick={() => onEdit(record)}
+                          disabled={busy}
+                        >
+                          Edit
+                        </button>
+                        {isAdmin ? (
+                          <button
+                            type="button"
+                            className="btn btn--small btn--ghost"
+                            onClick={() => onAssign(record)}
+                            disabled={busy}
+                          >
+                            Assign
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="btn btn--small btn--ghost"
+                          onClick={() => onChangeStatus(record)}
+                          disabled={busy}
+                        >
+                          Update Status
+                        </button>
+                        {isAdmin ? (
+                          <button
+                            type="button"
+                            className="btn btn--small btn--danger"
+                            onClick={() => onClose(record)}
+                            disabled={busy}
+                          >
+                            Close
+                          </button>
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                 </td>

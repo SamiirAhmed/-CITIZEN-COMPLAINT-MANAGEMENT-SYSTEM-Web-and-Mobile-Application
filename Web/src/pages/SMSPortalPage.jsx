@@ -78,6 +78,8 @@ export default function SMSPortalPage() {
       setAccountType(result.accountType || '');
       if (result.status !== 'connected') {
         setBalanceError(result.message || 'Unable to retrieve Tabaarak SMS balance.');
+      } else {
+        setBalanceError('');
       }
     } catch (err) {
       setBalance(null);
@@ -140,6 +142,7 @@ export default function SMSPortalPage() {
     setNotice({ text: '', tone: 'info' });
     try {
       const result = await sendSms({
+        recipientType: pendingSend.recipientType,
         recipientMode: pendingSend.recipientMode,
         userIds: pendingSend.userIds,
         title: pendingSend.title,
@@ -196,7 +199,7 @@ export default function SMSPortalPage() {
           <div>
             <h2>Messaging Support</h2>
             <p className="muted">
-              Search active Police users and send SMS to one person or several selected people.
+              Send SMS to active Police users or Citizens from one message composer.
             </p>
           </div>
           <button type="button" className="btn btn--primary" onClick={() => setComposeOpen(true)}>
@@ -311,6 +314,7 @@ export default function SMSPortalPage() {
         open={confirmOpen}
         recipients={pendingSend?.recipients || []}
         reachCount={pendingSend?.reachCount || 0}
+        recipientType={pendingSend?.recipientType || 'police'}
         message={pendingSend?.message || ''}
         sending={sending}
         onCancel={() => setConfirmOpen(false)}

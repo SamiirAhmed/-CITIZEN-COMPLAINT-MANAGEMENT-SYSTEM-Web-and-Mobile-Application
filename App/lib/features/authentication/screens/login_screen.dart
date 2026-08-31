@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../application/application_routes.dart';
 import '../../../application/application_theme.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/utils/somali_phone.dart';
 import '../../../core/validation/authentication_validator.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../../core/widgets/text_input_field.dart';
@@ -19,40 +19,77 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscure = true;
+  bool _submitting = false;
   String? _error;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
+  String _resolveIdentifier(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.contains('@')) return trimmed.toLowerCase();
+    return SomaliPhone.normalize(trimmed);
+  }
+
+  String? _validateIdentifier(String? value) {
+    final trimmed = (value ?? '').trim();
+    if (trimmed.isEmpty) {
+      return 'Email or mobile number is required.';
+    }
+    if (trimmed.contains('@')) {
+      return AuthenticationValidator.email(trimmed, required: true);
+    }
+    return SomaliPhone.validationError(trimmed);
+  }
+
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _error = null);
+    setState(() {
+      _error = null;
+      _submitting = true;
+    });
+
     final auth = context.read<AuthenticationService>();
+    final identifier = _resolveIdentifier(_identifierController.text);
 
     try {
       await auth.login(
-        email: _emailController.text,
+        identifier: identifier,
         password: _passwordController.text,
       );
-      // AuthGate switches to the citizen layout when authenticated.
+      if (!mounted) return;
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } on ApiException catch (e) {
+      if (!mounted) return;
       setState(() => _error = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(
+        () => _error = 'Unable to sign in. Please check your connection and try again.',
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthenticationService>();
-
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        foregroundColor: AppColors.spfBlue,
+        title: const Text('Sign In'),
+      ),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -66,6 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         child: SafeArea(
+          top: false,
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -79,28 +117,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       Center(
                         child: Image.asset(
                           AppConstants.logoAsset,
-                          width: 96,
-                          height: 96,
+                          width: 88,
+                          height: 88,
                         ),
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
                       Text(
                         AppConstants.organization,
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               color: AppColors.spfBlue,
                               fontWeight: FontWeight.w800,
                             ),
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         'Citizen Complaint Portal',
                         textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: AppColors.textSecondary,
                             ),
                       ),
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 24),
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -118,13 +156,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           children: [
                             TextInputField(
-                              controller: _emailController,
-                              label: 'Email',
-                              hint: 'you@example.com',
+                              controller: _identifierController,
+                              label: 'Email or mobile number',
+                              hint: 'you@example.com or 61XXXXXXX',
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
-                              prefixIcon: Icons.email_outlined,
-                              validator: AuthenticationValidator.email,
+                              prefixIcon: Icons.person_outline,
+                              validator: _validateIdentifier,
                             ),
                             const SizedBox(height: 16),
                             TextInputField(
@@ -160,24 +198,20 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 20),
                             PrimaryButton(
                               label: 'Sign In',
-                              loading: auth.isBusy,
-                              onPressed: _submit,
+                              loading: _submitting,
+                              onPressed: _submitting ? null : _submit,
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('New citizen?'),
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pushNamed(context, AppRoutes.register);
-                            },
-                            child: const Text('Create account'),
-                          ),
-                        ],
+                      const SizedBox(height: 16),
+                      TextButton(
+                        onPressed: _submitting
+                            ? null
+                            : () {
+                                Navigator.pop(context);
+                              },
+                        child: const Text('Continue with mobile OTP'),
                       ),
                     ],
                   ),

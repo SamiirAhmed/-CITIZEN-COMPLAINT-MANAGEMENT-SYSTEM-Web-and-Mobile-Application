@@ -4,18 +4,16 @@ import 'package:provider/provider.dart';
 import '../../../application/application_routes.dart';
 import '../../../application/application_theme.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/utils/route_args.dart';
 import '../../../core/widgets/error_state.dart';
 import '../../../layouts/citizen_app_layout.dart';
 import '../../../services/authentication_service.dart';
 import '../../../services/complaint_service.dart';
 import '../../../services/notification_service.dart';
-import '../widgets/dashboard_header.dart';
+import '../utils/dashboard_helpers.dart';
+import '../widgets/dashboard_body.dart';
 import '../widgets/dashboard_skeleton.dart';
-import '../widgets/latest_status_card.dart';
-import '../widgets/quick_action_card.dart';
-import '../widgets/safety_info_card.dart';
-import '../widgets/statistics_card.dart';
-import '../widgets/welcome_card.dart';
+import '../widgets/dashboard_top_bar.dart';
 
 class CitizenDashboardScreen extends StatefulWidget {
   const CitizenDashboardScreen({super.key});
@@ -36,11 +34,13 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  Future<void> _load({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
 
     try {
       final complaintService = context.read<ComplaintService>();
@@ -48,30 +48,31 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
 
       final results = await Future.wait([
         complaintService.getDashboard(),
-        notificationService.getNotifications(),
+        notificationService.getUnreadCount(),
       ]);
 
       if (!mounted) return;
 
-      final notifications = results[1] as NotificationListResult;
-
       setState(() {
         _data = results[0] as DashboardData;
-        _unreadCount = notifications.unreadCount;
+        _unreadCount = results[1] as int;
         _loading = false;
+        _error = null;
       });
 
       CitizenAppLayout.of(context)?.refreshUnreadBadge();
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.message;
+        if (!silent || _data == null) _error = e.message;
         _loading = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Unable to load dashboard data.';
+        if (!silent || _data == null) {
+          _error = 'Unable to load dashboard data.';
+        }
         _loading = false;
       });
     }
@@ -81,16 +82,32 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
     CitizenAppLayout.of(context)?.selectTab(index);
   }
 
+  Future<void> _submitComplaint() async {
+    await Navigator.pushNamed(context, AppRoutes.submitComplaint);
+    if (!mounted) return;
+    await _load(silent: true);
+  }
+
+  void _openObDetails(String id, {String? obNumber}) {
+    Navigator.pushNamed(
+      context,
+      AppRoutes.obDetails,
+      arguments: ObRouteRef(id: id, obNumber: obNumber),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AuthenticationService>().user;
-    final citizenName = user?.name ?? 'Citizen';
+    final citizenName = displayFirstName(user?.name ?? 'Citizen');
+    final needsProfile = user?.needsProfileCompletion == true ||
+        user?.profileComplete != true;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          DashboardHeader(
+          DashboardTopBar(
             unreadCount: _unreadCount,
             onMenuTap: () => CitizenAppLayout.of(context)?.openDrawer(),
             onNotificationsTap: () => _openTab(3),
@@ -101,12 +118,12 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
               color: AppColors.spfBlue,
               child: _loading
                   ? const DashboardSkeleton()
-                  : _error != null
+                  : _error != null && _data == null
                       ? ListView(
                           physics: const AlwaysScrollableScrollPhysics(),
                           children: [
                             SizedBox(
-                              height: MediaQuery.of(context).size.height * 0.55,
+                              height: MediaQuery.of(context).size.height * 0.5,
                               child: ErrorState(
                                 message: _error!,
                                 onRetry: _load,
@@ -114,150 +131,77 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
                             ),
                           ],
                         )
-                      : _DashboardContent(
-                          data: _data!,
-                          citizenName: citizenName,
-                          onOpenComplaints: () => _openTab(1),
-                          onOpenObRecords: () => _openTab(2),
-                          onSubmitComplaint: () async {
-                            await Navigator.pushNamed(
-                              context,
-                              AppRoutes.submitComplaint,
-                            );
-                            _load();
-                          },
+                      : ListView(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: [
+                            if (needsProfile) ...[
+                              Material(
+                                color: const Color(0xFFFFF7ED),
+                                borderRadius: BorderRadius.circular(14),
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.completeProfile,
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(
+                                        color: const Color(0xFFFDBA74),
+                                      ),
+                                    ),
+                                    child: const Row(
+                                      children: [
+                                        Icon(
+                                          Icons.task_alt_outlined,
+                                          color: AppColors.warning,
+                                        ),
+                                        SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(
+                                            'Complete your profile to finish account setup.',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                        Icon(
+                                          Icons.chevron_right,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            DashboardBody(
+                              data: _data!,
+                              citizenName: citizenName,
+                              onOpenComplaints: () => _openTab(1),
+                              onOpenObRecords: () => _openTab(2),
+                              onSubmitComplaint: _submitComplaint,
+                              onOpenObDetails: _openObDetails,
+                              onOpenComplaintDetails: (id) {
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.complaintDetails,
+                                  arguments: id,
+                                );
+                              },
+                            ),
+                          ],
                         ),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _DashboardContent extends StatelessWidget {
-  const _DashboardContent({
-    required this.data,
-    required this.citizenName,
-    required this.onOpenComplaints,
-    required this.onOpenObRecords,
-    required this.onSubmitComplaint,
-  });
-
-  final DashboardData data;
-  final String citizenName;
-  final VoidCallback onOpenComplaints;
-  final VoidCallback onOpenObRecords;
-  final Future<void> Function() onSubmitComplaint;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: [
-        WelcomeCard(citizenName: citizenName),
-        const SizedBox(height: 18),
-        Row(
-          children: [
-            Expanded(
-              child: StatisticsCard(
-                label: 'My Complaints',
-                value: '${data.totalComplaints}',
-                icon: Icons.description_outlined,
-                accentColor: AppColors.spfBlue,
-                actionLabel: data.totalComplaints > 0 ? 'View all' : null,
-                onTap: data.totalComplaints > 0 ? onOpenComplaints : null,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: StatisticsCard(
-                label: 'Active',
-                value: '${data.activeComplaints}',
-                icon: Icons.person_outline_rounded,
-                accentColor: AppColors.success,
-                actionLabel: data.activeComplaints > 0 ? 'View details' : null,
-                onTap: data.activeComplaints > 0 ? onOpenComplaints : null,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: StatisticsCard(
-                label: 'Active OB Records',
-                value: '${data.activeOBs}',
-                icon: Icons.work_outline_rounded,
-                accentColor: AppColors.warning,
-                actionLabel: data.activeOBs > 0 ? 'View all' : null,
-                onTap: data.activeOBs > 0 ? onOpenObRecords : null,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: StatisticsCard(
-                label: 'Closed Cases',
-                value: '${data.closedComplaints}',
-                icon: Icons.verified_user_outlined,
-                accentColor: const Color(0xFF7C3AED),
-                actionLabel: data.closedComplaints > 0 ? 'View all' : null,
-                onTap: data.closedComplaints > 0 ? onOpenComplaints : null,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 22),
-        LatestStatusSectionHeader(
-          onViewAll: data.latestStatus != null ? onOpenComplaints : null,
-        ),
-        const SizedBox(height: 10),
-        LatestStatusCard(data: data),
-        const SizedBox(height: 22),
-        Text(
-          'Quick Actions',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: QuickActionCard(
-                title: 'Submit Complaint',
-                subtitle: 'Report an issue',
-                icon: Icons.add_rounded,
-                accentColor: AppColors.spfBlue,
-                onTap: onSubmitComplaint,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: QuickActionCard(
-                title: 'View Complaints',
-                subtitle: 'Track your complaints',
-                icon: Icons.list_alt_rounded,
-                accentColor: AppColors.success,
-                onTap: onOpenComplaints,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        QuickActionCard(
-          title: 'View OB Records',
-          subtitle: 'View your OB records and details',
-          icon: Icons.folder_open_rounded,
-          accentColor: AppColors.warning,
-          onTap: onOpenObRecords,
-          fullWidth: true,
-        ),
-        const SizedBox(height: 22),
-        const SafetyInfoCard(),
-      ],
     );
   }
 }

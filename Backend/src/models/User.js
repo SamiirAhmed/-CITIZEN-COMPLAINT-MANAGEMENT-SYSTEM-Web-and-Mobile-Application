@@ -21,6 +21,24 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Phone is required'],
       trim: true,
     },
+    phoneNormalized: {
+      type: String,
+      trim: true,
+      index: true,
+      sparse: true,
+    },
+    phoneVerified: {
+      type: Boolean,
+      default: false,
+    },
+    profileComplete: {
+      type: Boolean,
+      default: false,
+    },
+    passwordSet: {
+      type: Boolean,
+      default: false,
+    },
     tell: {
       type: String,
       trim: true,
@@ -44,14 +62,14 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
       unique: true,
+      sparse: true,
       lowercase: true,
       trim: true,
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: false,
       minlength: [8, 'Password must be at least 8 characters'],
       select: false,
     },
@@ -119,7 +137,7 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre('save', async function hashPassword() {
-  if (!this.isModified('password')) {
+  if (!this.isModified('password') || !this.password) {
     return;
   }
 
@@ -127,6 +145,7 @@ userSchema.pre('save', async function hashPassword() {
 });
 
 userSchema.methods.comparePassword = async function comparePassword(candidate) {
+  if (!this.password) return false;
   return bcrypt.compare(candidate, this.password);
 };
 
@@ -148,16 +167,34 @@ userSchema.methods.toSafeObject = function toSafeObject() {
         ? this.menuPermissions
         : [];
 
+  const email =
+    this.email && !String(this.email).endsWith('@otp.local')
+      ? this.email
+      : '';
+
+  const profileComplete =
+    this.profileComplete === true ||
+    (Boolean(this.name) &&
+      this.name.trim().toLowerCase() !== 'citizen' &&
+      Boolean(email) &&
+      this.passwordSet === true &&
+      Boolean(this.district));
+
   return {
     id: this._id.toString(),
     name: this.name,
     niraId: this.niraId || '',
     phone: this.phone || '',
+    phoneNormalized: this.phoneNormalized || '',
+    phoneVerified: this.phoneVerified === true,
+    profileComplete,
+    hasPassword: this.passwordSet === true,
+    needsProfileCompletion: !profileComplete,
     tell: this.tell || '',
     address: this.address || '',
     username: this.username || '',
     avatar: this.avatar || '',
-    email: this.email,
+    email,
     role: this.role,
     badgeNumber: this.badgeNumber || '',
     station: this.station || '',

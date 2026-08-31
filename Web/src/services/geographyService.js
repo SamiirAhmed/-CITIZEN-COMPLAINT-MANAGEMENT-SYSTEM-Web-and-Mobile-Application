@@ -16,11 +16,28 @@ export async function listRegions() {
   return response?.data?.regions || [];
 }
 
-export async function listDistricts(region) {
-  const response = await apiRequest(`/geography/districts${buildQuery({ region })}`, {
-    auth: false,
-  });
-  return response?.data?.districts || [];
+/**
+ * List districts. Without region → all districts as { district, region, label }.
+ * With region → string names (legacy).
+ */
+export async function listDistricts(region = '') {
+  const response = await apiRequest(
+    `/geography/districts${buildQuery(region ? { region } : {})}`,
+    { auth: false }
+  );
+  const raw = response?.data?.districts || [];
+  if (!region) {
+    return raw.map((item) =>
+      typeof item === 'string'
+        ? { district: item, region: '', label: item }
+        : {
+            district: item.district,
+            region: item.region || '',
+            label: item.label || item.district,
+          }
+    );
+  }
+  return raw;
 }
 
 export async function listVillages(region, district) {

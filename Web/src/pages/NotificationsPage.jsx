@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../components/common/EmptyState';
 import ErrorState from '../components/common/ErrorState';
-import LoadingState from '../components/common/LoadingState';
 import { useAuth } from '../context/AuthContext';
 import { resolveNotificationPath } from '../navigation/adminNavigation';
 import {
@@ -11,11 +10,11 @@ import {
   markNotificationRead,
 } from '../services/notificationService';
 
-function formatRelative(value) {
+function formatRelative(value, nowMs = Date.now()) {
   if (!value) return '—';
   try {
     const date = new Date(value);
-    const diffMs = Date.now() - date.getTime();
+    const diffMs = nowMs - date.getTime();
     const minutes = Math.floor(diffMs / 60000);
     if (minutes < 1) return 'Just now';
     if (minutes < 60) return `${minutes} min ago`;
@@ -51,38 +50,83 @@ function iconKind(type = '') {
   return 'info';
 }
 
+function NotificationsSkeleton() {
+  return (
+    <ul className="notification-page-list notification-page-list--skeleton" aria-hidden="true">
+      {Array.from({ length: 6 }, (_, index) => (
+        <li key={`notif-skel-${index}`} className="notification-item notification-item--skeleton">
+          <span className="notification-item__icon skel skel--icon" />
+          <span className="notification-item__body">
+            <span className="skel skel--title" />
+            <span className="skel skel--line" />
+            <span className="skel skel--meta" />
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function NotificationsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const listRef = useRef(null);
+  const requestIdRef = useRef(0);
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState('all');
-  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const load = useCallback(async ({ soft = false } = {}) => {
+    const requestId = ++requestIdRef.current;
+    if (soft) setRefreshing(true);
+    else setLoading(true);
     setError('');
     try {
       const data = await getNotifications({
         limit: 100,
         filter: filter === 'all' ? '' : filter,
-        search,
+        search: debouncedSearch,
       });
+      if (requestId !== requestIdRef.current) return;
+      const scrollTop = listRef.current?.scrollTop ?? 0;
       setItems(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
+      requestAnimationFrame(() => {
+        if (listRef.current) listRef.current.scrollTop = scrollTop;
+      });
     } catch (err) {
+      if (requestId !== requestIdRef.current) return;
       setError(err.message || 'Unable to load notifications.');
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [filter, search]);
+  }, [debouncedSearch, filter]);
 
   useEffect(() => {
-    const timer = setTimeout(() => load(), 200);
+    const soft = items.length > 0;
+    const timer = setTimeout(() => load({ soft }), 0);
     return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load]);
 
   const handleOpen = async (notification) => {
@@ -101,11 +145,16 @@ export default function NotificationsPage() {
   };
 
   const handleMarkAll = async () => {
+    if (!unreadCount) return;
     setBusy(true);
+    const scrollTop = listRef.current?.scrollTop ?? 0;
     try {
       await markAllNotificationsRead();
       setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
       setUnreadCount(0);
+      requestAnimationFrame(() => {
+        if (listRef.current) listRef.current.scrollTop = scrollTop;
+      });
     } catch (err) {
       setError(err.message || 'Unable to mark notifications as read.');
     } finally {
@@ -113,10 +162,12 @@ export default function NotificationsPage() {
     }
   };
 
+  const showSkeleton = loading && !items.length;
+
   return (
     <div className="page-stack">
-      <section className="panel">
-        <div className="panel__header panel__header--spread">
+      <section className="panel notifications-panel">
+        <div className="panel__header panel__header--spread notifications-panel__header">
           <div>
             <h2>Notifications</h2>
             <p className="muted">
@@ -125,16 +176,22 @@ export default function NotificationsPage() {
                 : 'Citizen, complaint, OB, and staff events across the SPO portal.'}
             </p>
           </div>
-          {unreadCount > 0 ? (
+          <div className="notifications-panel__meta">
+            <span
+              className={`system-alerts__count ${unreadCount ? '' : 'is-zero'}`}
+              aria-live="polite"
+            >
+              {unreadCount} unread
+            </span>
             <button
               type="button"
               className="btn btn--ghost btn--small"
               onClick={handleMarkAll}
-              disabled={busy}
+              disabled={busy || !unreadCount}
             >
               {busy ? 'Updating…' : 'Mark all as read'}
             </button>
-          ) : null}
+          </div>
         </div>
 
         <div className="toolbar">
@@ -142,8 +199,8 @@ export default function NotificationsPage() {
             className="toolbar__search"
             type="search"
             placeholder="Search notifications"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            value={searchInput}
+            onChange={(event) => setSearchInput(event.target.value)}
           />
           <select value={filter} onChange={(event) => setFilter(event.target.value)}>
             <option value="all">All</option>
@@ -152,38 +209,47 @@ export default function NotificationsPage() {
           </select>
         </div>
 
-        {loading ? (
-          <LoadingState message="Loading notifications…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={load} />
-        ) : !items.length ? (
-          <EmptyState
-            title="No notifications"
-            description="Important system events will appear here."
-          />
-        ) : (
-          <ul className="notification-page-list">
-            {items.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className={`notification-item ${item.isRead ? '' : 'is-unread'}`}
-                  onClick={() => handleOpen(item)}
-                >
-                  <span
-                    className={`notification-item__icon notification-item__icon--${iconKind(item.type)}`}
-                    aria-hidden="true"
-                  />
-                  <span className="notification-item__body">
-                    <strong>{item.title}</strong>
-                    <span>{item.message}</span>
-                    <em>{formatRelative(item.createdAt)}</em>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div
+          className={`notifications-panel__results ${refreshing ? 'is-refreshing' : ''}`}
+          ref={listRef}
+        >
+          {showSkeleton ? <NotificationsSkeleton /> : null}
+
+          {error && !showSkeleton ? (
+            <ErrorState message={error} onRetry={() => load({ soft: Boolean(items.length) })} />
+          ) : null}
+
+          {!loading && !error && !items.length ? (
+            <EmptyState
+              title="No notifications"
+              description="Important system events will appear here."
+            />
+          ) : null}
+
+          {!showSkeleton && !error && items.length ? (
+            <ul className="notification-page-list">
+              {items.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    className={`notification-item ${item.isRead ? '' : 'is-unread'}`}
+                    onClick={() => handleOpen(item)}
+                  >
+                    <span
+                      className={`notification-item__icon notification-item__icon--${iconKind(item.type)}`}
+                      aria-hidden="true"
+                    />
+                    <span className="notification-item__body">
+                      <strong>{item.title}</strong>
+                      <span>{item.message}</span>
+                      <em>{formatRelative(item.createdAt, nowMs)}</em>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
       </section>
     </div>
   );

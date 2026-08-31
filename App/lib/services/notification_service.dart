@@ -37,16 +37,31 @@ class NotificationService {
     return (data['unreadCount'] as num?)?.toInt() ?? 0;
   }
 
-  Future<AppNotification> markRead(String id) async {
+  Future<MarkReadResult> markRead(String id) async {
     final response =
         await _api.patch('${ApiEndpoints.notifications}/$id/read');
     final data = response['data'] as Map<String, dynamic>? ?? {};
-    return AppNotification.fromJson(
-      Map<String, dynamic>.from(data['notification'] as Map),
+    return MarkReadResult(
+      notification: AppNotification.fromJson(
+        Map<String, dynamic>.from(data['notification'] as Map),
+      ),
+      unreadCount: (data['unreadCount'] as num?)?.toInt() ?? 0,
     );
   }
 
-  Future<void> markAllRead() async {
-    await _api.patch(ApiEndpoints.readAllNotifications);
+  Future<int> markAllRead() async {
+    final response = await _api.patch(ApiEndpoints.readAllNotifications);
+    final data = response['data'] as Map<String, dynamic>? ?? {};
+    return (data['unreadCount'] as num?)?.toInt() ?? 0;
   }
+}
+
+class MarkReadResult {
+  MarkReadResult({
+    required this.notification,
+    required this.unreadCount,
+  });
+
+  final AppNotification notification;
+  final int unreadCount;
 }

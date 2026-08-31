@@ -18,6 +18,10 @@ function resolveTitle(pathname) {
     return 'OB Details';
   }
 
+  if (pathname === '/settings' || pathname.startsWith('/settings/')) {
+    return 'Settings';
+  }
+
   const match = flat.find((item) => item.path === pathname);
   if (pathname === '/reports') return 'Reports & Analytics';
   if (pathname === '/sms-portal') return 'SMS Portal';

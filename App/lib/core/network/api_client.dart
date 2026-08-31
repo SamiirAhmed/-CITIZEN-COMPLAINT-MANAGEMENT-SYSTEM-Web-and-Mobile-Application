@@ -61,6 +61,7 @@ class ApiClient {
         _uri(path, query),
         headers: await _headers(auth: auth),
       ),
+      auth: auth,
     );
   }
 
@@ -75,6 +76,7 @@ class ApiClient {
         headers: await _headers(auth: auth),
         body: jsonEncode(body ?? {}),
       ),
+      auth: auth,
     );
   }
 
@@ -89,6 +91,7 @@ class ApiClient {
         headers: await _headers(auth: auth),
         body: jsonEncode(body ?? {}),
       ),
+      auth: auth,
     );
   }
 
@@ -103,6 +106,7 @@ class ApiClient {
         headers: await _headers(auth: auth),
         body: jsonEncode(body ?? {}),
       ),
+      auth: auth,
     );
   }
 
@@ -115,6 +119,7 @@ class ApiClient {
         _uri(path),
         headers: await _headers(auth: auth),
       ),
+      auth: auth,
     );
   }
 
@@ -150,15 +155,16 @@ class ApiClient {
       );
       final streamed = await _http.send(request);
       return http.Response.fromStream(streamed);
-    });
+    }, auth: auth);
   }
 
   Future<Map<String, dynamic>> _send(
-    Future<http.Response> Function() request,
-  ) async {
+    Future<http.Response> Function() request, {
+    bool auth = true,
+  }) async {
     try {
       final response = await request().timeout(ApiEndpoints.timeout);
-      return _handleResponse(response);
+      return _handleResponse(response, auth: auth);
     } on TimeoutException {
       throw ApiException(
         message:
@@ -179,7 +185,10 @@ class ApiClient {
     }
   }
 
-  Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
+  Future<Map<String, dynamic>> _handleResponse(
+    http.Response response, {
+    bool auth = true,
+  }) async {
     Map<String, dynamic> payload = {};
 
     if (response.body.isNotEmpty) {
@@ -199,7 +208,7 @@ class ApiClient {
     }
 
     if (response.statusCode == 401) {
-      if (onUnauthorized != null) {
+      if (auth && onUnauthorized != null) {
         await onUnauthorized!();
       }
       throw ApiException(

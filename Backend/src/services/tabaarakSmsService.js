@@ -100,8 +100,25 @@ function extractToken(payload) {
 }
 
 function extractBalance(payload) {
+  if (typeof payload === 'number' && Number.isFinite(payload)) return payload;
+  if (typeof payload === 'string') {
+    const direct = toNumber(payload);
+    if (direct != null) return direct;
+  }
   const nested = payload?.data ?? payload;
-  return toNumber(nested?.balance ?? nested?.Balance ?? payload?.balance);
+  if (typeof nested === 'number' && Number.isFinite(nested)) return nested;
+  if (typeof nested === 'string') {
+    const direct = toNumber(nested);
+    if (direct != null) return direct;
+  }
+  return toNumber(
+    nested?.balance ??
+      nested?.Balance ??
+      nested?.smsBalance ??
+      nested?.remainingBalance ??
+      payload?.balance ??
+      payload?.Balance
+  );
 }
 
 function extractAccountType(payload) {
@@ -228,12 +245,20 @@ export async function fetchSmsBalance() {
     accountType: accountType || null,
   });
 
-  if (!response.ok || payload?.success === false || balance == null) {
+  if (balance == null) {
     const error = new Error(
       extractProviderMessage(payload, 'Unable to retrieve Tabaarak SMS balance.')
     );
     error.code = 'SMS_BALANCE_FAILED';
     throw error;
+  }
+
+  if (!response.ok || payload?.success === false) {
+    safeLog('GetSmsBalanceWarning', {
+      httpStatus: response.status,
+      success: payload?.success,
+      message: payload?.message || null,
+    });
   }
 
   return {

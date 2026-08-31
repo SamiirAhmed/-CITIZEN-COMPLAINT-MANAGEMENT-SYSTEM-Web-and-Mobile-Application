@@ -31,6 +31,11 @@ import {
 } from '../middleware/uploadProfileImage.js';
 import { applyGeographicSelection } from '../utils/geographyHelpers.js';
 import { getDefaultUserPassword } from '../utils/defaultPassword.js';
+import {
+  isValidSomaliMobile,
+  normalizeSomaliMobile,
+} from '../services/tabaarakSmsService.js';
+import { findCitizenByNormalizedPhone } from './otpController.js';
 
 const cleanupUpload = (req) => {
   if (req.file?.filename) {
@@ -81,6 +86,12 @@ export const registerCitizen = asyncHandler(async (req, res) => {
     name,
     niraId,
     phone,
+    phoneNormalized: isValidSomaliMobile(phone)
+      ? normalizeSomaliMobile(phone)
+      : undefined,
+    phoneVerified: false,
+    profileComplete: true,
+    passwordSet: true,
     tell,
     email,
     password,
@@ -153,12 +164,25 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
-  const { email, password } = validation.data;
+  const { identifier, password } = validation.data;
   const accessSource = getAccessSource(req);
+  const emailForAudit = identifier.includes('@')
+    ? identifier.toLowerCase()
+    : identifier;
 
   let user;
   try {
-    user = await User.findOne({ email }).select('+password');
+    if (identifier.includes('@')) {
+      user = await User.findOne({ email: identifier.toLowerCase() }).select(
+        '+password'
+      );
+    } else if (isValidSomaliMobile(identifier)) {
+      user = await findCitizenByNormalizedPhone(normalizeSomaliMobile(identifier));
+    } else {
+      user = await User.findOne({ email: identifier.toLowerCase() }).select(
+        '+password'
+      );
+    }
   } catch (error) {
     if (isDatabaseError(error)) {
       console.error('Login database error:', error.message);
@@ -173,7 +197,7 @@ export const login = asyncHandler(async (req, res) => {
   if (!user || !(await user.comparePassword(password))) {
     await recordAuthAuditEvent(req, {
       actor: user,
-      email,
+      email: emailForAudit,
       action: 'LOGIN_FAILED',
       status: 'failed',
       failureReason: 'Invalid credentials',
@@ -183,14 +207,33 @@ export const login = asyncHandler(async (req, res) => {
 
     return res.status(401).json({
       success: false,
-      message: 'Invalid email or password.',
+      message: 'Invalid email/mobile or password.',
     });
+  }
+
+  // Skip/OTP placeholder accounts cannot use password login until they set one.
+  const isPlaceholder =
+    user.passwordSet !== true &&
+    String(user.email || '').endsWith('@otp.local');
+  if (isPlaceholder) {
+    return res.status(401).json({
+      success: false,
+      message: 'Please verify your mobile number to continue, or complete your profile first.',
+    });
+  }
+
+  if (user.passwordSet !== true) {
+    user.passwordSet = true;
+    if (user.district && user.name && !String(user.email || '').endsWith('@otp.local')) {
+      user.profileComplete = true;
+    }
+    await user.save();
   }
 
   if (!user.isActive) {
     await recordAuthAuditEvent(req, {
       actor: user,
-      email,
+      email: emailForAudit,
       action: 'LOGIN_FAILED',
       status: 'failed',
       failureReason: 'Account inactive',
@@ -209,7 +252,7 @@ export const login = asyncHandler(async (req, res) => {
   if (user.role === 'admin' || user.role === 'police') {
     await recordAuthAuditEvent(req, {
       actor: user,
-      email,
+      email: user.email || emailForAudit,
       notifyAdmins: false,
       excludeNotificationUserId: user._id,
     });
@@ -217,7 +260,7 @@ export const login = asyncHandler(async (req, res) => {
     if (user.passwordChangeRequired) {
       await recordAuthAuditEvent(req, {
         actor: user,
-        email,
+        email: user.email || emailForAudit,
         action: 'PASSWORD_CHANGE_REQUIRED',
         status: 'info',
         accessSource,
@@ -248,11 +291,14 @@ export const getMe = asyncHandler(async (req, res) => {
 
 export const updateProfile = asyncHandler(async (req, res) => {
   // Never allow role/status changes from self-service profile.
-  const { name, phone, email } = req.body;
+  const { name, phone, email, region, district, village, area } = req.body;
   const previousImage = req.user.profileImage || '';
   const previousName = req.user.name;
   const previousPhone = req.user.phone || '';
   const previousEmail = req.user.email;
+  const previousLocation = [req.user.district, req.user.village, req.user.area]
+    .filter(Boolean)
+    .join(' — ');
   const changed = [];
 
   if (name !== undefined) {
@@ -278,17 +324,24 @@ export const updateProfile = asyncHandler(async (req, res) => {
   }
 
   if (phone !== undefined) {
-    const trimmedPhone = String(phone).trim();
-    if (!trimmedPhone) {
-      cleanupUpload(req);
-      return res.status(400).json({
-        success: false,
-        message: 'Phone is required.',
-      });
-    }
-    if (trimmedPhone !== req.user.phone) {
-      req.user.phone = trimmedPhone;
-      changed.push('phone');
+    if (req.user.phoneVerified === true) {
+      // Verified phone cannot be changed from self-service profile.
+    } else {
+      const trimmedPhone = String(phone).trim();
+      if (!trimmedPhone) {
+        cleanupUpload(req);
+        return res.status(400).json({
+          success: false,
+          message: 'Phone is required.',
+        });
+      }
+      if (trimmedPhone !== req.user.phone) {
+        req.user.phone = trimmedPhone;
+        if (isValidSomaliMobile(trimmedPhone)) {
+          req.user.phoneNormalized = normalizeSomaliMobile(trimmedPhone);
+        }
+        changed.push('phone');
+      }
     }
   }
 
@@ -315,6 +368,28 @@ export const updateProfile = asyncHandler(async (req, res) => {
       }
       req.user.email = trimmedEmail;
       changed.push('email');
+    }
+  }
+
+  if (district !== undefined) {
+    const geoResult = await applyGeographicSelection(req.user, {
+      region,
+      district,
+      village,
+      area,
+    });
+    if (!geoResult.ok) {
+      cleanupUpload(req);
+      return res.status(400).json({
+        success: false,
+        message: geoResult.message || 'Unable to save location.',
+      });
+    }
+    const nextLocation = [req.user.district, req.user.village, req.user.area]
+      .filter(Boolean)
+      .join(' — ');
+    if (nextLocation !== previousLocation) {
+      changed.push('location');
     }
   }
 
@@ -356,6 +431,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
           fieldChanges.includes('name') ? `name=${previousName}` : null,
           fieldChanges.includes('email') ? `email=${previousEmail}` : null,
           fieldChanges.includes('phone') ? `phone=${previousPhone}` : null,
+          fieldChanges.includes('location')
+            ? `location=${previousLocation || '(none)'}`
+            : null,
         ]
           .filter(Boolean)
           .join('; '),
@@ -363,6 +441,11 @@ export const updateProfile = asyncHandler(async (req, res) => {
           fieldChanges.includes('name') ? `name=${req.user.name}` : null,
           fieldChanges.includes('email') ? `email=${req.user.email}` : null,
           fieldChanges.includes('phone') ? `phone=${req.user.phone}` : null,
+          fieldChanges.includes('location')
+            ? `location=${[req.user.district, req.user.village, req.user.area]
+                .filter(Boolean)
+                .join(' — ') || '(none)'}`
+            : null,
         ]
           .filter(Boolean)
           .join('; '),
@@ -451,6 +534,7 @@ export const changePassword = asyncHandler(async (req, res) => {
 
   user.password = newPassword;
   user.passwordChangeRequired = false;
+  user.passwordSet = true;
   await user.save();
 
   if (user.role === 'admin' || user.role === 'police') {

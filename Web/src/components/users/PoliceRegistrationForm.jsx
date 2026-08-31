@@ -14,6 +14,8 @@ const REGISTER_INITIAL = {
   station: '',
   region: '',
   district: '',
+  village: '',
+  area: '',
 };
 
 const EDIT_INITIAL = {
@@ -24,6 +26,8 @@ const EDIT_INITIAL = {
   station: '',
   region: '',
   district: '',
+  village: '',
+  area: '',
 };
 
 export default function PoliceRegistrationForm({
@@ -41,6 +45,7 @@ export default function PoliceRegistrationForm({
   const [profileImageFile, setProfileImageFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
 
   useEffect(() => {
     if (isEdit) {
@@ -51,16 +56,25 @@ export default function PoliceRegistrationForm({
     setProfileImageFile(null);
     setErrors({});
     setFormError('');
+    setEmailTouched(false);
   }, [initialValues, isEdit]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setValues((prev) => ({ ...prev, [name]: value }));
+    if (name === 'email' && errors.email) {
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.email;
+        return next;
+      });
+    }
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFormError('');
+    setEmailTouched(true);
     const validation = isEdit
       ? validateStaffUserEdit(values, { profileImageFile })
       : validateStaffRegistration(values, { profileImageFile });
@@ -73,6 +87,8 @@ export default function PoliceRegistrationForm({
       setFormError(error.message || 'Unable to save user.');
     }
   };
+
+  const emailError = emailTouched || errors.email ? errors.email : '';
 
   return (
     <form className="form-grid" onSubmit={handleSubmit} noValidate>
@@ -118,9 +134,17 @@ export default function PoliceRegistrationForm({
 
       <label className="field">
         <span>Email</span>
-        <input name="email" type="email" value={values.email} onChange={handleChange} />
+        <input
+          name="email"
+          type="email"
+          value={values.email}
+          onChange={handleChange}
+          onBlur={() => setEmailTouched(true)}
+          className={emailError ? 'is-invalid' : undefined}
+          autoComplete="email"
+        />
         <small className="field-hint">Enter a valid email address.</small>
-        {errors.email ? <em className="field-error">{errors.email}</em> : null}
+        {emailError ? <em className="field-error">{emailError}</em> : null}
       </label>
 
       <PhoneInput
@@ -133,21 +157,22 @@ export default function PoliceRegistrationForm({
       <GeographicSelect
         region={values.region}
         district={values.district}
-        onRegionChange={(nextRegion) =>
-          setValues((prev) => ({ ...prev, region: nextRegion, district: '' }))
+        village={values.village}
+        area={values.area}
+        onChange={({ region, district, village, area }) =>
+          setValues((prev) => ({
+            ...prev,
+            region: region ?? prev.region,
+            district: district ?? '',
+            village: village ?? '',
+            area: area ?? '',
+          }))
         }
-        onDistrictChange={(nextDistrict) =>
-          setValues((prev) => ({ ...prev, district: nextDistrict }))
-        }
-        regionError={errors.region}
         districtError={errors.district}
+        villageError={errors.village}
+        areaError={errors.area}
         disabled={submitting}
       />
-
-      <label className="field">
-        <span>Role</span>
-        <input value="Police Officer" readOnly disabled className="input--readonly" />
-      </label>
 
       <label className="field">
         <span>Badge Number</span>

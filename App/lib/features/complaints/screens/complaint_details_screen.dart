@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../application/application_theme.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/utils/route_args.dart';
 import '../../../core/utils/date_formatters.dart';
 import '../../../core/widgets/error_state.dart';
 import '../../../core/widgets/loading_indicator.dart';
@@ -26,9 +27,8 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final args = ModalRoute.of(context)?.settings.arguments;
-    final nextId = args?.toString();
-    if (nextId == null || nextId.isEmpty) {
+    final nextId = parseRouteRecordId(ModalRoute.of(context)?.settings.arguments);
+    if (nextId == null) {
       if (_id == null && _loading) {
         setState(() {
           _loading = false;

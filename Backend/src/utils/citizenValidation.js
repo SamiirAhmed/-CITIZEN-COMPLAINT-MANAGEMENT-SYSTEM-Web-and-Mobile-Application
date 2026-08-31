@@ -1,4 +1,6 @@
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Practical email check — requires local@domain.tld (rejects admin@gmail). */
+export const EMAIL_REGEX =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
 export const isValidEmail = (email) =>
   EMAIL_REGEX.test(String(email || '').trim());
@@ -20,6 +22,8 @@ export const validateCitizenRegistration = ({
   const trimmedTell = String(tell ?? '').trim();
   const trimmedEmail = String(email ?? '').trim().toLowerCase();
   const rawPassword = String(password ?? '');
+  const trimmedDistrict = String(district ?? '').trim();
+  const trimmedRegion = String(region ?? '').trim();
 
   if (!trimmedName) {
     return { ok: false, message: 'Name is required.' };
@@ -64,19 +68,12 @@ export const validateCitizenRegistration = ({
   if (confirmPassword !== undefined && rawPassword !== confirmPassword) {
     return {
       ok: false,
-      message: 'Password and confirm password do not match.',
+      message: 'Passwords do not match.',
     };
   }
 
-  const trimmedRegion = String(region ?? '').trim();
-  const trimmedDistrict = String(district ?? '').trim();
-
-  if (!trimmedRegion) {
-    return { ok: false, message: 'Region is required.' };
-  }
-
   if (!trimmedDistrict) {
-    return { ok: false, message: 'District is required.' };
+    return { ok: false, message: 'Please select a district.' };
   }
 
   return {
@@ -94,16 +91,12 @@ export const validateCitizenRegistration = ({
   };
 };
 
-export const validateLoginInput = ({ email, password }) => {
-  const trimmedEmail = String(email ?? '').trim().toLowerCase();
+export const validateLoginInput = ({ email, phone, password, identifier }) => {
   const rawPassword = String(password ?? '');
+  const rawIdentifier = String(identifier ?? email ?? phone ?? '').trim();
 
-  if (!trimmedEmail) {
-    return { ok: false, message: 'Email is required.' };
-  }
-
-  if (!isValidEmail(trimmedEmail)) {
-    return { ok: false, message: 'Please enter a valid email address.' };
+  if (!rawIdentifier) {
+    return { ok: false, message: 'Email or mobile number is required.' };
   }
 
   if (!rawPassword) {
@@ -112,6 +105,6 @@ export const validateLoginInput = ({ email, password }) => {
 
   return {
     ok: true,
-    data: { email: trimmedEmail, password: rawPassword },
+    data: { identifier: rawIdentifier, password: rawPassword },
   };
 };

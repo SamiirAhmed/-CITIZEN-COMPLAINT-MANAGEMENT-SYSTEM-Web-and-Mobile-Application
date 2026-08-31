@@ -44,6 +44,12 @@ const smsLogSchema = new mongoose.Schema(
     successCount: { type: Number, default: 0 },
     failedCount: { type: Number, default: 0 },
     skippedCount: { type: Number, default: 0 },
+    recipientType: {
+      type: String,
+      enum: ['police', 'citizen'],
+      default: 'police',
+      index: true,
+    },
     recipients: { type: [recipientSchema], default: [] },
     ipAddress: { type: String, trim: true, default: '' },
   },
@@ -65,6 +71,7 @@ smsLogSchema.methods.toClientObject = function toClientObject() {
     successCount: this.successCount || 0,
     failedCount: this.failedCount || 0,
     skippedCount: this.skippedCount || 0,
+    recipientType: this.recipientType || 'police',
     recipients: (this.recipients || []).map((item) => ({
       userId: item.user ? item.user.toString() : '',
       name: item.name || '',

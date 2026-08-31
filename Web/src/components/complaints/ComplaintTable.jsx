@@ -55,27 +55,31 @@ export default function ComplaintTable({
                     <button type="button" className="btn btn--table" onClick={() => onView(complaint)}>
                       View
                     </button>
-                    <button type="button" className="btn btn--table" onClick={() => onEdit(complaint)}>
-                      Edit
-                    </button>
-                    {canCreateOB ? (
-                      <button
-                        type="button"
-                        className="btn btn--table"
-                        disabled={busy}
-                        onClick={() => onCreateOB(complaint)}
-                      >
-                        Create OB
-                      </button>
+                    {complaint.status !== 'Closed' ? (
+                      <>
+                        <button type="button" className="btn btn--table" onClick={() => onEdit(complaint)}>
+                          Edit
+                        </button>
+                        {canCreateOB ? (
+                          <button
+                            type="button"
+                            className="btn btn--table"
+                            disabled={busy}
+                            onClick={() => onCreateOB(complaint)}
+                          >
+                            Create OB
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="btn btn--table btn--table-danger"
+                          disabled={busy}
+                          onClick={() => onDelete(complaint)}
+                        >
+                          {busy ? 'Deleting…' : 'Delete'}
+                        </button>
+                      </>
                     ) : null}
-                    <button
-                      type="button"
-                      className="btn btn--table btn--table-danger"
-                      disabled={busy}
-                      onClick={() => onDelete(complaint)}
-                    >
-                      {busy ? 'Deleting…' : 'Delete'}
-                    </button>
                   </div>
                 </td>
               </tr>

@@ -43,6 +43,19 @@ const evidenceSchema = new mongoose.Schema(
   { _id: true }
 );
 
+const assignmentHistorySchema = new mongoose.Schema(
+  {
+    officer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    officerName: { type: String, default: '' },
+    badgeNumber: { type: String, default: '' },
+    station: { type: String, default: '' },
+    assignedAt: { type: Date, default: Date.now },
+    assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    note: { type: String, default: '' },
+  },
+  { _id: true }
+);
+
 const obRecordSchema = new mongoose.Schema(
   {
     obNumber: {
@@ -75,6 +88,10 @@ const obRecordSchema = new mongoose.Schema(
     assignedAt: {
       type: Date,
       default: null,
+    },
+    assignmentHistory: {
+      type: [assignmentHistorySchema],
+      default: [],
     },
     status: {
       type: String,
@@ -168,6 +185,9 @@ obRecordSchema.methods.toCitizenObject = function toCitizenObject(complaint) {
         note: item.note || '',
         createdAt: item.createdAt,
       })),
+    investigationProgress: Number(this.investigationProgress || 0),
+    investigationStartedAt: this.investigationStartedAt || null,
+    investigationCompletedAt: this.investigationCompletedAt || null,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,
   };
@@ -257,6 +277,21 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
     closedAt: this.closedAt,
     assignedAt: this.assignedAt,
     assignedOfficer: assigned,
+    assignmentHistory: (this.assignmentHistory || []).map((item) => ({
+      id: item._id?.toString?.() || undefined,
+      officerId: refId(item.officer),
+      officerName: item.officerName || item.officer?.name || '',
+      badgeNumber: item.badgeNumber || item.officer?.badgeNumber || '',
+      station: item.station || item.officer?.station || '',
+      assignedAt: item.assignedAt,
+      note: item.note || '',
+      assignedBy: item.assignedBy
+        ? {
+            id: refId(item.assignedBy),
+            name: item.assignedBy.name || '',
+          }
+        : null,
+    })),
     citizen: citizenInfo,
     complaint: complaintInfo,
     evidence: (this.evidence || []).map((item) => ({
@@ -267,12 +302,30 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
       url: item.url || '',
       note: item.note || '',
       createdAt: item.createdAt,
+      createdBy: item.createdBy
+        ? {
+            id:
+              item.createdBy._id?.toString?.() ||
+              item.createdBy.id ||
+              String(item.createdBy),
+            name: item.createdBy.name || '',
+          }
+        : null,
     })),
     updates: (this.updates || []).map((item) => ({
       title: item.title,
       note: item.note || '',
       visibleToCitizen: item.visibleToCitizen !== false,
       createdAt: item.createdAt,
+      createdBy: item.createdBy
+        ? {
+            id:
+              item.createdBy._id?.toString?.() ||
+              item.createdBy.id ||
+              String(item.createdBy),
+            name: item.createdBy.name || '',
+          }
+        : null,
     })),
     createdAt: this.createdAt,
     updatedAt: this.updatedAt,

@@ -543,6 +543,8 @@ export const registerCitizen = asyncHandler(async (req, res) => {
     role: 'citizen',
     profileImage: uploadedPath,
     isActive: true,
+    passwordSet: true,
+    profileComplete: true,
   });
 
   await createAuditLog({

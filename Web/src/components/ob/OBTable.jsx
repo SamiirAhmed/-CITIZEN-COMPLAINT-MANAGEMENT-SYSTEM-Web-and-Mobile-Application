@@ -1,6 +1,12 @@
 import EmptyState from '../common/EmptyState';
 import StatusBadge from '../common/StatusBadge';
-import { formatDate, getRecordId } from '../../constants/domain';
+import {
+  canAssignOB,
+  canDeleteOB,
+  canUpdateOBWorkflow,
+  formatDate,
+  getRecordId,
+} from '../../constants/domain';
 
 export default function OBTable({
   records = [],
@@ -40,6 +46,9 @@ export default function OBTable({
           {records.map((record) => {
             const id = getRecordId(record);
             const busy = busyId === id;
+            const showAssign = canAssign && canAssignOB(record);
+            const showStatus = canUpdateStatus && canUpdateOBWorkflow(record);
+            const showDelete = canDelete && canDeleteOB(record);
             return (
               <tr key={id}>
                 <td className="cell-name">{record.obNumber || '—'}</td>
@@ -55,7 +64,7 @@ export default function OBTable({
                     <button type="button" className="btn btn--table" onClick={() => onView(record)}>
                       View
                     </button>
-                    {canAssign ? (
+                    {showAssign ? (
                       <button
                         type="button"
                         className="btn btn--table"
@@ -65,17 +74,17 @@ export default function OBTable({
                         Assign
                       </button>
                     ) : null}
-                    {canUpdateStatus ? (
+                    {showStatus ? (
                       <button
                         type="button"
                         className="btn btn--table"
                         disabled={busy}
                         onClick={() => onUpdateStatus(record)}
                       >
-                        Status
+                        Update Status
                       </button>
                     ) : null}
-                    {canDelete ? (
+                    {showDelete ? (
                       <button
                         type="button"
                         className="btn btn--table btn--table-danger"

@@ -11,6 +11,10 @@ class CitizenService {
     required String name,
     required String phone,
     required String tell,
+    String region = '',
+    String district = '',
+    String village = '',
+    String area = '',
   }) async {
     final response = await _api.put(
       ApiEndpoints.profile,
@@ -18,6 +22,10 @@ class CitizenService {
         'name': name.trim(),
         'phone': phone.trim(),
         'tell': tell.trim(),
+        if (district.trim().isNotEmpty) 'region': region.trim(),
+        if (district.trim().isNotEmpty) 'district': district.trim(),
+        if (district.trim().isNotEmpty) 'village': village.trim(),
+        if (district.trim().isNotEmpty) 'area': area.trim(),
       },
     );
 
