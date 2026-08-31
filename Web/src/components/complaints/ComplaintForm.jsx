@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { COMPLAINT_STATUSES, toDateInputValue } from '../../constants/domain';
 import { validateComplaintForm } from '../../validation/complaintValidation';
+import GeographicSelect from '../common/GeographicSelect';
+import EvidenceUploadField from './EvidenceUploadField';
 
 const INITIAL = {
   citizenId: '',
@@ -8,11 +10,19 @@ const INITIAL = {
   description: '',
   incidentDate: '',
   location: '',
+  region: '',
+  district: '',
+  village: '',
+  area: '',
   relatedInformation: '',
   evidenceNotes: '',
   status: 'Submitted',
   note: '',
 };
+
+function buildLocation(district, village, area) {
+  return [district, village, area].filter(Boolean).join(', ');
+}
 
 export default function ComplaintForm({
   mode = 'create',
@@ -25,6 +35,7 @@ export default function ComplaintForm({
 }) {
   const isEdit = mode === 'edit';
   const [values, setValues] = useState({ ...INITIAL, ...initialValues });
+  const [evidenceFiles, setEvidenceFiles] = useState([]);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
 
@@ -33,20 +44,35 @@ export default function ComplaintForm({
       ...INITIAL,
       ...initialValues,
       incidentDate: toDateInputValue(initialValues?.incidentDate) || initialValues?.incidentDate || '',
+      region: initialValues?.region || '',
+      district: initialValues?.district || '',
+      village: initialValues?.village || '',
+      area: initialValues?.area || '',
     });
+    setEvidenceFiles([]);
     setErrors({});
     setFormError('');
   }, [initialValues, isEdit]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setValues((prev) => ({ ...prev, [name]: value }));
+    setValues((prev) => {
+      const next = { ...prev, [name]: value };
+      if (name === 'village' || name === 'area') {
+        next.location = buildLocation(
+          prev.district,
+          name === 'village' ? value : prev.village,
+          name === 'area' ? value : prev.area
+        );
+      }
+      return next;
+    });
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFormError('');
-    const validation = validateComplaintForm(values);
+    const validation = validateComplaintForm(values, { evidenceFiles });
     setErrors(validation.errors);
     if (!validation.ok) return;
 
@@ -113,10 +139,57 @@ export default function ComplaintForm({
         {errors.incidentDate ? <em className="field-error">{errors.incidentDate}</em> : null}
       </label>
 
+      <GeographicSelect
+        region={values.region}
+        district={values.district}
+        onRegionChange={(nextRegion) =>
+          setValues((prev) => ({
+            ...prev,
+            region: nextRegion,
+            district: '',
+            village: '',
+            area: '',
+            location: '',
+          }))
+        }
+        onDistrictChange={(nextDistrict) =>
+          setValues((prev) => ({
+            ...prev,
+            district: nextDistrict,
+            location: buildLocation(nextDistrict, prev.village, prev.area),
+          }))
+        }
+        regionError={errors.region}
+        districtError={errors.district}
+        disabled={submitting}
+      />
+
       <label className="field">
-        <span>Location</span>
-        <input name="location" value={values.location} onChange={handleChange} />
-        {errors.location ? <em className="field-error">{errors.location}</em> : null}
+        <span>Village (optional)</span>
+        <input
+          type="text"
+          name="village"
+          value={values.village}
+          onChange={handleChange}
+          placeholder="Type village name manually"
+          disabled={submitting}
+        />
+        <small className="field-hint">Optional — enter the village near the selected district.</small>
+        {errors.village ? <em className="field-error">{errors.village}</em> : null}
+      </label>
+
+      <label className="field">
+        <span>Area (optional)</span>
+        <input
+          type="text"
+          name="area"
+          value={values.area}
+          onChange={handleChange}
+          placeholder="Type area or neighborhood manually"
+          disabled={submitting}
+        />
+        <small className="field-hint">Optional — enter the area or neighborhood within the village.</small>
+        {errors.area ? <em className="field-error">{errors.area}</em> : null}
       </label>
 
       <label className="field field--full">
@@ -136,8 +209,16 @@ export default function ComplaintForm({
           rows={2}
           value={values.evidenceNotes}
           onChange={handleChange}
+          placeholder="Optional notes about the attached evidence"
         />
       </label>
+
+      <EvidenceUploadField
+        files={evidenceFiles}
+        onChange={setEvidenceFiles}
+        error={errors.evidence}
+        disabled={submitting}
+      />
 
       <label className="field">
         <span>Status</span>

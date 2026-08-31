@@ -132,6 +132,7 @@ const toAdminOB = (record) => {
       note: item.note || '',
       createdAt: item.createdAt,
     })),
+    isActive: obj.isActive !== false,
     updates: obj.updates || [],
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
@@ -1113,51 +1114,59 @@ export const adminDeleteOB = asyncHandler(async (req, res) => {
     });
   }
 
-  if (ob.status === 'Closed') {
-    return res.status(400).json({
-      success: false,
-      message: 'This record is closed and cannot be deleted.',
+  const requested =
+    typeof req.body?.isActive === 'boolean' ? req.body.isActive : false;
+
+  if (ob.isActive === requested) {
+    return res.json({
+      success: true,
+      message: requested ? 'OB record is already active.' : 'OB record is already inactive.',
+      data: { ob: toAdminOB(ob) },
     });
   }
 
-  if (ob.status === 'Resolved') {
-    return res.status(400).json({
-      success: false,
-      message: 'This record is resolved and cannot be deleted.',
-    });
-  }
-
+  const previous = ob.isActive !== false ? 'Active' : 'Inactive';
+  const next = requested ? 'Active' : 'Inactive';
   const label = ob.obNumber;
-  const complaintId = ob.complaint;
-  await ob.deleteOne();
+  ob.isActive = requested;
+  await ob.save();
 
-  const complaint = await Complaint.findById(complaintId);
-  if (complaint && complaint.status === 'OB Created') {
-    complaint.status = 'Verified';
-    complaint.statusHistory.push({
-      status: 'Verified',
-      note: `OB ${label} deleted. Complaint returned to Verified.`,
-      changedBy: req.user._id,
-      changedAt: new Date(),
-    });
-    await complaint.save();
+  if (!requested) {
+    const complaint = await Complaint.findById(ob.complaint);
+    if (complaint && complaint.status === 'OB Created') {
+      complaint.status = 'Verified';
+      complaint.statusHistory.push({
+        status: 'Verified',
+        note: `OB ${label} deactivated. Complaint returned to Verified.`,
+        changedBy: req.user._id,
+        changedAt: new Date(),
+      });
+      await complaint.save();
+    }
   }
 
   await createAuditLog({
     actor: req.user,
-    action: 'DELETE',
+    action: requested ? 'ACTIVATE' : 'DEACTIVATE',
     recordType: 'OBRecord',
     recordId: ob._id,
     recordLabel: label,
-    previousValue: label,
-    newValue: '',
-    details: `OB record ${label} deleted.`,
+    previousValue: previous,
+    newValue: next,
+    details: `OB record ${label} set to ${next}.`,
     ipAddress: getRequestIp(req),
   });
 
+  const populated = await OBRecord.findById(ob._id)
+    .populate('complaint')
+    .populate('citizen', 'name email phone niraId')
+    .populate('assignedOfficer', 'name badgeNumber station email')
+    .populate('createdBy', 'name email');
+
   return res.json({
     success: true,
-    message: 'OB record deleted successfully.',
+    message: requested ? 'OB record activated.' : 'OB record deactivated.',
+    data: { ob: toAdminOB(populated) },
   });
 });
 

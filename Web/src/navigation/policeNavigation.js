@@ -24,6 +24,14 @@ export const policeNavigation = [
     section: 'main',
   },
   {
+    id: 'chatbot',
+    label: 'Chatbot',
+    path: '/police/chatbot',
+    icon: 'chatbot',
+    moduleKey: 'ob-records',
+    section: 'main',
+  },
+  {
     id: 'notifications',
     label: 'Notifications',
     path: '/notifications',

@@ -86,9 +86,15 @@ export async function addInvestigationEvidence(id, { file, note } = {}) {
   return normalizeRecord(response?.data?.ob);
 }
 
-export async function deleteOBRecord(id) {
-  const response = await apiRequest(`/ob/admin/${id}`, {
-    method: 'DELETE',
+export async function setOBRecordActive(id, isActive) {
+  const response = await apiRequest(`/ob/admin/${id}/active`, {
+    method: 'PATCH',
+    body: { isActive: Boolean(isActive) },
   });
-  return response;
+  return response?.data?.ob;
+}
+
+/** @deprecated Use setOBRecordActive — soft deactivate instead of hard delete */
+export async function deleteOBRecord(id) {
+  return setOBRecordActive(id, false);
 }

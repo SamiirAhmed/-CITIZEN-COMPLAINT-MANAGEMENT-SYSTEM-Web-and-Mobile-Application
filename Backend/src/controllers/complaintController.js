@@ -16,6 +16,10 @@ import {
   notifyUser,
   obPath,
 } from '../utils/notifyEvent.js';
+import {
+  mapUploadedEvidenceFiles,
+  removeEvidenceFile,
+} from '../middleware/uploadEvidence.js';
 
 const escapeRegex = (value = '') =>
   String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -32,6 +36,17 @@ const mapUserRef = (user) => {
   };
 };
 
+const mapEvidence = (items = []) =>
+  (items || []).map((item) => ({
+    id: item._id?.toString?.() || undefined,
+    fileName: item.fileName || '',
+    originalName: item.originalName || '',
+    mimeType: item.mimeType || '',
+    url: item.url || '',
+    note: item.note || '',
+    createdAt: item.createdAt,
+  }));
+
 const toAdminComplaint = (complaint) => {
   if (!complaint) return null;
   const obj = typeof complaint.toObject === 'function' ? complaint.toObject() : complaint;
@@ -43,16 +58,30 @@ const toAdminComplaint = (complaint) => {
     description: obj.description,
     incidentDate: obj.incidentDate,
     location: obj.location,
+    region: obj.region || '',
+    district: obj.district || '',
+    village: obj.village || '',
+    area: obj.area || '',
     relatedInformation: obj.relatedInformation || '',
     evidenceNotes: obj.evidenceNotes || '',
+    evidence: mapEvidence(obj.evidence),
     status: obj.status,
     statusHistory: obj.statusHistory || [],
     reviewedBy: mapUserRef(obj.reviewedBy),
     reviewedAt: obj.reviewedAt,
     rejectionReason: obj.rejectionReason || '',
+    isActive: obj.isActive !== false,
     createdAt: obj.createdAt,
     updatedAt: obj.updatedAt,
   };
+};
+
+const cleanupUploadedFiles = (files = []) => {
+  (files || []).forEach((file) => {
+    if (file?.filename) {
+      removeEvidenceFile(`/uploads/evidence/${file.filename}`);
+    }
+  });
 };
 
 export const getCategories = asyncHandler(async (_req, res) => {
@@ -71,14 +100,36 @@ export const submitComplaint = asyncHandler(async (req, res) => {
     description,
     incidentDate,
     location,
+    region,
+    district,
+    village,
+    area,
     relatedInformation,
     evidenceNotes,
   } = req.body;
+  const uploadedFiles = req.files || [];
 
-  if (!category || !description || !incidentDate || !location) {
+  const trimmedRegion = String(region ?? '').trim();
+  const trimmedDistrict = String(district ?? '').trim();
+  const trimmedVillage = String(village ?? '').trim();
+  const trimmedArea = String(area ?? '').trim();
+  const trimmedLocation =
+    String(location ?? '').trim() ||
+    [trimmedDistrict, trimmedVillage, trimmedArea].filter(Boolean).join(', ');
+
+  if (!category || !description || !incidentDate || !trimmedLocation) {
+    cleanupUploadedFiles(uploadedFiles);
     return res.status(400).json({
       success: false,
       message: 'Category, description, incident date, and location are required.',
+    });
+  }
+
+  if (!trimmedRegion || !trimmedDistrict) {
+    cleanupUploadedFiles(uploadedFiles);
+    return res.status(400).json({
+      success: false,
+      message: 'Region and district are required.',
     });
   }
 
@@ -88,6 +139,7 @@ export const submitComplaint = asyncHandler(async (req, res) => {
   });
 
   if (!activeCategory) {
+    cleanupUploadedFiles(uploadedFiles);
     return res.status(400).json({
       success: false,
       message: 'Invalid complaint category.',
@@ -96,6 +148,7 @@ export const submitComplaint = asyncHandler(async (req, res) => {
 
   const parsedDate = new Date(incidentDate);
   if (Number.isNaN(parsedDate.getTime())) {
+    cleanupUploadedFiles(uploadedFiles);
     return res.status(400).json({
       success: false,
       message: 'Invalid incident date.',
@@ -103,6 +156,7 @@ export const submitComplaint = asyncHandler(async (req, res) => {
   }
 
   const complaintNumber = await generateComplaintNumber();
+  const evidenceItems = mapUploadedEvidenceFiles(uploadedFiles, req.user._id);
 
   const complaint = await Complaint.create({
     complaintNumber,
@@ -110,11 +164,16 @@ export const submitComplaint = asyncHandler(async (req, res) => {
     category,
     description: String(description).trim(),
     incidentDate: parsedDate,
-    location: String(location).trim(),
+    location: trimmedLocation,
+    region: trimmedRegion,
+    district: trimmedDistrict,
+    village: trimmedVillage,
+    area: trimmedArea,
     relatedInformation: relatedInformation
       ? String(relatedInformation).trim()
       : '',
     evidenceNotes: evidenceNotes ? String(evidenceNotes).trim() : '',
+    evidence: evidenceItems,
     status: 'Submitted',
     statusHistory: [
       {
@@ -396,20 +455,43 @@ export const adminCreateComplaint = asyncHandler(async (req, res) => {
     description,
     incidentDate,
     location,
+    region,
+    district,
+    village,
+    area,
     relatedInformation,
     evidenceNotes,
     status,
   } = req.body;
+  const uploadedFiles = req.files || [];
 
-  if (!citizenId || !category || !description || !incidentDate || !location) {
+  const trimmedRegion = String(region ?? '').trim();
+  const trimmedDistrict = String(district ?? '').trim();
+  const trimmedVillage = String(village ?? '').trim();
+  const trimmedArea = String(area ?? '').trim();
+  const trimmedLocation =
+    String(location ?? '').trim() ||
+    [trimmedDistrict, trimmedVillage, trimmedArea].filter(Boolean).join(', ');
+
+  if (!citizenId || !category || !description || !incidentDate || !trimmedLocation) {
+    cleanupUploadedFiles(uploadedFiles);
     return res.status(400).json({
       success: false,
       message: 'Citizen, category, description, incident date, and location are required.',
     });
   }
 
+  if (!trimmedRegion || !trimmedDistrict) {
+    cleanupUploadedFiles(uploadedFiles);
+    return res.status(400).json({
+      success: false,
+      message: 'Region and district are required.',
+    });
+  }
+
   const citizen = await User.findOne({ _id: citizenId, role: 'citizen', isActive: true });
   if (!citizen) {
+    cleanupUploadedFiles(uploadedFiles);
     return res.status(404).json({
       success: false,
       message: 'Active citizen not found.',
@@ -421,6 +503,7 @@ export const adminCreateComplaint = asyncHandler(async (req, res) => {
     isActive: true,
   });
   if (!activeCategory) {
+    cleanupUploadedFiles(uploadedFiles);
     return res.status(400).json({
       success: false,
       message: 'Invalid complaint category.',
@@ -429,6 +512,7 @@ export const adminCreateComplaint = asyncHandler(async (req, res) => {
 
   const parsedDate = new Date(incidentDate);
   if (Number.isNaN(parsedDate.getTime())) {
+    cleanupUploadedFiles(uploadedFiles);
     return res.status(400).json({
       success: false,
       message: 'Invalid incident date.',
@@ -439,15 +523,21 @@ export const adminCreateComplaint = asyncHandler(async (req, res) => {
     status && COMPLAINT_STATUSES.includes(status) ? status : 'Submitted';
 
   const complaintNumber = await generateComplaintNumber();
+  const evidenceItems = mapUploadedEvidenceFiles(uploadedFiles, req.user._id);
   const complaint = await Complaint.create({
     complaintNumber,
     citizen: citizen._id,
     category: activeCategory.name,
     description: String(description).trim(),
     incidentDate: parsedDate,
-    location: String(location).trim(),
+    location: trimmedLocation,
+    region: trimmedRegion,
+    district: trimmedDistrict,
+    village: trimmedVillage,
+    area: trimmedArea,
     relatedInformation: relatedInformation ? String(relatedInformation).trim() : '',
     evidenceNotes: evidenceNotes ? String(evidenceNotes).trim() : '',
+    evidence: evidenceItems,
     status: initialStatus,
     statusHistory: [
       {
@@ -527,15 +617,21 @@ export const adminUpdateComplaint = asyncHandler(async (req, res) => {
     description,
     incidentDate,
     location,
+    region,
+    district,
+    village,
+    area,
     relatedInformation,
     evidenceNotes,
     status,
     note,
   } = req.body;
+  const uploadedFiles = req.files || [];
 
   if (citizenId) {
     const citizen = await User.findOne({ _id: citizenId, role: 'citizen' });
     if (!citizen) {
+      cleanupUploadedFiles(uploadedFiles);
       return res.status(404).json({
         success: false,
         message: 'Citizen not found.',
@@ -550,6 +646,7 @@ export const adminUpdateComplaint = asyncHandler(async (req, res) => {
       isActive: true,
     });
     if (!activeCategory) {
+      cleanupUploadedFiles(uploadedFiles);
       return res.status(400).json({
         success: false,
         message: 'Invalid complaint category.',
@@ -561,6 +658,7 @@ export const adminUpdateComplaint = asyncHandler(async (req, res) => {
   if (description !== undefined) {
     const trimmed = String(description).trim();
     if (!trimmed) {
+      cleanupUploadedFiles(uploadedFiles);
       return res.status(400).json({
         success: false,
         message: 'Description is required.',
@@ -572,6 +670,7 @@ export const adminUpdateComplaint = asyncHandler(async (req, res) => {
   if (incidentDate !== undefined) {
     const parsedDate = new Date(incidentDate);
     if (Number.isNaN(parsedDate.getTime())) {
+      cleanupUploadedFiles(uploadedFiles);
       return res.status(400).json({
         success: false,
         message: 'Invalid incident date.',
@@ -580,15 +679,43 @@ export const adminUpdateComplaint = asyncHandler(async (req, res) => {
     complaint.incidentDate = parsedDate;
   }
 
-  if (location !== undefined) {
-    const trimmed = String(location).trim();
-    if (!trimmed) {
+  if (region !== undefined) {
+    complaint.region = String(region || '').trim();
+  }
+
+  if (district !== undefined) {
+    complaint.district = String(district || '').trim();
+  }
+
+  if (village !== undefined) {
+    complaint.village = String(village || '').trim();
+  }
+
+  if (area !== undefined) {
+    complaint.area = String(area || '').trim();
+  }
+
+  if (
+    location !== undefined ||
+    region !== undefined ||
+    district !== undefined ||
+    village !== undefined ||
+    area !== undefined
+  ) {
+    const nextDistrict = district !== undefined ? String(district || '').trim() : complaint.district;
+    const nextVillage = village !== undefined ? String(village || '').trim() : complaint.village;
+    const nextArea = area !== undefined ? String(area || '').trim() : complaint.area;
+    const composed =
+      String(location ?? '').trim() ||
+      [nextDistrict, nextVillage, nextArea].filter(Boolean).join(', ');
+    if (!composed) {
+      cleanupUploadedFiles(uploadedFiles);
       return res.status(400).json({
         success: false,
         message: 'Location is required.',
       });
     }
-    complaint.location = trimmed;
+    complaint.location = composed;
   }
 
   if (relatedInformation !== undefined) {
@@ -597,6 +724,11 @@ export const adminUpdateComplaint = asyncHandler(async (req, res) => {
 
   if (evidenceNotes !== undefined) {
     complaint.evidenceNotes = String(evidenceNotes || '').trim();
+  }
+
+  if (uploadedFiles.length) {
+    const evidenceItems = mapUploadedEvidenceFiles(uploadedFiles, req.user._id);
+    complaint.evidence = [...(complaint.evidence || []), ...evidenceItems];
   }
 
   if (status !== undefined) {
@@ -654,38 +786,51 @@ export const adminDeleteComplaint = asyncHandler(async (req, res) => {
     });
   }
 
-  if (complaint.status === 'Closed') {
-    return res.status(400).json({
-      success: false,
-      message: 'This record is closed and cannot be modified.',
+  const requested =
+    typeof req.body?.isActive === 'boolean' ? req.body.isActive : false;
+
+  if (complaint.isActive === requested) {
+    return res.json({
+      success: true,
+      message: requested ? 'Complaint is already active.' : 'Complaint is already inactive.',
+      data: { complaint: toAdminComplaint(complaint) },
     });
   }
 
-  const linkedOB = await OBRecord.findOne({ complaint: complaint._id });
-  if (linkedOB) {
-    await OBRecord.deleteOne({ _id: linkedOB._id });
+  const previous = complaint.isActive !== false ? 'Active' : 'Inactive';
+  const next = requested ? 'Active' : 'Inactive';
+  complaint.isActive = requested;
+
+  if (!requested) {
+    const linkedOB = await OBRecord.findOne({ complaint: complaint._id, isActive: { $ne: false } });
+    if (linkedOB) {
+      linkedOB.isActive = false;
+      await linkedOB.save();
+    }
   }
 
-  const label = complaint.complaintNumber;
-  await complaint.deleteOne();
+  await complaint.save();
 
   await createAuditLog({
     actor: req.user,
-    action: 'DELETE',
+    action: requested ? 'ACTIVATE' : 'DEACTIVATE',
     recordType: 'Complaint',
     recordId: complaint._id,
-    recordLabel: label,
-    previousValue: label,
-    newValue: '',
-    details: linkedOB
-      ? `Complaint deleted along with OB ${linkedOB.obNumber}.`
-      : 'Complaint deleted.',
+    recordLabel: complaint.complaintNumber,
+    previousValue: previous,
+    newValue: next,
+    details: `Complaint ${complaint.complaintNumber} set to ${next}.`,
     ipAddress: getRequestIp(req),
   });
 
+  const populated = await Complaint.findById(complaint._id)
+    .populate('citizen', 'name email phone niraId')
+    .populate('reviewedBy', 'name email');
+
   return res.json({
     success: true,
-    message: 'Complaint deleted successfully.',
+    message: requested ? 'Complaint activated.' : 'Complaint deactivated.',
+    data: { complaint: toAdminComplaint(populated) },
   });
 });
 

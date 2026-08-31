@@ -6,6 +6,7 @@ export const MENU_MODULES = [
   { key: 'reports', label: 'Reports', description: 'System reports' },
   { key: 'audit-logs', label: 'Audit Logs', description: 'Activity audit trail' },
   { key: 'sms-portal', label: 'SMS Portal', description: 'Send SMS to Police users' },
+  { key: 'chatbot', label: 'Chatbot', description: 'Ask Gemini about the portal and database' },
   { key: 'settings', label: 'Settings', description: 'Users, permissions, and categories' },
   { key: 'profile', label: 'Profile', description: 'Personal profile' },
 ];

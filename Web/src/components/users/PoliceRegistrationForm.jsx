@@ -61,12 +61,20 @@ export default function PoliceRegistrationForm({
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    setValues((prev) => ({ ...prev, [name]: value }));
+    let next = value;
+
+    if (name === 'name') {
+      next = value.replace(/[^A-Za-z\s]/g, '').slice(0, 30);
+    } else if (name === 'niraId') {
+      next = value.replace(/\D/g, '').slice(0, 11);
+    }
+
+    setValues((prev) => ({ ...prev, [name]: next }));
     if (name === 'email' && errors.email) {
       setErrors((prev) => {
-        const next = { ...prev };
-        delete next.email;
-        return next;
+        const nextErrors = { ...prev };
+        delete nextErrors.email;
+        return nextErrors;
       });
     }
   };
@@ -118,16 +126,30 @@ export default function PoliceRegistrationForm({
 
       <label className="field">
         <span>Name</span>
-        <input name="name" value={values.name} onChange={handleChange} maxLength={30} />
-        <small className="field-hint">Enter the user&apos;s full name.</small>
+        <input
+          name="name"
+          value={values.name}
+          onChange={handleChange}
+          maxLength={30}
+          inputMode="text"
+          pattern="[A-Za-z\s]+"
+        />
+        <small className="field-hint">Letters only. Enter the user&apos;s full name.</small>
         {errors.name ? <em className="field-error">{errors.name}</em> : null}
       </label>
 
       {!isEdit ? (
         <label className="field">
           <span>NIRA ID</span>
-          <input name="niraId" value={values.niraId} onChange={handleChange} maxLength={11} />
-          <small className="field-hint">Enter the 11-character NIRA ID.</small>
+          <input
+            name="niraId"
+            value={values.niraId}
+            onChange={handleChange}
+            maxLength={11}
+            inputMode="numeric"
+            pattern="\d{11}"
+          />
+          <small className="field-hint">Enter exactly 11 numbers for the NIRA ID.</small>
           {errors.niraId ? <em className="field-error">{errors.niraId}</em> : null}
         </label>
       ) : null}

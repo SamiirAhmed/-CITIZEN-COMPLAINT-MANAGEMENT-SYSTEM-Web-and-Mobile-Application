@@ -338,6 +338,15 @@ export const updateCitizen = asyncHandler(async (req, res) => {
         message: 'Name must be at most 30 characters.',
       });
     }
+    if (!/^[A-Za-z\s]+$/.test(trimmed)) {
+      if (req.file?.filename) {
+        removeProfileImageFile(profileImagePublicPath(req.file.filename));
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Name must contain letters only.',
+      });
+    }
     citizen.name = trimmed;
   }
 
@@ -350,6 +359,16 @@ export const updateCitizen = asyncHandler(async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Phone is required.',
+      });
+    }
+    const phoneDigits = trimmed.replace(/[\s-]/g, '').replace(/^\+/, '');
+    if (!/^\d+$/.test(phoneDigits) || phoneDigits.length < 7 || phoneDigits.length > 15) {
+      if (req.file?.filename) {
+        removeProfileImageFile(profileImagePublicPath(req.file.filename));
+      }
+      return res.status(400).json({
+        success: false,
+        message: 'Phone must contain numbers only.',
       });
     }
     citizen.phone = trimmed;
@@ -383,13 +402,13 @@ export const updateCitizen = asyncHandler(async (req, res) => {
 
   if (niraId !== undefined) {
     const trimmed = String(niraId).trim();
-    if (!trimmed || trimmed.length !== 11) {
+    if (!/^\d{11}$/.test(trimmed)) {
       if (req.file?.filename) {
         removeProfileImageFile(profileImagePublicPath(req.file.filename));
       }
       return res.status(400).json({
         success: false,
-        message: 'NIRA ID must be exactly 11 characters.',
+        message: 'NIRA ID must be exactly 11 numbers.',
       });
     }
     if (trimmed !== citizen.niraId) {
@@ -501,14 +520,26 @@ export const registerCitizen = asyncHandler(async (req, res) => {
   if (trimmedName.length > 30) {
     return fail(400, 'Name must be at most 30 characters.');
   }
+  if (!/^[A-Za-z\s]+$/.test(trimmedName)) {
+    return fail(400, 'Name must contain letters only.');
+  }
   if (!trimmedNira) {
     return fail(400, 'NIRA ID is required.');
   }
-  if (trimmedNira.length !== 11) {
-    return fail(400, 'NIRA ID must be exactly 11 characters.');
+  if (!/^\d{11}$/.test(trimmedNira)) {
+    return fail(400, 'NIRA ID must be exactly 11 numbers.');
   }
   if (!trimmedPhone) {
     return fail(400, 'Phone is required.');
+  }
+  {
+    const phoneDigits = trimmedPhone.replace(/[\s-]/g, '').replace(/^\+/, '');
+    if (!/^\d+$/.test(phoneDigits)) {
+      return fail(400, 'Phone must contain numbers only.');
+    }
+    if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+      return fail(400, 'Please enter a valid phone number.');
+    }
   }
   if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
     return fail(400, 'Please enter a valid email address.');
@@ -653,14 +684,26 @@ export const registerStaffUser = asyncHandler(async (req, res) => {
   if (trimmedName.length > 30) {
     return fail(400, 'Name must be at most 30 characters.');
   }
+  if (!/^[A-Za-z\s]+$/.test(trimmedName)) {
+    return fail(400, 'Name must contain letters only.');
+  }
   if (!trimmedNira) {
     return fail(400, 'NIRA ID is required.');
   }
-  if (trimmedNira.length !== 11) {
-    return fail(400, 'NIRA ID must be exactly 11 characters.');
+  if (!/^\d{11}$/.test(trimmedNira)) {
+    return fail(400, 'NIRA ID must be exactly 11 numbers.');
   }
   if (!trimmedPhone) {
     return fail(400, 'Phone is required.');
+  }
+  {
+    const phoneDigits = trimmedPhone.replace(/[\s-]/g, '').replace(/^\+/, '');
+    if (!/^\d+$/.test(phoneDigits)) {
+      return fail(400, 'Phone must contain numbers only.');
+    }
+    if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+      return fail(400, 'Please enter a valid phone number.');
+    }
   }
   if (!trimmedEmail || !isValidEmail(trimmedEmail)) {
     return fail(400, 'Please enter a valid email address.');

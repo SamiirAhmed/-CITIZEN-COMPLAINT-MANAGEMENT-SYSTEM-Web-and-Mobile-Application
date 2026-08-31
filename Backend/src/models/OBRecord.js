@@ -138,6 +138,11 @@ const obRecordSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
     updates: {
       type: [updateSchema],
       default: [],
@@ -176,6 +181,7 @@ obRecordSchema.methods.toCitizenObject = function toCitizenObject(complaint) {
     closureReason: this.closureReason || '',
     closedAt: this.closedAt,
     assignedAt: this.assignedAt,
+    isActive: this.isActive !== false,
     assignedOfficer: assigned,
     complaint: complaintInfo,
     updates: (this.updates || [])
@@ -276,6 +282,7 @@ obRecordSchema.methods.toStaffObject = function toStaffObject(
     closureReason: this.closureReason || '',
     closedAt: this.closedAt,
     assignedAt: this.assignedAt,
+    isActive: this.isActive !== false,
     assignedOfficer: assigned,
     assignmentHistory: (this.assignmentHistory || []).map((item) => ({
       id: item._id?.toString?.() || undefined,

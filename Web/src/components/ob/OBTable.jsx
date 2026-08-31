@@ -8,15 +8,19 @@ import {
   getRecordId,
 } from '../../constants/domain';
 
+function isRecordActive(record) {
+  return record?.isActive !== false && record?.isActive !== 'false' && record?.isActive !== 0;
+}
+
 export default function OBTable({
   records = [],
   busyId = null,
   onView,
   onAssign,
   onUpdateStatus,
-  onDelete,
+  onToggleActive,
   canAssign = true,
-  canDelete = true,
+  canToggleActive = true,
   canUpdateStatus = true,
 }) {
   if (!records.length) {
@@ -38,6 +42,7 @@ export default function OBTable({
             <th>Citizen</th>
             <th>Assigned Officer</th>
             <th>Status</th>
+            <th>Active</th>
             <th>Updated</th>
             <th>Actions</th>
           </tr>
@@ -46,9 +51,11 @@ export default function OBTable({
           {records.map((record) => {
             const id = getRecordId(record);
             const busy = busyId === id;
-            const showAssign = canAssign && canAssignOB(record);
-            const showStatus = canUpdateStatus && canUpdateOBWorkflow(record);
-            const showDelete = canDelete && canDeleteOB(record);
+            const active = isRecordActive(record);
+            const statusActionLabel = active ? 'Deactivate' : 'Activate';
+            const showAssign = canAssign && active && canAssignOB(record);
+            const showStatus = canUpdateStatus && active && canUpdateOBWorkflow(record);
+            const showToggle = canToggleActive && canDeleteOB(record);
             return (
               <tr key={id}>
                 <td className="cell-name">{record.obNumber || '—'}</td>
@@ -57,6 +64,9 @@ export default function OBTable({
                 <td>{record.assignedOfficer?.name || 'Unassigned'}</td>
                 <td>
                   <StatusBadge status={record.status} />
+                </td>
+                <td>
+                  <StatusBadge status={active ? 'Active' : 'Inactive'} />
                 </td>
                 <td className="cell-muted">{formatDate(record.updatedAt)}</td>
                 <td>
@@ -84,14 +94,14 @@ export default function OBTable({
                         Update Status
                       </button>
                     ) : null}
-                    {showDelete ? (
+                    {showToggle ? (
                       <button
                         type="button"
-                        className="btn btn--table btn--table-danger"
+                        className={`btn btn--table ${active ? 'btn--table-danger' : 'btn--table-success'}`}
                         disabled={busy}
-                        onClick={() => onDelete(record)}
+                        onClick={() => onToggleActive(record)}
                       >
-                        {busy ? 'Deleting…' : 'Delete'}
+                        {busy ? 'Updating…' : statusActionLabel}
                       </button>
                     ) : null}
                   </div>

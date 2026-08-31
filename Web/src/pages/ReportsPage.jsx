@@ -22,6 +22,7 @@ import {
   calcChangePct,
   formatPeriodLabel,
 } from '../utils/reportsPeriod';
+import { PRINT_MODES, triggerPrint } from '../utils/printPage';
 
 const DEFAULT_FILTERS = {
   range: 'this_month',
@@ -161,9 +162,7 @@ export default function ReportsPage() {
   };
 
   const handlePrint = () => {
-    document.body.classList.add('reports-print-mode');
-    window.print();
-    window.setTimeout(() => document.body.classList.remove('reports-print-mode'), 500);
+    triggerPrint(PRINT_MODES.reportsOb);
   };
 
   const customRangeIncomplete =
@@ -336,7 +335,14 @@ export default function ReportsPage() {
             </article>
           </section>
 
-          <section className="report-panel report-panel--table">
+          <section className="report-panel report-panel--table reports-ob-print" id="reports-ob-print">
+              <div className="print-only print-ob-header">
+                <h1>OB Records</h1>
+                <p>{formatPeriodLabel(appliedFilters.range)}</p>
+                <p className="print-ob-header__meta">
+                  Printed {new Date().toLocaleString()}
+                </p>
+              </div>
               <div className="report-panel__header report-panel__header--spread">
                 <div>
                   <h2>Recent OB Records</h2>

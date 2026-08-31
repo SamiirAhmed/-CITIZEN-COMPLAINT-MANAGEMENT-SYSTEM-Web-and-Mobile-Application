@@ -59,6 +59,14 @@ export const adminNavigation = [
     section: 'main',
   },
   {
+    id: 'chatbot',
+    label: 'Chatbot',
+    path: '/chatbot',
+    icon: 'chatbot',
+    moduleKey: 'chatbot',
+    section: 'main',
+  },
+  {
     id: 'settings',
     label: 'Settings',
     path: '/settings',

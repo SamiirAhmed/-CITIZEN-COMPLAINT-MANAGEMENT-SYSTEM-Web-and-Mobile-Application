@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../application/application_theme.dart';
@@ -251,6 +252,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 label: 'Full Name',
                 prefixIcon: Icons.person_outline,
                 maxLength: 30,
+                keyboardType: TextInputType.name,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z\s]')),
+                ],
                 validator: CitizenValidator.name,
               ),
               const SizedBox(height: 14),
@@ -260,6 +265,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 keyboardType: TextInputType.phone,
                 prefixIcon: Icons.phone_outlined,
                 enabled: !phoneLocked,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d+\s-]')),
+                ],
                 validator: phoneLocked ? null : CitizenValidator.phone,
               ),
               if (phoneLocked) ...[
@@ -276,7 +284,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               TextInputField(
                 controller: _tell,
                 label: 'Alternative Contact (optional)',
+                keyboardType: TextInputType.phone,
                 prefixIcon: Icons.call_outlined,
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d+\s-]')),
+                ],
+                validator: CitizenValidator.tell,
               ),
               const SizedBox(height: 18),
               Text(

@@ -4,7 +4,16 @@ import { validateProfileImageFile } from './imageValidation';
 export const EMAIL_PATTERN =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
+const NAME_LETTERS_PATTERN = /^[A-Za-z\s]+$/;
+const DIGITS_ONLY_PATTERN = /^\d+$/;
+const NIRA_ID_PATTERN = /^\d{11}$/;
 const STAFF_ROLES = new Set(['admin', 'police']);
+
+function phoneDigitsOnly(phone) {
+  return String(phone ?? '')
+    .replace(/[\s-]/g, '')
+    .replace(/^\+/, '');
+}
 
 export function validateStaffRegistration(values, { profileImageFile } = {}) {
   const errors = {};
@@ -24,16 +33,25 @@ export function validateStaffRegistration(values, { profileImageFile } = {}) {
     errors.name = 'Name is required.';
   } else if (name.length > 30) {
     errors.name = 'Name must be at most 30 characters.';
+  } else if (!NAME_LETTERS_PATTERN.test(name)) {
+    errors.name = 'Name must contain letters only.';
   }
 
   if (!niraId) {
     errors.niraId = 'NIRA ID is required.';
-  } else if (niraId.length !== 11) {
-    errors.niraId = 'NIRA ID must be exactly 11 characters.';
+  } else if (!NIRA_ID_PATTERN.test(niraId)) {
+    errors.niraId = 'NIRA ID must be exactly 11 numbers.';
   }
 
   if (!phone) {
     errors.phone = 'Phone is required.';
+  } else {
+    const digits = phoneDigitsOnly(phone);
+    if (!DIGITS_ONLY_PATTERN.test(digits)) {
+      errors.phone = 'Phone must contain numbers only.';
+    } else if (digits.length < 7 || digits.length > 15) {
+      errors.phone = 'Please enter a valid phone number.';
+    }
   }
 
   if (!email) {
@@ -98,10 +116,19 @@ export function validateStaffUserEdit(values, { profileImageFile } = {}) {
     errors.name = 'Name is required.';
   } else if (name.length > 30) {
     errors.name = 'Name must be at most 30 characters.';
+  } else if (!NAME_LETTERS_PATTERN.test(name)) {
+    errors.name = 'Name must contain letters only.';
   }
 
   if (!phone) {
     errors.phone = 'Phone is required.';
+  } else {
+    const digits = phoneDigitsOnly(phone);
+    if (!DIGITS_ONLY_PATTERN.test(digits)) {
+      errors.phone = 'Phone must contain numbers only.';
+    } else if (digits.length < 7 || digits.length > 15) {
+      errors.phone = 'Please enter a valid phone number.';
+    }
   }
 
   if (email && !EMAIL_PATTERN.test(email)) {

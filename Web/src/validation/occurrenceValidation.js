@@ -8,6 +8,7 @@ const REQUIRED = [
   ['subject', 'Subject is required.'],
   ['description', 'Description is required.'],
   ['location', 'Location is required.'],
+  ['region', 'Region is required.'],
   ['district', 'District is required.'],
   ['priority', 'Priority is required.'],
 ];
@@ -68,6 +69,7 @@ export const EMPTY_OCCURRENCE_FORM = {
   subject: '',
   description: '',
   location: '',
+  region: '',
   district: '',
   priority: 'MEDIUM',
   assignedOfficer: '',

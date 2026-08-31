@@ -32,6 +32,10 @@ import {
   listSmsRecipients,
   sendSms,
 } from '../controllers/smsController.js';
+import {
+  chatWithAssistant,
+  getChatbotStatus,
+} from '../controllers/chatbotController.js';
 import { adminOnly } from '../middleware/auth.js';
 import { uploadProfileImageOptional } from '../middleware/uploadProfileImage.js';
 
@@ -76,5 +80,8 @@ router.get('/sms/stats', getSmsStats);
 router.get('/sms/recipients', listSmsRecipients);
 router.post('/sms/send', sendSms);
 router.get('/sms/history', listSmsHistory);
+
+router.get('/chatbot/status', getChatbotStatus);
+router.post('/chatbot/ask', chatWithAssistant);
 
 export default router;

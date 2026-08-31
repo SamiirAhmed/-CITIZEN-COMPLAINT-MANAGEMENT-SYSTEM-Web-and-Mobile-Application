@@ -1,6 +1,16 @@
 import { validateProfileImageFile } from './imageValidation';
 import { EMAIL_PATTERN } from './userValidation';
 
+const NAME_LETTERS_PATTERN = /^[A-Za-z\s]+$/;
+const DIGITS_ONLY_PATTERN = /^\d+$/;
+const NIRA_ID_PATTERN = /^\d{11}$/;
+
+function phoneDigitsOnly(phone) {
+  return String(phone ?? '')
+    .replace(/[\s-]/g, '')
+    .replace(/^\+/, '');
+}
+
 export function validateCitizenRegistration(values, { profileImageFile } = {}) {
   const errors = {};
   const name = String(values.name ?? '').trim();
@@ -14,16 +24,25 @@ export function validateCitizenRegistration(values, { profileImageFile } = {}) {
     errors.name = 'Name is required.';
   } else if (name.length > 30) {
     errors.name = 'Name must be at most 30 characters.';
+  } else if (!NAME_LETTERS_PATTERN.test(name)) {
+    errors.name = 'Name must contain letters only.';
   }
 
   if (!niraId) {
     errors.niraId = 'NIRA ID is required.';
-  } else if (niraId.length !== 11) {
-    errors.niraId = 'NIRA ID must be exactly 11 characters.';
+  } else if (!NIRA_ID_PATTERN.test(niraId)) {
+    errors.niraId = 'NIRA ID must be exactly 11 numbers.';
   }
 
   if (!phone) {
     errors.phone = 'Phone Number is required.';
+  } else {
+    const digits = phoneDigitsOnly(phone);
+    if (!DIGITS_ONLY_PATTERN.test(digits)) {
+      errors.phone = 'Phone must contain numbers only.';
+    } else if (digits.length < 7 || digits.length > 15) {
+      errors.phone = 'Please enter a valid phone number.';
+    }
   }
 
   if (!email) {
@@ -75,14 +94,23 @@ export function validateCitizenEdit(values, { profileImageFile } = {}) {
     errors.name = 'Name is required.';
   } else if (name.length > 30) {
     errors.name = 'Name must be at most 30 characters.';
+  } else if (!NAME_LETTERS_PATTERN.test(name)) {
+    errors.name = 'Name must contain letters only.';
   }
 
   if (!phone) {
     errors.phone = 'Phone Number is required.';
+  } else {
+    const digits = phoneDigitsOnly(phone);
+    if (!DIGITS_ONLY_PATTERN.test(digits)) {
+      errors.phone = 'Phone must contain numbers only.';
+    } else if (digits.length < 7 || digits.length > 15) {
+      errors.phone = 'Please enter a valid phone number.';
+    }
   }
 
-  if (niraId && niraId.length !== 11) {
-    errors.niraId = 'NIRA ID must be exactly 11 characters.';
+  if (niraId && !NIRA_ID_PATTERN.test(niraId)) {
+    errors.niraId = 'NIRA ID must be exactly 11 numbers.';
   }
 
   if (email && !EMAIL_PATTERN.test(email)) {

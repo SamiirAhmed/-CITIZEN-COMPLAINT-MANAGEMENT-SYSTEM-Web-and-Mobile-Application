@@ -2,12 +2,16 @@ import EmptyState from '../common/EmptyState';
 import StatusBadge from '../common/StatusBadge';
 import { formatDate, getRecordId } from '../../constants/domain';
 
+function isRecordActive(record) {
+  return record?.isActive !== false && record?.isActive !== 'false' && record?.isActive !== 0;
+}
+
 export default function ComplaintTable({
   complaints = [],
   busyId = null,
   onView,
   onEdit,
-  onDelete,
+  onToggleActive,
   onCreateOB,
 }) {
   if (!complaints.length) {
@@ -29,6 +33,7 @@ export default function ComplaintTable({
             <th>Category</th>
             <th>Location</th>
             <th>Status</th>
+            <th>Active</th>
             <th>Submitted</th>
             <th>Actions</th>
           </tr>
@@ -37,9 +42,11 @@ export default function ComplaintTable({
           {complaints.map((complaint) => {
             const id = getRecordId(complaint);
             const busy = busyId === id;
-            const canCreateOB = ['Submitted', 'Under Review', 'Verified'].includes(
-              complaint.status
-            );
+            const active = isRecordActive(complaint);
+            const statusActionLabel = active ? 'Deactivate' : 'Activate';
+            const canCreateOB =
+              active &&
+              ['Submitted', 'Under Review', 'Verified'].includes(complaint.status);
             return (
               <tr key={id}>
                 <td className="cell-name">{complaint.complaintNumber || '—'}</td>
@@ -48,6 +55,9 @@ export default function ComplaintTable({
                 <td className="cell-muted">{complaint.location || '—'}</td>
                 <td>
                   <StatusBadge status={complaint.status} />
+                </td>
+                <td>
+                  <StatusBadge status={active ? 'Active' : 'Inactive'} />
                 </td>
                 <td className="cell-muted">{formatDate(complaint.createdAt)}</td>
                 <td>
@@ -70,16 +80,16 @@ export default function ComplaintTable({
                             Create OB
                           </button>
                         ) : null}
-                        <button
-                          type="button"
-                          className="btn btn--table btn--table-danger"
-                          disabled={busy}
-                          onClick={() => onDelete(complaint)}
-                        >
-                          {busy ? 'Deleting…' : 'Delete'}
-                        </button>
                       </>
                     ) : null}
+                    <button
+                      type="button"
+                      className={`btn btn--table ${active ? 'btn--table-danger' : 'btn--table-success'}`}
+                      disabled={busy}
+                      onClick={() => onToggleActive(complaint)}
+                    >
+                      {busy ? 'Updating…' : statusActionLabel}
+                    </button>
                   </div>
                 </td>
               </tr>

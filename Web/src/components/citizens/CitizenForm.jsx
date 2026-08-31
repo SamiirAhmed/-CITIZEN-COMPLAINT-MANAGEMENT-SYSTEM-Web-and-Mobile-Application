@@ -60,8 +60,16 @@ export default function CitizenForm({
 
   const handleChange = (event) => {
     const { name, value } = event.target;
+    let nextValue = value;
+
+    if (name === 'name') {
+      nextValue = value.replace(/[^A-Za-z\s]/g, '').slice(0, 30);
+    } else if (name === 'niraId') {
+      nextValue = value.replace(/\D/g, '').slice(0, 11);
+    }
+
     setValues((prev) => {
-      const next = { ...prev, [name]: value };
+      const next = { ...prev, [name]: nextValue };
       if (name === 'password' || name === 'confirmPassword') {
         if (
           next.confirmPassword &&
@@ -70,7 +78,7 @@ export default function CitizenForm({
         ) {
           clearFieldError('confirmPassword');
         }
-        if (name === 'password' && value.length >= 8) {
+        if (name === 'password' && nextValue.length >= 8) {
           clearFieldError('password');
         }
       }
@@ -125,13 +133,22 @@ export default function CitizenForm({
           onChange={handleChange}
           maxLength={30}
           autoComplete="name"
+          inputMode="text"
+          pattern="[A-Za-z\s]+"
         />
         {errors.name ? <em className="field-error">{errors.name}</em> : null}
       </label>
 
       <label className="field">
         <span>NIRA ID</span>
-        <input name="niraId" value={values.niraId} onChange={handleChange} maxLength={11} />
+        <input
+          name="niraId"
+          value={values.niraId}
+          onChange={handleChange}
+          maxLength={11}
+          inputMode="numeric"
+          pattern="\d{11}"
+        />
         {errors.niraId ? <em className="field-error">{errors.niraId}</em> : null}
       </label>
 

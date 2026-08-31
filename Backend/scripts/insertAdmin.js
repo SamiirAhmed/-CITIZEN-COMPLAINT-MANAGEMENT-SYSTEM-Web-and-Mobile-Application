@@ -10,7 +10,7 @@ const adminUser = {
   password: 'admin123',
   role: 'admin',
   phone: '0610000001',
-  niraId: 'ADMIN000001',
+  niraId: '10000000001',
   badgeNumber: 'ADM-001',
   station: 'HQ Mogadishu',
   tell: '0610000001',

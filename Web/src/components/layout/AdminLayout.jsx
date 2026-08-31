@@ -25,6 +25,8 @@ function resolveTitle(pathname) {
   const match = flat.find((item) => item.path === pathname);
   if (pathname === '/reports') return 'Reports & Analytics';
   if (pathname === '/sms-portal') return 'SMS Portal';
+  if (pathname === '/chatbot') return 'Chatbot';
+  if (pathname === '/police/chatbot') return 'Police Chatbot';
   if (pathname === '/unauthorized') return 'Access unavailable';
   if (pathname === '/notifications') return 'Notifications';
   return match?.label || 'SPO';
