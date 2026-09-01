@@ -168,21 +168,23 @@ class ApiClient {
     } on TimeoutException {
       throw ApiException(
         message:
-            'Cannot reach the local API server at ${ApiEndpoints.baseUrl}. Start the backend on http://127.0.0.1:5000.',
+            'The server is taking too long to respond. Make sure the backend is running (cd Backend && npm run dev) and MongoDB is connected.',
       );
     } on http.ClientException {
-      throw ApiException(
-        message:
-            'Cannot reach the local API server at ${ApiEndpoints.baseUrl}. Start the backend on http://127.0.0.1:5000.',
-      );
+      throw ApiException(message: _connectionErrorMessage());
     } on ApiException {
       rethrow;
     } catch (_) {
-      throw ApiException(
-        message:
-            'Cannot reach the local API server at ${ApiEndpoints.baseUrl}. Start the backend on http://127.0.0.1:5000.',
-      );
+      throw ApiException(message: _connectionErrorMessage());
     }
+  }
+
+  String _connectionErrorMessage() {
+    final api = ApiEndpoints.baseUrl;
+    if (api.contains('10.0.2.2')) {
+      return 'Cannot reach the backend at $api. On your PC, run: cd Backend && npm run dev';
+    }
+    return 'Cannot reach the backend at $api. Start the backend with: cd Backend && npm run dev';
   }
 
   Future<Map<String, dynamic>> _handleResponse(
