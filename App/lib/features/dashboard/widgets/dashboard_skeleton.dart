@@ -8,10 +8,10 @@ class DashboardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
       physics: const AlwaysScrollableScrollPhysics(),
       children: const [
-        _SkeletonBlock(height: 118, radius: 20),
+        _SkeletonBlock(height: 108, radius: 20),
         SizedBox(height: 18),
         Row(
           children: [
@@ -23,27 +23,29 @@ class DashboardSkeleton extends StatelessWidget {
         SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _SkeletonBlock(height: 148, radius: 18)),
+            Expanded(child: _SkeletonBlock(height: 132, radius: 18)),
             SizedBox(width: 12),
-            Expanded(child: _SkeletonBlock(height: 148, radius: 18)),
+            Expanded(child: _SkeletonBlock(height: 132, radius: 18)),
           ],
         ),
         SizedBox(height: 22),
-        _SkeletonBlock(height: 18, width: 140, radius: 8),
+        _SkeletonBlock(height: 16, width: 140, radius: 8),
         SizedBox(height: 12),
-        _SkeletonBlock(height: 120, radius: 18),
+        _SkeletonBlock(height: 180, radius: 18),
         SizedBox(height: 22),
-        _SkeletonBlock(height: 18, width: 120, radius: 8),
+        _SkeletonBlock(height: 16, width: 120, radius: 8),
         SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _SkeletonBlock(height: 88, radius: 18)),
+            Expanded(child: _SkeletonBlock(height: 84, radius: 16)),
             SizedBox(width: 12),
-            Expanded(child: _SkeletonBlock(height: 88, radius: 18)),
+            Expanded(child: _SkeletonBlock(height: 84, radius: 16)),
           ],
         ),
         SizedBox(height: 12),
-        _SkeletonBlock(height: 88, radius: 18),
+        _SkeletonBlock(height: 84, radius: 16),
+        SizedBox(height: 22),
+        _SkeletonBlock(height: 72, radius: 16),
       ],
     );
   }
@@ -119,7 +121,9 @@ class _ShimmerBoxState extends State<_ShimmerBox>
               end: Alignment.centerRight,
               colors: [
                 AppColors.border.withValues(alpha: 0.55),
-                AppColors.border.withValues(alpha: 0.25 + (_controller.value * 0.2)),
+                AppColors.border.withValues(
+                  alpha: 0.25 + (_controller.value * 0.2),
+                ),
                 AppColors.border.withValues(alpha: 0.55),
               ],
             ),

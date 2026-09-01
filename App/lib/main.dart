@@ -22,7 +22,7 @@ Future<void> main() async {
   final complaintService = ComplaintService(apiClient: apiClient);
   final obService = ObRecordService(apiClient: apiClient);
   final notificationService = NotificationService(apiClient: apiClient);
-  final geographyService = GeographyService(apiClient: apiClient);
+  final geographyService = GeographyService(apiClient);
 
   runApp(
     MultiProvider(

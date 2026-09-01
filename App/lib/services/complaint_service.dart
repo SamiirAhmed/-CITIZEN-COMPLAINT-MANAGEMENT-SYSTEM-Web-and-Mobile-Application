@@ -5,21 +5,29 @@ import '../models/complaint_model.dart';
 class DashboardData {
   DashboardData({
     required this.totalComplaints,
+    required this.totalOBRecords,
     required this.activeComplaints,
     required this.activeOBs,
+    required this.activeCases,
+    required this.closedCases,
     required this.closedComplaints,
     this.activeComplaint,
     this.activeOB,
+    this.recentOB,
     this.latestStatus,
     this.recentUpdates = const [],
   });
 
   final int totalComplaints;
+  final int totalOBRecords;
   final int activeComplaints;
   final int activeOBs;
+  final int activeCases;
+  final int closedCases;
   final int closedComplaints;
   final ComplaintModel? activeComplaint;
   final Map<String, dynamic>? activeOB;
+  final Map<String, dynamic>? recentOB;
   final Map<String, dynamic>? latestStatus;
   final List<Map<String, dynamic>> recentUpdates;
 
@@ -27,8 +35,13 @@ class DashboardData {
     final summary = Map<String, dynamic>.from(json['summary'] as Map? ?? {});
     return DashboardData(
       totalComplaints: (summary['totalComplaints'] as num?)?.toInt() ?? 0,
+      totalOBRecords: (summary['totalOBRecords'] as num?)?.toInt() ?? 0,
       activeComplaints: (summary['activeComplaints'] as num?)?.toInt() ?? 0,
       activeOBs: (summary['activeOBs'] as num?)?.toInt() ?? 0,
+      activeCases: (summary['activeCases'] as num?)?.toInt() ??
+          (summary['activeOBs'] as num?)?.toInt() ??
+          0,
+      closedCases: (summary['closedCases'] as num?)?.toInt() ?? 0,
       closedComplaints: (summary['closedComplaints'] as num?)?.toInt() ?? 0,
       activeComplaint: json['activeComplaint'] is Map
           ? ComplaintModel.fromJson(
@@ -37,6 +50,9 @@ class DashboardData {
           : null,
       activeOB: json['activeOB'] is Map
           ? Map<String, dynamic>.from(json['activeOB'] as Map)
+          : null,
+      recentOB: json['recentOB'] is Map
+          ? Map<String, dynamic>.from(json['recentOB'] as Map)
           : null,
       latestStatus: json['latestStatus'] is Map
           ? Map<String, dynamic>.from(json['latestStatus'] as Map)
@@ -89,21 +105,55 @@ class ComplaintService {
     required String category,
     required String description,
     required DateTime incidentDate,
-    required String location,
+    required String region,
+    required String district,
+    String village = '',
+    String area = '',
+    String location = '',
     String relatedInformation = '',
     String evidenceNotes = '',
+    List<String> evidenceFilePaths = const [],
   }) async {
-    final response = await _api.post(
-      ApiEndpoints.submitComplaint,
-      body: {
-        'category': category,
-        'description': description.trim(),
-        'incidentDate': incidentDate.toIso8601String(),
-        'location': location.trim(),
+    final trimmedVillage = village.trim();
+    final trimmedArea = area.trim();
+    final trimmedLocation = location.trim().isNotEmpty
+        ? location.trim()
+        : [district.trim(), trimmedVillage, trimmedArea]
+            .where((part) => part.isNotEmpty)
+            .join(', ');
+
+    final fields = <String, String>{
+      'category': category.trim(),
+      'description': description.trim(),
+      'incidentDate': incidentDate.toIso8601String(),
+      'region': region.trim(),
+      'district': district.trim(),
+      'location': trimmedLocation,
+      if (trimmedVillage.isNotEmpty) 'village': trimmedVillage,
+      if (trimmedArea.isNotEmpty) 'area': trimmedArea,
+      if (relatedInformation.trim().isNotEmpty)
         'relatedInformation': relatedInformation.trim(),
+      if (evidenceNotes.trim().isNotEmpty)
         'evidenceNotes': evidenceNotes.trim(),
-      },
-    );
+    };
+
+    final Map<String, dynamic> response;
+    if (evidenceFilePaths.isEmpty) {
+      response = await _api.post(ApiEndpoints.submitComplaint, body: fields);
+    } else {
+      response = await _api.postMultipartFiles(
+        ApiEndpoints.submitComplaint,
+        fields: fields,
+        files: evidenceFilePaths
+            .map(
+              (path) => MultipartFileInput(
+                field: 'evidence',
+                path: path,
+              ),
+            )
+            .toList(),
+      );
+    }
 
     final data = response['data'] as Map<String, dynamic>? ?? {};
     return ComplaintModel.fromJson(

@@ -89,6 +89,9 @@ class ObRecordModel {
     this.assignedOfficer,
     this.complaint,
     this.updates = const [],
+    this.investigationProgress = 0,
+    this.investigationStartedAt,
+    this.investigationCompletedAt,
     this.createdAt,
     this.updatedAt,
   });
@@ -103,6 +106,9 @@ class ObRecordModel {
   final ObAssignedOfficer? assignedOfficer;
   final ObComplaintInfo? complaint;
   final List<ObUpdate> updates;
+  final int investigationProgress;
+  final DateTime? investigationStartedAt;
+  final DateTime? investigationCompletedAt;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -133,6 +139,13 @@ class ObRecordModel {
           .whereType<Map>()
           .map((e) => ObUpdate.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
+      investigationProgress: (json['investigationProgress'] as num?)?.toInt() ?? 0,
+      investigationStartedAt: json['investigationStartedAt'] != null
+          ? DateTime.tryParse(json['investigationStartedAt'].toString())
+          : null,
+      investigationCompletedAt: json['investigationCompletedAt'] != null
+          ? DateTime.tryParse(json['investigationCompletedAt'].toString())
+          : null,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,

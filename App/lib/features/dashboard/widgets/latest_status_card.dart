@@ -9,9 +9,11 @@ class LatestStatusCard extends StatelessWidget {
   const LatestStatusCard({
     super.key,
     required this.data,
+    this.onOpenDetails,
   });
 
   final DashboardData data;
+  final VoidCallback? onOpenDetails;
 
   String? _resolveMessage() {
     final status = data.latestStatus;
@@ -76,8 +78,9 @@ class LatestStatusCard extends StatelessWidget {
 
     final message = _resolveMessage();
     final updatedAt = DateTime.tryParse('${status['updatedAt']}');
+    final canOpen = onOpenDetails != null && '${status['id'] ?? ''}'.isNotEmpty;
 
-    return Container(
+    final card = Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -168,10 +171,37 @@ class LatestStatusCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                if (canOpen) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Tap to view details',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.spfBlue.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
+          if (canOpen)
+            Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary.withValues(alpha: 0.8),
+            ),
         ],
+      ),
+    );
+
+    if (!canOpen) return card;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onOpenDetails,
+        child: card,
       ),
     );
   }

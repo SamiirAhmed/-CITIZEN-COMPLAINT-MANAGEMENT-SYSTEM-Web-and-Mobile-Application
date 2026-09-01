@@ -13,10 +13,32 @@ export const listRegions = asyncHandler(async (_req, res) => {
 
 export const listDistrictsByRegion = asyncHandler(async (req, res) => {
   const region = String(req.query.region ?? '').trim();
+
+  // No region → all active districts (with region) for district-only dropdowns.
   if (!region) {
-    return res.status(400).json({
-      success: false,
-      message: 'Region is required.',
+    const rows = await GeographicLocation.aggregate([
+      { $match: { isActive: true, district: { $nin: [null, ''] } } },
+      {
+        $group: {
+          _id: { district: '$district', region: '$region' },
+        },
+      },
+      { $sort: { '_id.district': 1, '_id.region': 1 } },
+    ]);
+
+    const districts = rows.map((row) => ({
+      district: row._id.district,
+      region: row._id.region,
+      label: row._id.district,
+    }));
+
+    return res.json({
+      success: true,
+      data: {
+        districts,
+        // Backward-compatible flat names
+        names: [...new Set(districts.map((item) => item.district))],
+      },
     });
   }
 
@@ -28,18 +50,33 @@ export const listDistrictsByRegion = asyncHandler(async (req, res) => {
 
   return res.json({
     success: true,
-    data: { districts },
+    data: {
+      districts,
+      names: districts,
+    },
   });
 });
 
 export const listVillages = asyncHandler(async (req, res) => {
-  const region = String(req.query.region ?? '').trim();
+  let region = String(req.query.region ?? '').trim();
   const district = String(req.query.district ?? '').trim();
-  if (!region || !district) {
+
+  if (!district) {
     return res.status(400).json({
       success: false,
-      message: 'Region and district are required.',
+      message: 'District is required.',
     });
+  }
+
+  if (!region) {
+    const row = await GeographicLocation.findOne({
+      district,
+      isActive: true,
+    }).sort({ village: 1, area: 1 });
+    if (!row) {
+      return res.json({ success: true, data: { villages: [] } });
+    }
+    region = row.region;
   }
 
   const villages = await GeographicLocation.distinct('village', {
@@ -52,19 +89,32 @@ export const listVillages = asyncHandler(async (req, res) => {
 
   return res.json({
     success: true,
-    data: { villages },
+    data: { villages, region },
   });
 });
 
 export const listAreas = asyncHandler(async (req, res) => {
-  const region = String(req.query.region ?? '').trim();
+  let region = String(req.query.region ?? '').trim();
   const district = String(req.query.district ?? '').trim();
   const village = String(req.query.village ?? '').trim();
-  if (!region || !district || !village) {
+
+  if (!district || !village) {
     return res.status(400).json({
       success: false,
-      message: 'Region, district, and village are required.',
+      message: 'District and village are required.',
     });
+  }
+
+  if (!region) {
+    const row = await GeographicLocation.findOne({
+      district,
+      village,
+      isActive: true,
+    }).sort({ area: 1 });
+    if (!row) {
+      return res.json({ success: true, data: { areas: [] } });
+    }
+    region = row.region;
   }
 
   const areas = await GeographicLocation.distinct('area', {
@@ -78,7 +128,7 @@ export const listAreas = asyncHandler(async (req, res) => {
 
   return res.json({
     success: true,
-    data: { areas },
+    data: { areas, region },
   });
 });
 

@@ -37,47 +37,111 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   String? _error;
-  List<String> _regions = [];
-  List<String> _districts = [];
-  String? _selectedRegion;
-  String? _selectedDistrict;
-  bool _loadingRegions = true;
+  List<DistrictOption> _districtOptions = [];
+  List<String> _villages = [];
+  List<String> _areas = [];
+  DistrictOption? _selectedDistrictOption;
+  String? _selectedVillage;
+  String? _selectedArea;
+  bool _loadingDistricts = true;
+  bool _loadingVillages = false;
+  bool _loadingAreas = false;
+  String? _villageHint;
+  String? _areaHint;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadRegions());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadDistricts());
   }
 
-  Future<void> _loadRegions() async {
-    final geography = context.read<GeographyService>();
+  Future<void> _onDistrictChanged(DistrictOption? option) async {
+    setState(() {
+      _selectedDistrictOption = option;
+      _selectedVillage = null;
+      _selectedArea = null;
+      _villages = [];
+      _areas = [];
+      _villageHint = null;
+      _areaHint = null;
+    });
+    if (option == null) return;
+
+    setState(() => _loadingVillages = true);
     try {
-      final regions = await geography.listRegions();
+      final villages = await context.read<GeographyService>().listVillages(
+            option.region,
+            option.district,
+          );
       if (!mounted) return;
       setState(() {
-        _regions = regions;
-        _loadingRegions = false;
+        _villages = villages;
+        _loadingVillages = false;
+        _villageHint = villages.isEmpty
+            ? 'No villages available for this district.'
+            : null;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
-        _loadingRegions = false;
-        _error = 'Unable to load regions. Check your connection.';
+        _loadingVillages = false;
+        _villageHint = 'Unable to load villages.';
       });
     }
   }
 
-  Future<void> _loadDistricts(String region) async {
-    final geography = context.read<GeographyService>();
+  Future<void> _onVillageChanged(String? village) async {
+    setState(() {
+      _selectedVillage = village;
+      _selectedArea = null;
+      _areas = [];
+      _areaHint = null;
+    });
+    final option = _selectedDistrictOption;
+    if (village == null || option == null) return;
+
+    setState(() => _loadingAreas = true);
     try {
-      final districts = await geography.listDistricts(region);
+      final areas = await context.read<GeographyService>().listAreas(
+            option.region,
+            option.district,
+            village,
+          );
       if (!mounted) return;
       setState(() {
-        _districts = districts;
+        _areas = areas;
+        _loadingAreas = false;
+        _areaHint =
+            areas.isEmpty ? 'No areas available for this village.' : null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loadingAreas = false;
+        _areaHint = 'Unable to load areas.';
+      });
+    }
+  }
+
+  Future<void> _loadDistricts() async {
+    final geography = context.read<GeographyService>();
+    setState(() {
+      _loadingDistricts = true;
+      _error = null;
+    });
+    try {
+      final districts = await geography.listAllDistricts();
+      if (!mounted) return;
+      setState(() {
+        _districtOptions = districts;
+        _loadingDistricts = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Unable to load districts.');
+      setState(() {
+        _loadingDistricts = false;
+        _error = 'Unable to load districts. Check your connection.';
+      });
     }
   }
 
@@ -127,12 +191,8 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       setState(() => _error = 'Profile image is required.');
       return;
     }
-    if (_selectedRegion == null || _selectedRegion!.isEmpty) {
-      setState(() => _error = 'Region is required.');
-      return;
-    }
-    if (_selectedDistrict == null || _selectedDistrict!.isEmpty) {
-      setState(() => _error = 'District is required.');
+    if (_selectedDistrictOption == null) {
+      setState(() => _error = 'Please select a district.');
       return;
     }
 
@@ -144,12 +204,14 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         name: _name.text,
         niraId: _niraId.text,
         phone: _phone.text,
-        email: _email.text,
+        email: _email.text.trim(),
         password: _password.text,
         confirmPassword: _confirm.text,
         profileImagePath: _profileImage!.path,
-        region: _selectedRegion!,
-        district: _selectedDistrict!,
+        region: _selectedDistrictOption!.region,
+        district: _selectedDistrictOption!.district,
+        village: _selectedVillage ?? '',
+        area: _selectedArea ?? '',
       );
       if (!mounted) return;
 
@@ -273,68 +335,154 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 const SizedBox(height: 14),
                 InputDecorator(
                   decoration: const InputDecoration(
-                    labelText: 'Region',
-                    border: OutlineInputBorder(),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      isExpanded: true,
-                      value: _selectedRegion,
-                      hint: Text(_loadingRegions ? 'Loading regions…' : 'Select region'),
-                      items: _regions
-                          .map(
-                            (region) => DropdownMenuItem(
-                              value: region,
-                              child: Text(region),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: _loadingRegions
-                          ? null
-                          : (value) {
-                              setState(() {
-                                _selectedRegion = value;
-                                _selectedDistrict = null;
-                                _districts = [];
-                              });
-                              if (value != null) {
-                                _loadDistricts(value);
-                              }
-                            },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                InputDecorator(
-                  decoration: const InputDecoration(
                     labelText: 'District',
                     border: OutlineInputBorder(),
                   ),
                   child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
+                    child: DropdownButton<DistrictOption>(
                       isExpanded: true,
-                      value: _selectedDistrict,
+                      value: _districtOptions.contains(_selectedDistrictOption)
+                          ? _selectedDistrictOption
+                          : null,
                       hint: Text(
-                        _selectedRegion == null
-                            ? 'Select region first'
-                            : 'Select district',
+                        _loadingDistricts
+                            ? 'Loading districts…'
+                            : 'Select District',
                       ),
-                      items: _districts
+                      items: _districtOptions
                           .map(
-                            (district) => DropdownMenuItem(
-                              value: district,
-                              child: Text(district),
+                            (option) => DropdownMenuItem(
+                              value: option,
+                              child: Text(option.label),
                             ),
                           )
                           .toList(),
-                      onChanged: _selectedRegion == null
-                          ? null
-                          : (value) {
-                              setState(() => _selectedDistrict = value);
-                            },
+                      onChanged:
+                          _loadingDistricts ? null : _onDistrictChanged,
                     ),
                   ),
                 ),
+                if (_error == 'Unable to load districts. Check your connection.')
+                  TextButton(
+                    onPressed: _loadDistricts,
+                    child: const Text('Retry'),
+                  ),
+                const SizedBox(height: 14),
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Village',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _villages.contains(_selectedVillage)
+                          ? _selectedVillage
+                          : null,
+                      hint: Text(
+                        _selectedDistrictOption == null
+                            ? 'Select a district first'
+                            : _loadingVillages
+                                ? 'Loading villages…'
+                                : 'Select Village',
+                      ),
+                      items: _villages
+                          .map(
+                            (item) => DropdownMenuItem(
+                              value: item,
+                              child: Text(item),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _selectedDistrictOption == null ||
+                              _loadingVillages
+                          ? null
+                          : _onVillageChanged,
+                    ),
+                  ),
+                ),
+                if (_villageHint != null) ...[
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _villageHint!,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 14),
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Area',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _areas.contains(_selectedArea)
+                          ? _selectedArea
+                          : null,
+                      hint: Text(
+                        _selectedVillage == null
+                            ? 'Select a village first'
+                            : _loadingAreas
+                                ? 'Loading areas…'
+                                : 'Select Area',
+                      ),
+                      items: _areas
+                          .map(
+                            (item) => DropdownMenuItem(
+                              value: item,
+                              child: Text(item),
+                            ),
+                          )
+                          .toList(),
+                      onChanged:
+                          _selectedVillage == null || _loadingAreas
+                              ? null
+                              : (value) =>
+                                  setState(() => _selectedArea = value),
+                    ),
+                  ),
+                ),
+                if (_areaHint != null) ...[
+                  const SizedBox(height: 6),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _areaHint!,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ),
+                ],
+                if ([
+                  _selectedDistrictOption?.district,
+                  _selectedVillage,
+                  _selectedArea,
+                ].any((item) => (item ?? '').isNotEmpty)) ...[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      [
+                        _selectedDistrictOption?.district,
+                        _selectedVillage,
+                        _selectedArea,
+                      ].where((item) => (item ?? '').isNotEmpty).join(' — '),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.spfBlue,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 TextInputField(
                   controller: _password,

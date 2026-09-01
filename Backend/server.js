@@ -1,6 +1,8 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import morgan from 'morgan';
 import helmet from 'helmet';
 import { connectDB, isDbReady, isDatabaseError, requireDatabase } from './src/config/db.js';
@@ -15,7 +17,8 @@ import geographyRoutes from './src/routes/geographyRoutes.js';
 import { seedGeography } from './src/utils/seedGeography.js';
 import { UPLOADS_ROOT } from './src/middleware/uploadProfileImage.js';
 
-dotenv.config();
+const backendRoot = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(backendRoot, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;

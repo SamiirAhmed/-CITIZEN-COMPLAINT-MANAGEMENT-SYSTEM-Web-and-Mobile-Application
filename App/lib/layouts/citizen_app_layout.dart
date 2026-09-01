@@ -67,6 +67,8 @@ class CitizenAppLayoutState extends State<CitizenAppLayout> {
     _loadUnread();
   }
 
+  int get activeTabIndex => _index;
+
   Future<void> _loadUnread() async {
     try {
       final count =

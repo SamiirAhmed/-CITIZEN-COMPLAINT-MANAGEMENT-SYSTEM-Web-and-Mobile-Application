@@ -5,7 +5,8 @@ import 'application_routes.dart';
 import 'application_theme.dart';
 import '../core/constants/app_constants.dart';
 import '../services/authentication_service.dart';
-import '../features/authentication/screens/login_screen.dart';
+import '../features/authentication/screens/mobile_number_screen.dart';
+import '../features/authentication/screens/splash_screen.dart';
 import '../layouts/citizen_app_layout.dart';
 
 class CitizenApp extends StatelessWidget {
@@ -14,7 +15,7 @@ class CitizenApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SPF Citizen Portal',
+      title: 'SPO Citizen Portal',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       navigatorKey: AppNavigator.key,
@@ -50,74 +51,13 @@ class _AuthGateState extends State<AuthGate> {
     final showSplash = auth.isBootstrapping || !_minSplashDone;
 
     if (showSplash) {
-      return const _SplashScreen();
+      return const SplashScreen();
     }
 
     if (auth.isAuthenticated) {
       return const CitizenAppLayout();
     }
 
-    return const LoginScreen();
-  }
-}
-
-class _SplashScreen extends StatelessWidget {
-  const _SplashScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.spfBlueDark,
-              AppColors.spfBlue,
-              Color(0xFF1A5BBF),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                AppConstants.logoAsset,
-                width: 110,
-                height: 110,
-              ),
-              const SizedBox(height: 20),
-              Text(
-                AppConstants.organization,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                AppConstants.appName,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFFDCE7F8),
-                    ),
-              ),
-              const SizedBox(height: 36),
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.6,
-                  valueColor: AlwaysStoppedAnimation(Colors.white),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return const MobileNumberScreen();
   }
 }

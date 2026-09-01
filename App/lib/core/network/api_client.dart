@@ -9,6 +9,18 @@ import 'api_exception.dart';
 
 typedef UnauthorizedHandler = Future<void> Function();
 
+class MultipartFileInput {
+  const MultipartFileInput({
+    required this.field,
+    required this.path,
+    this.filename,
+  });
+
+  final String field;
+  final String path;
+  final String? filename;
+}
+
 class ApiClient {
   ApiClient({
     required SecureSessionStorage storage,
@@ -61,6 +73,7 @@ class ApiClient {
         _uri(path, query),
         headers: await _headers(auth: auth),
       ),
+      auth: auth,
     );
   }
 
@@ -75,6 +88,7 @@ class ApiClient {
         headers: await _headers(auth: auth),
         body: jsonEncode(body ?? {}),
       ),
+      auth: auth,
     );
   }
 
@@ -89,6 +103,7 @@ class ApiClient {
         headers: await _headers(auth: auth),
         body: jsonEncode(body ?? {}),
       ),
+      auth: auth,
     );
   }
 
@@ -103,6 +118,7 @@ class ApiClient {
         headers: await _headers(auth: auth),
         body: jsonEncode(body ?? {}),
       ),
+      auth: auth,
     );
   }
 
@@ -115,6 +131,7 @@ class ApiClient {
         _uri(path),
         headers: await _headers(auth: auth),
       ),
+      auth: auth,
     );
   }
 
@@ -124,6 +141,26 @@ class ApiClient {
     required String fileField,
     required String filePath,
     String? filename,
+    bool auth = true,
+  }) {
+    return postMultipartFiles(
+      path,
+      fields: fields,
+      files: [
+        MultipartFileInput(
+          field: fileField,
+          path: filePath,
+          filename: filename,
+        ),
+      ],
+      auth: auth,
+    );
+  }
+
+  Future<Map<String, dynamic>> postMultipartFiles(
+    String path, {
+    Map<String, String>? fields,
+    List<MultipartFileInput> files = const [],
     bool auth = true,
   }) {
     return _send(() async {
@@ -141,24 +178,27 @@ class ApiClient {
       if (fields != null) {
         request.fields.addAll(fields);
       }
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          fileField,
-          filePath,
-          filename: filename,
-        ),
-      );
+      for (final file in files) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            file.field,
+            file.path,
+            filename: file.filename,
+          ),
+        );
+      }
       final streamed = await _http.send(request);
       return http.Response.fromStream(streamed);
-    });
+    }, auth: auth);
   }
 
   Future<Map<String, dynamic>> _send(
-    Future<http.Response> Function() request,
-  ) async {
+    Future<http.Response> Function() request, {
+    bool auth = true,
+  }) async {
     try {
       final response = await request().timeout(ApiEndpoints.timeout);
-      return _handleResponse(response);
+      return _handleResponse(response, auth: auth);
     } on TimeoutException {
       throw ApiException(
         message:
@@ -179,7 +219,10 @@ class ApiClient {
     }
   }
 
-  Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
+  Future<Map<String, dynamic>> _handleResponse(
+    http.Response response, {
+    bool auth = true,
+  }) async {
     Map<String, dynamic> payload = {};
 
     if (response.body.isNotEmpty) {
@@ -199,7 +242,7 @@ class ApiClient {
     }
 
     if (response.statusCode == 401) {
-      if (onUnauthorized != null) {
+      if (auth && onUnauthorized != null) {
         await onUnauthorized!();
       }
       throw ApiException(
