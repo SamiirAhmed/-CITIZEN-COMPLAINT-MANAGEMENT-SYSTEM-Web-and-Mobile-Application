@@ -23,7 +23,7 @@ import {
   setCategoryStatus,
   updateCategory,
 } from '../controllers/categoryController.js';
-import { listGeographyTable } from '../controllers/geographyController.js';
+import { listGeographyTable, createGeography, updateGeography, deleteGeography } from '../controllers/geographyController.js';
 import { listAuditLogs, getAuditLogById, getAuthTimeline } from '../controllers/auditController.js';
 import {
   getSmsBalance,
@@ -74,6 +74,9 @@ router.get('/audit-logs/timeline', getAuthTimeline);
 router.get('/audit-logs/:id', getAuditLogById);
 
 router.get('/geography', listGeographyTable);
+router.post('/geography', createGeography);
+router.put('/geography/:id', updateGeography);
+router.delete('/geography/:id', deleteGeography);
 
 router.get('/sms/balance', getSmsBalance);
 router.get('/sms/stats', getSmsStats);

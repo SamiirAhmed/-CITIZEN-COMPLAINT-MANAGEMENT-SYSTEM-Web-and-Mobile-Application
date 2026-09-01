@@ -136,28 +136,31 @@ class _ComplaintDetailsScreenState extends State<ComplaintDetailsScreen> {
                       const SizedBox(height: 14),
                       _InfoCard(
                         title: 'Description',
+                        titleColor: AppColors.navy,
                         children: [
-                          Text(_complaint!.description),
+                          Text(
+                            _complaint!.description,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                          ),
                         ],
                       ),
-                      if (_complaint!.relatedInformation.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        _InfoCard(
-                          title: 'Related Information',
-                          children: [
-                            Text(_complaint!.relatedInformation),
-                          ],
-                        ),
-                      ],
-                      if (_complaint!.evidenceNotes.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        _InfoCard(
-                          title: 'Evidence / Attachments Notes',
-                          children: [
-                            Text(_complaint!.evidenceNotes),
-                          ],
-                        ),
-                      ],
+                      const SizedBox(height: 14),
+                      _InfoCard(
+                        title: 'Evidence Notes',
+                        titleColor: AppColors.textSecondary,
+                        children: [
+                          Text(
+                            _complaint!.evidenceNotes.isNotEmpty
+                                ? _complaint!.evidenceNotes
+                                : '—',
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                  color: _complaint!.evidenceNotes.isEmpty
+                                      ? AppColors.textSecondary
+                                      : AppColors.navy,
+                                ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 14),
                       _InfoCard(
                         title: 'Status Tracking',
@@ -217,9 +220,11 @@ class _InfoCard extends StatelessWidget {
   const _InfoCard({
     required this.children,
     this.title,
+    this.titleColor,
   });
 
   final String? title;
+  final Color? titleColor;
   final List<Widget> children;
 
   @override
@@ -238,7 +243,10 @@ class _InfoCard extends StatelessWidget {
           if (title != null) ...[
             Text(
               title!,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: titleColor ?? AppColors.navy,
+                  ),
             ),
             const SizedBox(height: 10),
           ],

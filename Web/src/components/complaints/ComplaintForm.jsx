@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { COMPLAINT_STATUSES, toDateInputValue } from '../../constants/domain';
+import { COMPLAINT_STATUSES, DEFAULT_REGION, toDateInputValue } from '../../constants/domain';
 import { validateComplaintForm } from '../../validation/complaintValidation';
 import GeographicSelect from '../common/GeographicSelect';
 import EvidenceUploadField from './EvidenceUploadField';
@@ -10,11 +10,10 @@ const INITIAL = {
   description: '',
   incidentDate: '',
   location: '',
-  region: '',
+  region: DEFAULT_REGION,
   district: '',
   village: '',
   area: '',
-  relatedInformation: '',
   evidenceNotes: '',
   status: 'Submitted',
   note: '',
@@ -44,7 +43,7 @@ export default function ComplaintForm({
       ...INITIAL,
       ...initialValues,
       incidentDate: toDateInputValue(initialValues?.incidentDate) || initialValues?.incidentDate || '',
-      region: initialValues?.region || '',
+      region: initialValues?.region || DEFAULT_REGION,
       district: initialValues?.district || '',
       village: initialValues?.village || '',
       area: initialValues?.area || '',
@@ -140,67 +139,26 @@ export default function ComplaintForm({
       </label>
 
       <GeographicSelect
-        region={values.region}
         district={values.district}
-        onRegionChange={(nextRegion) =>
+        village={values.village}
+        area={values.area}
+        onChange={({ district, village, area }) =>
           setValues((prev) => ({
             ...prev,
-            region: nextRegion,
-            district: '',
-            village: '',
-            area: '',
-            location: '',
+            region: DEFAULT_REGION,
+            district: district ?? prev.district,
+            village: village ?? prev.village,
+            area: area ?? prev.area,
+            location: buildLocation(
+              district ?? prev.district,
+              village ?? prev.village,
+              area ?? prev.area
+            ),
           }))
         }
-        onDistrictChange={(nextDistrict) =>
-          setValues((prev) => ({
-            ...prev,
-            district: nextDistrict,
-            location: buildLocation(nextDistrict, prev.village, prev.area),
-          }))
-        }
-        regionError={errors.region}
         districtError={errors.district}
         disabled={submitting}
       />
-
-      <label className="field">
-        <span>Village (optional)</span>
-        <input
-          type="text"
-          name="village"
-          value={values.village}
-          onChange={handleChange}
-          placeholder="Type village name manually"
-          disabled={submitting}
-        />
-        <small className="field-hint">Optional — enter the village near the selected district.</small>
-        {errors.village ? <em className="field-error">{errors.village}</em> : null}
-      </label>
-
-      <label className="field">
-        <span>Area (optional)</span>
-        <input
-          type="text"
-          name="area"
-          value={values.area}
-          onChange={handleChange}
-          placeholder="Type area or neighborhood manually"
-          disabled={submitting}
-        />
-        <small className="field-hint">Optional — enter the area or neighborhood within the village.</small>
-        {errors.area ? <em className="field-error">{errors.area}</em> : null}
-      </label>
-
-      <label className="field field--full">
-        <span>Related Information</span>
-        <textarea
-          name="relatedInformation"
-          rows={2}
-          value={values.relatedInformation}
-          onChange={handleChange}
-        />
-      </label>
 
       <label className="field field--full">
         <span>Evidence Notes</span>

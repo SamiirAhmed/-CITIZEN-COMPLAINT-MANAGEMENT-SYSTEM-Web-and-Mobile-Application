@@ -47,30 +47,33 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
   final _description = TextEditingController();
   final _village = TextEditingController();
   final _area = TextEditingController();
-  final _related = TextEditingController();
   final _evidenceNotes = TextEditingController();
   final _incidentDateText = TextEditingController();
   final _picker = ImagePicker();
 
   List<String> _categories = [];
-  List<String> _regions = [];
   List<String> _districts = [];
   List<_EvidenceFile> _evidenceFiles = [];
 
+  static const String _region = 'Banaadir';
+
   String? _category;
-  String? _region;
   String? _district;
   DateTime? _incidentDate;
 
-  bool _loadingForm = true;
-  bool _loadingDistricts = false;
+  bool _loadingCategories = true;
+  bool _loadingDistricts = true;
   bool _submitting = false;
   String? _error;
+  String? _districtError;
 
   @override
   void initState() {
     super.initState();
-    _loadFormData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCategories();
+      _loadDistricts();
+    });
   }
 
   @override
@@ -78,7 +81,6 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     _description.dispose();
     _village.dispose();
     _area.dispose();
-    _related.dispose();
     _evidenceNotes.dispose();
     _incidentDateText.dispose();
     super.dispose();
@@ -92,66 +94,59 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
     ].where((part) => part.isNotEmpty).join(', ');
   }
 
-  Future<void> _loadFormData() async {
+  Future<void> _loadCategories() async {
+    setState(() {
+      _loadingCategories = true;
+    });
     try {
-      final complaintService = context.read<ComplaintService>();
-      final geography = context.read<GeographyService>();
-      final results = await Future.wait([
-        complaintService.getCategories(),
-        geography.listRegions(),
-      ]);
+      final categories =
+          await context.read<ComplaintService>().getCategories();
       if (!mounted) return;
-      final regions = results[1];
       setState(() {
-        _categories = results[0];
-        _regions = regions;
-        _region = regions.contains('Banaadir')
-            ? 'Banaadir'
-            : (regions.isNotEmpty ? regions.first : null);
-        _loadingForm = false;
+        _categories = categories;
+        _loadingCategories = false;
       });
-      if (_region != null) {
-        await _loadDistricts(_region!);
-      }
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.message;
-        _loadingForm = false;
+        _loadingCategories = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Unable to prepare complaint form.';
-        _loadingForm = false;
+        _error = 'Unable to load complaint categories.';
+        _loadingCategories = false;
       });
     }
   }
 
-  Future<void> _loadDistricts(String region) async {
+  Future<void> _loadDistricts() async {
     setState(() {
       _loadingDistricts = true;
-      _districts = [];
-      _district = null;
+      _districtError = null;
     });
     try {
       final districts =
-          await context.read<GeographyService>().listDistricts(region);
+          await context.read<GeographyService>().listBanaadirDistricts();
       if (!mounted) return;
       setState(() {
         _districts = districts;
         _loadingDistricts = false;
+        if (_district != null && !_districts.contains(_district)) {
+          _district = null;
+        }
       });
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.message;
+        _districtError = e.message;
         _loadingDistricts = false;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error = 'Unable to load districts.';
+        _districtError = 'Unable to load districts. Check your connection.';
         _loadingDistricts = false;
       });
     }
@@ -299,10 +294,6 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
       setState(() => _error = 'Please select the incident date.');
       return;
     }
-    if (_region == null || _region!.trim().isEmpty) {
-      setState(() => _error = 'Region is required.');
-      return;
-    }
     if (_district == null || _district!.trim().isEmpty) {
       setState(() => _error = 'District is required.');
       return;
@@ -318,12 +309,11 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
             category: _category!,
             description: _description.text,
             incidentDate: _incidentDate!,
-            region: _region!,
+            region: _region,
             district: _district!,
             village: _village.text,
             area: _area.text,
             location: _buildLocation(),
-            relatedInformation: _related.text,
             evidenceNotes: _evidenceNotes.text,
             evidenceFilePaths: _evidenceFiles.map((f) => f.path).toList(),
           );
@@ -339,7 +329,7 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
         ),
       );
 
-      Navigator.pop(context, true);
+      Navigator.pop(context, complaint);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (_) {
@@ -372,9 +362,11 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final formReady = !_loadingCategories || _categories.isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Submit Complaint')),
-      body: _loadingForm
+      body: !formReady && _loadingCategories
           ? const LoadingIndicator(message: 'Preparing form...')
           : SafeArea(
               child: SingleChildScrollView(
@@ -438,72 +430,60 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
                             : null,
                       ),
                       const SizedBox(height: 14),
-                      _label('Region'),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        key: ValueKey('region-$_region'),
-                        initialValue: _region,
-                        items: _regions
-                            .map(
-                              (item) => DropdownMenuItem(
-                                value: item,
-                                child: Text(item),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: _submitting
-                            ? null
-                            : (value) async {
-                                if (value == null) return;
-                                setState(() {
-                                  _region = value;
-                                  _village.clear();
-                                  _area.clear();
-                                });
-                                await _loadDistricts(value);
-                              },
-                        decoration: const InputDecoration(
-                          hintText: 'Select region',
-                        ),
-                        validator: (value) =>
-                            value == null ? 'Region is required' : null,
-                      ),
-                      _hint('Select the Somali administrative region.'),
-                      const SizedBox(height: 14),
                       _label('District'),
                       const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        key: ValueKey(
-                          'district-$_region-${_districts.length}-$_district',
-                        ),
-                        initialValue: _district,
-                        items: _districts
-                            .map(
-                              (item) => DropdownMenuItem(
-                                value: item,
-                                child: Text(item),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (_submitting ||
-                                _loadingDistricts ||
-                                _region == null)
-                            ? null
-                            : (value) => setState(() {
-                                  _district = value;
-                                  _village.clear();
-                                  _area.clear();
-                                }),
+                      InputDecorator(
                         decoration: InputDecoration(
                           hintText: _loadingDistricts
                               ? 'Loading districts…'
                               : 'Select district',
                         ),
-                        validator: (value) =>
-                            value == null ? 'District is required' : null,
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: _districts.contains(_district)
+                                ? _district
+                                : null,
+                            hint: Text(
+                              _loadingDistricts
+                                  ? 'Loading districts…'
+                                  : 'Select district',
+                            ),
+                            items: _districts
+                                .map(
+                                  (item) => DropdownMenuItem(
+                                    value: item,
+                                    child: Text(item),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: _submitting || _loadingDistricts
+                                ? null
+                                : (value) => setState(() {
+                                      _district = value;
+                                      _districtError = null;
+                                      _village.clear();
+                                      _area.clear();
+                                    }),
+                          ),
+                        ),
                       ),
+                      if (_districtError != null) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          _districtError!,
+                          style: const TextStyle(
+                            color: AppColors.error,
+                            fontSize: 12.5,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _loadDistricts,
+                          child: const Text('Retry loading districts'),
+                        ),
+                      ],
                       _hint(
-                        'Select a registered district (e.g. the 18 Banaadir districts).',
+                        'Select a Banaadir district (e.g. Kahda, Garasbaley, Dharkenley).',
                       ),
                       const SizedBox(height: 14),
                       TextInputField(
@@ -523,14 +503,15 @@ class _SubmitComplaintScreenState extends State<SubmitComplaintScreen> {
                       _hint(
                         'Optional — enter the area or neighborhood within the village.',
                       ),
-                      const SizedBox(height: 14),
-                      TextInputField(
-                        controller: _related,
-                        label: 'Related Information',
-                        hint: 'Optional additional details',
-                        maxLines: 3,
-                        minLines: 2,
-                        enabled: !_submitting,
+                      const SizedBox(height: 24),
+                      const Divider(height: 1),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Evidence',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textSecondary,
+                            ),
                       ),
                       const SizedBox(height: 14),
                       TextInputField(

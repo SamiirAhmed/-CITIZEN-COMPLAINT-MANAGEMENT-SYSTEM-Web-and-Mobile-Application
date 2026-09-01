@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient';
+import { DEFAULT_REGION } from '../constants/domain';
 
 function buildQuery(params = {}) {
   const query = new URLSearchParams();
@@ -16,33 +17,27 @@ export async function listRegions() {
   return response?.data?.regions || [];
 }
 
-/**
- * List districts. Without region → all districts as { district, region, label }.
- * With region → string names (legacy).
- */
-export async function listDistricts(region = '') {
+/** List Banaadir districts by default. */
+export async function listDistricts(region = DEFAULT_REGION) {
   const response = await apiRequest(
-    `/geography/districts${buildQuery(region ? { region } : {})}`,
+    `/geography/districts${buildQuery({ region })}`,
     { auth: false }
   );
-  const raw = response?.data?.districts || [];
-  if (!region) {
-    return raw.map((item) =>
-      typeof item === 'string'
-        ? { district: item, region: '', label: item }
-        : {
-            district: item.district,
-            region: item.region || '',
-            label: item.label || item.district,
-          }
-    );
-  }
-  return raw;
+  const raw = response?.data?.districts || response?.data?.names || [];
+  return raw.map((item) =>
+    typeof item === 'string'
+      ? { district: item, region, label: item }
+      : {
+          district: item.district,
+          region: item.region || region,
+          label: item.label || item.district,
+        }
+  );
 }
 
 export async function listVillages(region, district) {
   const response = await apiRequest(
-    `/geography/villages${buildQuery({ region, district })}`,
+    `/geography/villages${buildQuery({ region: region || DEFAULT_REGION, district })}`,
     { auth: false }
   );
   return response?.data?.villages || [];
@@ -50,13 +45,42 @@ export async function listVillages(region, district) {
 
 export async function listAreas(region, district, village) {
   const response = await apiRequest(
-    `/geography/areas${buildQuery({ region, district, village })}`,
+    `/geography/areas${buildQuery({
+      region: region || DEFAULT_REGION,
+      district,
+      village,
+    })}`,
     { auth: false }
   );
   return response?.data?.areas || [];
 }
 
-export async function listGeographyTable({ search = '' } = {}) {
-  const response = await apiRequest(`/admin/geography${buildQuery({ search })}`);
+export async function listGeographyTable({ search = '', region = DEFAULT_REGION } = {}) {
+  const response = await apiRequest(
+    `/admin/geography${buildQuery({ search, region })}`
+  );
   return response?.data?.locations || [];
+}
+
+export async function createGeography(payload) {
+  const response = await apiRequest('/admin/geography', {
+    method: 'POST',
+    body: payload,
+  });
+  return response?.data?.location;
+}
+
+export async function updateGeography(id, payload) {
+  const response = await apiRequest(`/admin/geography/${id}`, {
+    method: 'PUT',
+    body: payload,
+  });
+  return response?.data?.location;
+}
+
+export async function deleteGeography(id) {
+  const response = await apiRequest(`/admin/geography/${id}`, {
+    method: 'DELETE',
+  });
+  return response;
 }

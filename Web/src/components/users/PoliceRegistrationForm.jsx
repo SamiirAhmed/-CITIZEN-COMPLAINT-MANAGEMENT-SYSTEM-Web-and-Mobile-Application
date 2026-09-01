@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import PhoneInput from '../common/PhoneInput';
 import ProfileImageField from '../common/ProfileImageField';
+import { DEFAULT_REGION } from '../../constants/domain';
 import GeographicSelect from '../common/GeographicSelect';
 import { validateStaffRegistration, validateStaffUserEdit } from '../../validation/userValidation';
 
@@ -12,7 +13,7 @@ const REGISTER_INITIAL = {
   role: 'police',
   badgeNumber: '',
   station: '',
-  region: '',
+  region: DEFAULT_REGION,
   district: '',
   village: '',
   area: '',
@@ -24,7 +25,7 @@ const EDIT_INITIAL = {
   email: '',
   badgeNumber: '',
   station: '',
-  region: '',
+  region: DEFAULT_REGION,
   district: '',
   village: '',
   area: '',
@@ -177,14 +178,13 @@ export default function PoliceRegistrationForm({
       />
 
       <GeographicSelect
-        region={values.region}
         district={values.district}
         village={values.village}
         area={values.area}
-        onChange={({ region, district, village, area }) =>
+        onChange={({ district, village, area }) =>
           setValues((prev) => ({
             ...prev,
-            region: region ?? prev.region,
+            region: DEFAULT_REGION,
             district: district ?? '',
             village: village ?? '',
             area: area ?? '',

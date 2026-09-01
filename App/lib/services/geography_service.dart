@@ -39,15 +39,16 @@ class GeographyService {
     final response =
         await _api.get(ApiEndpoints.geographyAllDistricts, auth: false);
     final data = response['data'] as Map<String, dynamic>? ?? {};
+    final region = (data['region'] ?? 'Banaadir').toString();
     final districts = data['districts'] as List<dynamic>? ?? [];
     return districts.map((item) {
       if (item is Map) {
         return DistrictOption(
           district: (item['district'] ?? '').toString(),
-          region: (item['region'] ?? '').toString(),
+          region: (item['region'] ?? region).toString(),
         );
       }
-      return DistrictOption(district: item.toString(), region: '');
+      return DistrictOption(district: item.toString(), region: region);
     }).where((item) => item.district.isNotEmpty).toList();
   }
 
@@ -55,11 +56,20 @@ class GeographyService {
     final response =
         await _api.get(ApiEndpoints.geographyDistricts(region), auth: false);
     final data = response['data'] as Map<String, dynamic>? ?? {};
-    final districts = data['districts'] as List<dynamic>? ?? [];
-    return districts.map((item) {
+    final raw = data['districts'] as List<dynamic>? ??
+        data['names'] as List<dynamic>? ??
+        [];
+    return raw.map((item) {
       if (item is Map) return (item['district'] ?? '').toString();
       return item.toString();
     }).where((item) => item.isNotEmpty).toList();
+  }
+
+  /// Banaadir district names for dropdowns.
+  Future<List<String>> listBanaadirDistricts() async {
+    final options = await listAllDistricts();
+    return options.map((item) => item.district).toList()
+      ..sort((a, b) => a.compareTo(b));
   }
 
   Future<List<String>> listVillages(String region, String district) async {

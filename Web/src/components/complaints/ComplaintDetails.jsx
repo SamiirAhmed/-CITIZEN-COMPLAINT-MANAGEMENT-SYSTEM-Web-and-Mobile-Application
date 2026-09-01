@@ -33,10 +33,6 @@ export default function ComplaintDetails({ complaint, linkedOB = null }) {
             <strong>{complaint.location || '—'}</strong>
           </div>
           <div>
-            <span className="detail-label">Region</span>
-            <strong>{complaint.region || '—'}</strong>
-          </div>
-          <div>
             <span className="detail-label">District</span>
             <strong>{complaint.district || '—'}</strong>
           </div>
@@ -80,60 +76,55 @@ export default function ComplaintDetails({ complaint, linkedOB = null }) {
       <section className="detail-section">
         <h3>Description</h3>
         <p>{complaint.description || '—'}</p>
-        {complaint.relatedInformation ? (
-          <>
-            <span className="detail-label">Related Information</span>
-            <p>{complaint.relatedInformation}</p>
-          </>
-        ) : null}
-        {complaint.evidenceNotes ? (
-          <>
-            <span className="detail-label">Evidence Notes</span>
-            <p>{complaint.evidenceNotes}</p>
-          </>
-        ) : null}
-        {Array.isArray(complaint.evidence) && complaint.evidence.length ? (
-          <>
-            <span className="detail-label">Evidence Files</span>
-            <ul className="evidence-list">
-              {complaint.evidence.map((item) => {
-                const isImage = String(item.mimeType || '').startsWith('image/');
-                const isVideo = String(item.mimeType || '').startsWith('video/');
-                const href = item.url ? resolveMediaUrl(item.url) : '';
-                return (
-                  <li key={item.id || item.url} className="evidence-list__item">
-                    <div>
-                      <strong>{item.originalName || item.fileName || 'Evidence'}</strong>
-                      {item.note ? <p>{item.note}</p> : null}
-                      {isImage && href ? (
-                        <img
-                          className="evidence-list__media"
-                          src={href}
-                          alt={item.originalName || 'Evidence'}
-                        />
-                      ) : null}
-                      {isVideo && href ? (
-                        <video className="evidence-list__media" src={href} controls />
-                      ) : null}
-                      {!isImage && !isVideo && href ? (
-                        <a href={href} target="_blank" rel="noreferrer">
-                          Open file
-                        </a>
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        ) : null}
-        {complaint.rejectionReason ? (
-          <>
-            <span className="detail-label">Rejection Reason</span>
-            <p>{complaint.rejectionReason}</p>
-          </>
-        ) : null}
       </section>
+
+      <section className="detail-section">
+        <h3>Evidence Notes</h3>
+        <p>{complaint.evidenceNotes || '—'}</p>
+      </section>
+
+      {Array.isArray(complaint.evidence) && complaint.evidence.length ? (
+        <section className="detail-section">
+          <h3>Evidence Files</h3>
+          <ul className="evidence-list">
+            {complaint.evidence.map((item) => {
+              const isImage = String(item.mimeType || '').startsWith('image/');
+              const isVideo = String(item.mimeType || '').startsWith('video/');
+              const href = item.url ? resolveMediaUrl(item.url) : '';
+              return (
+                <li key={item.id || item.url} className="evidence-list__item">
+                  <div>
+                    <strong>{item.originalName || item.fileName || 'Evidence'}</strong>
+                    {item.note ? <p>{item.note}</p> : null}
+                    {isImage && href ? (
+                      <img
+                        className="evidence-list__media"
+                        src={href}
+                        alt={item.originalName || 'Evidence'}
+                      />
+                    ) : null}
+                    {isVideo && href ? (
+                      <video className="evidence-list__media" src={href} controls />
+                    ) : null}
+                    {!isImage && !isVideo && href ? (
+                      <a href={href} target="_blank" rel="noreferrer">
+                        Open file
+                      </a>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+
+      {complaint.rejectionReason ? (
+        <section className="detail-section">
+          <h3>Rejection Reason</h3>
+          <p>{complaint.rejectionReason}</p>
+        </section>
+      ) : null}
 
       {linkedOB ? (
         <section className="detail-section">

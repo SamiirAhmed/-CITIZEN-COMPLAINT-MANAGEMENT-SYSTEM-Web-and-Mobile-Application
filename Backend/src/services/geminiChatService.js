@@ -8,18 +8,28 @@ import Notification from '../models/Notification.js';
 import { hiddenNotificationClause } from '../utils/authAudit.js';
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+const DEFAULT_MODEL = 'gemini-3.6-flash';
+const MODEL_FALLBACKS = ['gemini-3.6-flash', 'gemini-1.5-flash'];
+
+const PLACEHOLDER_KEY = /^YOUR_|^PASTE_|^REPLACE_/i;
+
+export function getGeminiApiKey() {
+  const googleKey = String(process.env.GOOGLE_API_KEY || '').trim();
+  const geminiKey = String(process.env.GEMINI_API_KEY || '').trim();
+  return googleKey || geminiKey;
+}
 
 export function isGeminiConfigured() {
-  const key = String(process.env.GEMINI_API_KEY || '').trim();
-  return Boolean(key) && !/^YOUR_|^PASTE_|^REPLACE_/i.test(key);
+  const key = getGeminiApiKey();
+  return Boolean(key) && !PLACEHOLDER_KEY.test(key);
 }
 
 function getGeminiConfig() {
-  const apiKey = String(process.env.GEMINI_API_KEY || '').trim();
+  const apiKey = getGeminiApiKey();
   const model =
-    String(process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim() || 'gemini-3.6-flash';
+    String(process.env.GEMINI_MODEL || DEFAULT_MODEL).trim() || DEFAULT_MODEL;
 
-  if (!apiKey || /^YOUR_|^PASTE_|^REPLACE_/i.test(apiKey)) {
+  if (!apiKey || PLACEHOLDER_KEY.test(apiKey)) {
     const error = new Error(
       'Gemini API key is missing. Add GEMINI_API_KEY in Backend/.env, then restart the backend.'
     );
@@ -28,6 +38,10 @@ function getGeminiConfig() {
   }
 
   return { apiKey, model };
+}
+
+function resolveModelCandidates(preferredModel) {
+  return [...new Set([preferredModel, ...MODEL_FALLBACKS].filter(Boolean))];
 }
 
 async function countBy(model, match = {}) {
@@ -336,63 +350,86 @@ export async function askGemini({ message, history = [], scope = 'admin', user =
   }
   contents.push({ role: 'user', parts: [{ text: String(message).trim() }] });
 
-  const url = `${GEMINI_API_BASE}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const requestBody = JSON.stringify({
+    systemInstruction: {
+      parts: [{ text: systemPrompt }],
+    },
+    contents,
+    generationConfig: {
+      temperature: 0.3,
+      maxOutputTokens: 1024,
+    },
+  });
 
-  let response;
-  try {
-    response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemPrompt }],
+  const modelCandidates = resolveModelCandidates(model);
+  let lastError = null;
+
+  for (const candidateModel of modelCandidates) {
+    const url = `${GEMINI_API_BASE}/models/${encodeURIComponent(candidateModel)}:generateContent`;
+
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'x-goog-api-key': apiKey,
         },
-        contents,
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 1024,
-        },
-      }),
-    });
-  } catch {
-    const error = new Error('Unable to reach Gemini API. Check your internet connection.');
-    error.code = 'GEMINI_UNAVAILABLE';
-    throw error;
+        body: requestBody,
+      });
+    } catch {
+      const error = new Error('Unable to reach Gemini API. Check your internet connection.');
+      error.code = 'GEMINI_UNAVAILABLE';
+      throw error;
+    }
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const providerMessage =
+        payload?.error?.message ||
+        payload?.message ||
+        `Gemini request failed (${response.status}).`;
+      const error = new Error(providerMessage);
+      error.code =
+        response.status === 400 || response.status === 403 || response.status === 401
+          ? 'GEMINI_AUTH_FAILED'
+          : 'GEMINI_REQUEST_FAILED';
+
+      const modelMissing =
+        response.status === 404 ||
+        /not found|is not supported|does not exist/i.test(providerMessage);
+
+      if (modelMissing && candidateModel !== modelCandidates.at(-1)) {
+        lastError = error;
+        continue;
+      }
+
+      throw error;
+    }
+
+    const text =
+      payload?.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || '')
+        .join('')
+        .trim() || '';
+
+    if (!text) {
+      const error = new Error('Gemini returned an empty response. Try asking again.');
+      error.code = 'GEMINI_EMPTY';
+      throw error;
+    }
+
+    return {
+      reply: text,
+      model: candidateModel,
+      contextGeneratedAt: context.generatedAt,
+    };
   }
 
-  const payload = await response.json().catch(() => ({}));
-
-  if (!response.ok) {
-    const providerMessage =
-      payload?.error?.message ||
-      payload?.message ||
-      `Gemini request failed (${response.status}).`;
-    const error = new Error(providerMessage);
-    error.code =
-      response.status === 400 || response.status === 403
-        ? 'GEMINI_AUTH_FAILED'
-        : 'GEMINI_REQUEST_FAILED';
-    throw error;
-  }
-
-  const text =
-    payload?.candidates?.[0]?.content?.parts
-      ?.map((part) => part.text || '')
-      .join('')
-      .trim() || '';
-
-  if (!text) {
-    const error = new Error('Gemini returned an empty response. Try asking again.');
-    error.code = 'GEMINI_EMPTY';
-    throw error;
-  }
-
-  return {
-    reply: text,
-    model,
-    contextGeneratedAt: context.generatedAt,
-  };
+  throw (
+    lastError ||
+    new Error('Gemini request failed. Check GEMINI_API_KEY and GEMINI_MODEL in Backend/.env.')
+  );
 }

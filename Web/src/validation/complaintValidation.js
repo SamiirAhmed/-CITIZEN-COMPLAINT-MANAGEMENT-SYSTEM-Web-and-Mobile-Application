@@ -1,4 +1,4 @@
-import { COMPLAINT_STATUSES } from '../constants/domain';
+import { COMPLAINT_STATUSES, DEFAULT_REGION } from '../constants/domain';
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
 const VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
@@ -40,11 +40,10 @@ export function validateComplaintForm(values, { evidenceFiles = [] } = {}) {
   const category = String(values.category ?? '').trim();
   const description = String(values.description ?? '').trim();
   const incidentDate = String(values.incidentDate ?? '').trim();
-  const region = String(values.region ?? '').trim();
+  const region = String(values.region ?? DEFAULT_REGION).trim() || DEFAULT_REGION;
   const district = String(values.district ?? '').trim();
   const village = String(values.village ?? '').trim();
   const area = String(values.area ?? '').trim();
-  const relatedInformation = String(values.relatedInformation ?? '').trim();
   const evidenceNotes = String(values.evidenceNotes ?? '').trim();
   const status = String(values.status ?? '').trim();
   const note = String(values.note ?? '').trim();
@@ -68,10 +67,6 @@ export function validateComplaintForm(values, { evidenceFiles = [] } = {}) {
     errors.incidentDate = 'Incident date is required.';
   } else if (Number.isNaN(new Date(incidentDate).getTime())) {
     errors.incidentDate = 'Please enter a valid incident date.';
-  }
-
-  if (!region) {
-    errors.region = 'Region is required.';
   }
 
   if (!district) {
@@ -104,7 +99,6 @@ export function validateComplaintForm(values, { evidenceFiles = [] } = {}) {
       district,
       village,
       area,
-      relatedInformation,
       evidenceNotes,
       status: status || undefined,
       note: note || undefined,

@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../../application/application_routes.dart';
 import '../../../application/application_theme.dart';
 import '../../../core/network/api_exception.dart';
-import '../../../core/widgets/empty_state.dart';
 import '../../../layouts/citizen_app_layout.dart';
 import '../../../models/complaint_model.dart';
 import '../../../services/complaint_service.dart';
@@ -30,6 +29,7 @@ class _ComplaintListScreenState extends State<ComplaintListScreen> {
   String? _error;
   String _filter = 'all';
   String _searchQuery = '';
+  CitizenAppLayoutState? _layout;
 
   @override
   void initState() {
@@ -38,10 +38,24 @@ class _ComplaintListScreenState extends State<ComplaintListScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final layout = CitizenAppLayout.of(context);
+    if (_layout != layout) {
+      _layout?.unregisterComplaintsRefresh(refreshComplaints);
+      _layout = layout;
+      _layout?.registerComplaintsRefresh(refreshComplaints);
+    }
+  }
+
+  @override
   void dispose() {
+    _layout?.unregisterComplaintsRefresh(refreshComplaints);
     _scrollController.dispose();
     super.dispose();
   }
+
+  Future<void> refreshComplaints({bool silent = false}) => _load(silent: silent);
 
   List<String> get _statuses => _items.map((item) => item.status).toList();
 
@@ -111,9 +125,22 @@ class _ComplaintListScreenState extends State<ComplaintListScreen> {
   }
 
   Future<void> _submitComplaint() async {
-    await Navigator.pushNamed(context, AppRoutes.submitComplaint);
+    final result =
+        await Navigator.pushNamed(context, AppRoutes.submitComplaint);
     if (!mounted) return;
-    await _load(silent: true);
+
+    if (result is ComplaintModel) {
+      setState(() {
+        _items = [
+          result,
+          ..._items.where((item) => item.id != result.id),
+        ];
+        _loading = false;
+        _error = null;
+      });
+    }
+
+    await _load(silent: _items.isNotEmpty);
   }
 
   Widget _buildBody() {
@@ -179,30 +206,23 @@ class _ComplaintListScreenState extends State<ComplaintListScreen> {
     final visible = _visibleItems;
 
     if (visible.isEmpty) {
-      final isAllEmpty = _items.isEmpty;
       final hasSearch = _searchQuery.trim().isNotEmpty;
 
       return ListView(
         controller: _scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 48, 16, 120),
         children: [
-          SizedBox(
-            height: MediaQuery.of(context).size.height * 0.5,
-            child: EmptyState(
-              title: hasSearch
-                  ? 'No complaints found'
-                  : isAllEmpty
-                      ? 'No complaints yet'
-                      : 'No complaints found',
-              message: hasSearch
-                  ? 'Try a different search term or filter.'
-                  : isAllEmpty
-                      ? "You haven't submitted any complaints yet."
-                      : 'There are no complaints in this category.',
-              icon: Icons.description_outlined,
-              actionLabel: isAllEmpty ? 'Submit Complaint' : null,
-              onAction: isAllEmpty ? _submitComplaint : null,
-            ),
+          Text(
+            hasSearch
+                ? 'No complaints found.'
+                : _items.isEmpty
+                    ? 'No complaints yet.'
+                    : 'No complaints in this category.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
           ),
         ],
       );

@@ -230,18 +230,10 @@ export default function PoliceOBDetailsPage() {
           <span className="detail-label">Description</span>
           <p>{complaint.description || '—'}</p>
         </div>
-        {complaint.relatedInformation ? (
-          <div className="detail-block">
-            <span className="detail-label">Related information</span>
-            <p>{complaint.relatedInformation}</p>
-          </div>
-        ) : null}
-        {complaint.evidenceNotes ? (
-          <div className="detail-block">
-            <span className="detail-label">Complaint evidence notes</span>
-            <p>{complaint.evidenceNotes}</p>
-          </div>
-        ) : null}
+        <div className="detail-block">
+          <span className="detail-label">Evidence Notes</span>
+          <p>{complaint.evidenceNotes || '—'}</p>
+        </div>
       </section>
 
       <section className="panel">

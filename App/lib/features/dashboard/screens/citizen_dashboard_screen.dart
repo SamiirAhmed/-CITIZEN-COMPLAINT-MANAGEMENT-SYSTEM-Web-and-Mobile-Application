@@ -7,6 +7,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/utils/route_args.dart';
 import '../../../core/widgets/error_state.dart';
 import '../../../layouts/citizen_app_layout.dart';
+import '../../../models/complaint_model.dart';
 import '../../../services/authentication_service.dart';
 import '../../../services/complaint_service.dart';
 import '../../../services/notification_service.dart';
@@ -83,9 +84,16 @@ class _CitizenDashboardScreenState extends State<CitizenDashboardScreen> {
   }
 
   Future<void> _submitComplaint() async {
-    await Navigator.pushNamed(context, AppRoutes.submitComplaint);
+    final layout = CitizenAppLayout.of(context);
+    final result =
+        await Navigator.pushNamed(context, AppRoutes.submitComplaint);
     if (!mounted) return;
     await _load(silent: true);
+
+    if (result is ComplaintModel) {
+      await layout?.refreshComplaints(silent: false);
+      layout?.selectTab(1);
+    }
   }
 
   void _openObDetails(String id, {String? obNumber}) {

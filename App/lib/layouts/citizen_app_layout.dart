@@ -32,6 +32,7 @@ class CitizenAppLayoutState extends State<CitizenAppLayout> {
   late int _index;
   int _unread = 0;
   Timer? _pollTimer;
+  Future<void> Function({bool silent})? _complaintsRefresh;
 
   final _pages = const [
     CitizenDashboardScreen(),
@@ -62,9 +63,29 @@ class CitizenAppLayoutState extends State<CitizenAppLayout> {
 
   void refreshUnreadBadge() => _loadUnread();
 
+  void registerComplaintsRefresh(
+    Future<void> Function({bool silent}) refresh,
+  ) {
+    _complaintsRefresh = refresh;
+  }
+
+  void unregisterComplaintsRefresh(
+    Future<void> Function({bool silent}) refresh,
+  ) {
+    if (_complaintsRefresh == refresh) _complaintsRefresh = null;
+  }
+
+  Future<void> refreshComplaints({bool silent = true}) async {
+    await _complaintsRefresh?.call(silent: silent);
+  }
+
   void selectTab(int value) {
+    final openedComplaints = value == 1 && _index != value;
     setState(() => _index = value);
     _loadUnread();
+    if (openedComplaints) {
+      refreshComplaints();
+    }
   }
 
   int get activeTabIndex => _index;

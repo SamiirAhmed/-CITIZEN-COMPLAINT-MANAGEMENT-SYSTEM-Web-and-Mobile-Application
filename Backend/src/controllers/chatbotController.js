@@ -4,12 +4,15 @@ import {
   isGeminiConfigured,
 } from '../services/geminiChatService.js';
 
+const configuredModel =
+  String(process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim() || 'gemini-3.6-flash';
+
 export const getChatbotStatus = asyncHandler(async (_req, res) => {
   return res.json({
     success: true,
     data: {
       configured: isGeminiConfigured(),
-      model: String(process.env.GEMINI_MODEL || 'gemini-3.6-flash').trim() || 'gemini-3.6-flash',
+      model: configuredModel,
       message: isGeminiConfigured()
         ? 'Gemini chatbot is ready.'
         : 'Add GEMINI_API_KEY in Backend/.env, then restart the backend.',

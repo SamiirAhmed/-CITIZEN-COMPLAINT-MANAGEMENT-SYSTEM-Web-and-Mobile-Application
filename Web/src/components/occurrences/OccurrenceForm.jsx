@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import GeographicSelect from '../common/GeographicSelect';
+import { DEFAULT_REGION } from '../../constants/domain';
 import {
   EMPTY_OCCURRENCE_FORM,
   FALLBACK_CATEGORIES,
@@ -206,15 +207,14 @@ export default function OccurrenceForm({
       </label>
 
       <GeographicSelect
-        region={values.region || ''}
         district={values.district || ''}
         districtRequired
-        onRegionChange={(nextRegion) => {
-          setField('region', nextRegion);
-          setField('district', '');
+        showVillage={false}
+        showArea={false}
+        onChange={({ district }) => {
+          setField('region', DEFAULT_REGION);
+          setField('district', district || '');
         }}
-        onDistrictChange={(nextDistrict) => setField('district', nextDistrict)}
-        regionError={errors.region}
         districtError={errors.district}
         disabled={submitting}
       />

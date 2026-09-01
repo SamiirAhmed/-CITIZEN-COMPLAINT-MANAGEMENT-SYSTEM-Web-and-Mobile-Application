@@ -7,7 +7,7 @@ import ConfirmDialog from '../components/common/ConfirmDialog';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import Modal from '../components/common/Modal';
-import { COMPLAINT_STATUSES, getRecordId } from '../constants/domain';
+import { COMPLAINT_STATUSES, DEFAULT_REGION, getRecordId } from '../constants/domain';
 import { listCategories } from '../services/categoryService';
 import { listCitizens } from '../services/citizenService';
 import {
@@ -255,11 +255,10 @@ export default function ComplaintsPage() {
               description: editing.description || '',
               incidentDate: editing.incidentDate || '',
               location: editing.location || '',
-              region: editing.region || '',
+              region: editing.region || DEFAULT_REGION,
               district: editing.district || '',
               village: editing.village || '',
               area: editing.area || '',
-              relatedInformation: editing.relatedInformation || '',
               evidenceNotes: editing.evidenceNotes || '',
               status: editing.status || 'Submitted',
               note: '',

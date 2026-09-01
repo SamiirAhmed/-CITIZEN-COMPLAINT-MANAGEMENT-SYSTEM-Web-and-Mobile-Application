@@ -1,3 +1,6 @@
+/** Default region for citizen-facing location selection. */
+export const DEFAULT_REGION = 'Banaadir';
+
 export const COMPLAINT_STATUSES = [
   'Submitted',
   'Under Review',

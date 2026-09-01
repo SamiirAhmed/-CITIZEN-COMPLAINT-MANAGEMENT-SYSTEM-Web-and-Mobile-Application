@@ -12,35 +12,7 @@ export const listRegions = asyncHandler(async (_req, res) => {
 });
 
 export const listDistrictsByRegion = asyncHandler(async (req, res) => {
-  const region = String(req.query.region ?? '').trim();
-
-  // No region → all active districts (with region) for district-only dropdowns.
-  if (!region) {
-    const rows = await GeographicLocation.aggregate([
-      { $match: { isActive: true, district: { $nin: [null, ''] } } },
-      {
-        $group: {
-          _id: { district: '$district', region: '$region' },
-        },
-      },
-      { $sort: { '_id.district': 1, '_id.region': 1 } },
-    ]);
-
-    const districts = rows.map((row) => ({
-      district: row._id.district,
-      region: row._id.region,
-      label: row._id.district,
-    }));
-
-    return res.json({
-      success: true,
-      data: {
-        districts,
-        // Backward-compatible flat names
-        names: [...new Set(districts.map((item) => item.district))],
-      },
-    });
-  }
+  const region = String(req.query.region ?? 'Banaadir').trim() || 'Banaadir';
 
   const districts = await GeographicLocation.distinct('district', {
     region,
@@ -53,6 +25,7 @@ export const listDistrictsByRegion = asyncHandler(async (req, res) => {
     data: {
       districts,
       names: districts,
+      region,
     },
   });
 });
@@ -168,7 +141,8 @@ export const resolveLocationId = asyncHandler(async (req, res) => {
 
 export const listGeographyTable = asyncHandler(async (req, res) => {
   const { search = '' } = req.query;
-  const filter = { isActive: true };
+  const region = String(req.query.region ?? 'Banaadir').trim() || 'Banaadir';
+  const filter = { isActive: true, region };
 
   if (search.trim()) {
     const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
@@ -187,6 +161,137 @@ export const listGeographyTable = asyncHandler(async (req, res) => {
     success: true,
     data: {
       locations: locations.map((item) => item.toSafeObject()),
+      region,
     },
+  });
+});
+
+export const createGeography = asyncHandler(async (req, res) => {
+  const region = 'Banaadir';
+  const district = String(req.body.district ?? '').trim();
+  const village = String(req.body.village ?? '').trim();
+  const area = String(req.body.area ?? '').trim();
+
+  if (!district) {
+    return res.status(400).json({
+      success: false,
+      message: 'District is required.',
+    });
+  }
+
+  const duplicate = await GeographicLocation.findOne({
+    region,
+    district,
+    village,
+    area,
+  });
+
+  if (duplicate) {
+    if (duplicate.isActive) {
+      return res.status(409).json({
+        success: false,
+        message: 'This district location already exists.',
+      });
+    }
+    duplicate.isActive = true;
+    await duplicate.save();
+    return res.status(201).json({
+      success: true,
+      message: 'District restored successfully.',
+      data: { location: duplicate.toSafeObject() },
+    });
+  }
+
+  const location = await GeographicLocation.create({
+    region,
+    district,
+    village,
+    area,
+    isActive: true,
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: 'District registered successfully.',
+    data: { location: location.toSafeObject() },
+  });
+});
+
+export const updateGeography = asyncHandler(async (req, res) => {
+  const location = await GeographicLocation.findById(req.params.id);
+  if (!location || !location.isActive) {
+    return res.status(404).json({
+      success: false,
+      message: 'District record not found.',
+    });
+  }
+
+  const district = String(req.body.district ?? location.district).trim();
+  const village =
+    req.body.village !== undefined
+      ? String(req.body.village ?? '').trim()
+      : location.village || '';
+  const area =
+    req.body.area !== undefined
+      ? String(req.body.area ?? '').trim()
+      : location.area || '';
+
+  if (!district) {
+    return res.status(400).json({
+      success: false,
+      message: 'District is required.',
+    });
+  }
+
+  const previousDistrict = location.district;
+  location.region = 'Banaadir';
+  location.district = district;
+  location.village = village;
+  location.area = area;
+
+  try {
+    await location.save();
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'Another record already uses this district location.',
+      });
+    }
+    throw error;
+  }
+
+  if (previousDistrict !== district && !village && !area) {
+    await GeographicLocation.updateMany(
+      { region: 'Banaadir', district: previousDistrict, _id: { $ne: location._id } },
+      { $set: { district } }
+    );
+  }
+
+  return res.json({
+    success: true,
+    message: 'District updated successfully.',
+    data: { location: location.toSafeObject() },
+  });
+});
+
+export const deleteGeography = asyncHandler(async (req, res) => {
+  const location = await GeographicLocation.findById(req.params.id);
+  if (!location || !location.isActive) {
+    return res.status(404).json({
+      success: false,
+      message: 'District record not found.',
+    });
+  }
+
+  const { district } = location;
+  await GeographicLocation.updateMany(
+    { region: 'Banaadir', district, isActive: true },
+    { $set: { isActive: false } }
+  );
+
+  return res.json({
+    success: true,
+    message: `District "${district}" removed.`,
   });
 });
