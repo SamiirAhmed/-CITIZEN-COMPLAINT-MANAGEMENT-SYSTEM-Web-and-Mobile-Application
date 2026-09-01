@@ -9,6 +9,18 @@ import 'api_exception.dart';
 
 typedef UnauthorizedHandler = Future<void> Function();
 
+class MultipartFileInput {
+  const MultipartFileInput({
+    required this.field,
+    required this.path,
+    this.filename,
+  });
+
+  final String field;
+  final String path;
+  final String? filename;
+}
+
 class ApiClient {
   ApiClient({
     required SecureSessionStorage storage,
@@ -131,6 +143,26 @@ class ApiClient {
     String? filename,
     bool auth = true,
   }) {
+    return postMultipartFiles(
+      path,
+      fields: fields,
+      files: [
+        MultipartFileInput(
+          field: fileField,
+          path: filePath,
+          filename: filename,
+        ),
+      ],
+      auth: auth,
+    );
+  }
+
+  Future<Map<String, dynamic>> postMultipartFiles(
+    String path, {
+    Map<String, String>? fields,
+    List<MultipartFileInput> files = const [],
+    bool auth = true,
+  }) {
     return _send(() async {
       final request = http.MultipartRequest('POST', _uri(path));
       final headers = <String, String>{
@@ -146,13 +178,15 @@ class ApiClient {
       if (fields != null) {
         request.fields.addAll(fields);
       }
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          fileField,
-          filePath,
-          filename: filename,
-        ),
-      );
+      for (final file in files) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            file.field,
+            file.path,
+            filename: file.filename,
+          ),
+        );
+      }
       final streamed = await _http.send(request);
       return http.Response.fromStream(streamed);
     }, auth: auth);

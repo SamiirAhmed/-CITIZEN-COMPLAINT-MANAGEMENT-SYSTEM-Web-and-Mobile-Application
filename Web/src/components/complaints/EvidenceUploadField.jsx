@@ -50,7 +50,7 @@ export default function EvidenceUploadField({
 
   return (
     <div className="field field--full">
-      <span>Evidence (images / video)</span>
+      <span>Evidence (images / video) (optional)</span>
       <div className="evidence-upload">
         <input
           ref={inputRef}
@@ -61,8 +61,8 @@ export default function EvidenceUploadField({
           onChange={handlePick}
         />
         <small className="field-hint">
-          Upload images (JPEG, PNG, WebP) or video (MP4, WebM, MOV). Max {maxFiles} files ·
-          25MB each.
+          Optional — upload images (JPEG, PNG, WebP) or video (MP4, WebM, MOV). Max {maxFiles}{' '}
+          files · 25MB each.
         </small>
 
         {previews.length ? (

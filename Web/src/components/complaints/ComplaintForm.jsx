@@ -220,28 +220,30 @@ export default function ComplaintForm({
         disabled={submitting}
       />
 
-      <label className="field">
-        <span>Status</span>
-        <select name="status" value={values.status} onChange={handleChange}>
-          {COMPLAINT_STATUSES.map((status) => (
-            <option key={status} value={status}>
-              {status}
-            </option>
-          ))}
-        </select>
-        {errors.status ? <em className="field-error">{errors.status}</em> : null}
-      </label>
-
       {isEdit ? (
-        <label className="field">
-          <span>Status Note</span>
-          <input
-            name="note"
-            value={values.note}
-            onChange={handleChange}
-            placeholder="Optional note for status change"
-          />
-        </label>
+        <>
+          <label className="field">
+            <span>Status</span>
+            <select name="status" value={values.status} onChange={handleChange}>
+              {COMPLAINT_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+            {errors.status ? <em className="field-error">{errors.status}</em> : null}
+          </label>
+
+          <label className="field">
+            <span>Status Note</span>
+            <input
+              name="note"
+              value={values.note}
+              onChange={handleChange}
+              placeholder="Optional note for status change"
+            />
+          </label>
+        </>
       ) : null}
 
       <div className="form-actions">

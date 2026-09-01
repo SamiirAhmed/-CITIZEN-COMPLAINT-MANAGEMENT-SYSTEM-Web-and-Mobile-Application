@@ -105,21 +105,55 @@ class ComplaintService {
     required String category,
     required String description,
     required DateTime incidentDate,
-    required String location,
+    required String region,
+    required String district,
+    String village = '',
+    String area = '',
+    String location = '',
     String relatedInformation = '',
     String evidenceNotes = '',
+    List<String> evidenceFilePaths = const [],
   }) async {
-    final response = await _api.post(
-      ApiEndpoints.submitComplaint,
-      body: {
-        'category': category,
-        'description': description.trim(),
-        'incidentDate': incidentDate.toIso8601String(),
-        'location': location.trim(),
+    final trimmedVillage = village.trim();
+    final trimmedArea = area.trim();
+    final trimmedLocation = location.trim().isNotEmpty
+        ? location.trim()
+        : [district.trim(), trimmedVillage, trimmedArea]
+            .where((part) => part.isNotEmpty)
+            .join(', ');
+
+    final fields = <String, String>{
+      'category': category.trim(),
+      'description': description.trim(),
+      'incidentDate': incidentDate.toIso8601String(),
+      'region': region.trim(),
+      'district': district.trim(),
+      'location': trimmedLocation,
+      if (trimmedVillage.isNotEmpty) 'village': trimmedVillage,
+      if (trimmedArea.isNotEmpty) 'area': trimmedArea,
+      if (relatedInformation.trim().isNotEmpty)
         'relatedInformation': relatedInformation.trim(),
+      if (evidenceNotes.trim().isNotEmpty)
         'evidenceNotes': evidenceNotes.trim(),
-      },
-    );
+    };
+
+    final Map<String, dynamic> response;
+    if (evidenceFilePaths.isEmpty) {
+      response = await _api.post(ApiEndpoints.submitComplaint, body: fields);
+    } else {
+      response = await _api.postMultipartFiles(
+        ApiEndpoints.submitComplaint,
+        fields: fields,
+        files: evidenceFilePaths
+            .map(
+              (path) => MultipartFileInput(
+                field: 'evidence',
+                path: path,
+              ),
+            )
+            .toList(),
+      );
+    }
 
     final data = response['data'] as Map<String, dynamic>? ?? {};
     return ComplaintModel.fromJson(

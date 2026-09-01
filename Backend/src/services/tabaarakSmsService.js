@@ -30,17 +30,14 @@ function normalizeEnvValue(value = '') {
 }
 
 export function isSmsConfigured() {
-  return Boolean(
-    String(process.env.TABAARAK_SMS_USERNAME || '').trim() &&
-      String(process.env.TABAARAK_SMS_PASSWORD || '').trim()
-  );
+  const username = normalizeEnvValue(process.env.TABAARAK_SMS_USERNAME);
+  const password = normalizeEnvValue(process.env.TABAARAK_SMS_PASSWORD);
+  return Boolean(username && password);
 }
 
 function getCredentials() {
   const username = normalizeEnvValue(process.env.TABAARAK_SMS_USERNAME);
   const password = normalizeEnvValue(process.env.TABAARAK_SMS_PASSWORD);
-  const senderId =
-    normalizeEnvValue(process.env.TABAARAK_SMS_SENDER_ID) || 'Appeal';
 
   if (!username || !password) {
     const error = new Error(
@@ -50,7 +47,7 @@ function getCredentials() {
     throw error;
   }
 
-  return { username, password, senderId };
+  return { username, password };
 }
 
 export function normalizeSomaliMobile(phone = '') {
@@ -61,10 +58,14 @@ export function normalizeSomaliMobile(phone = '') {
   return digits;
 }
 
-export function formatMobileForTabaarak(phone = '') {
+/**
+ * Tabaarak docs show "61xxxxxxx". Some Hormuud routes also need "25261xxxxxxx".
+ * Prefer local 9-digit form first; international without "+" as fallback option.
+ */
+export function formatMobileForTabaarak(phone = '', { withCountryCode = false } = {}) {
   const local = normalizeSomaliMobile(phone);
   if (!local) return '';
-  return `252${local}`;
+  return withCountryCode ? `252${local}` : local;
 }
 
 export function isValidSomaliMobile(phone = '') {
@@ -129,14 +130,18 @@ function extractBalance(payload) {
     const direct = toNumber(nested);
     if (direct != null) return direct;
   }
-  return toNumber(
+  const raw =
     nested?.balance ??
-      nested?.Balance ??
-      nested?.smsBalance ??
-      nested?.remainingBalance ??
-      payload?.balance ??
-      payload?.Balance
-  );
+    nested?.Balance ??
+    nested?.smsBalance ??
+    nested?.remainingBalance ??
+    payload?.balance ??
+    payload?.Balance;
+  if (typeof raw === 'string') {
+    const match = raw.match(/-?\d+(?:\.\d+)?/);
+    if (match) return Number(match[0]);
+  }
+  return toNumber(raw);
 }
 
 function extractAccountType(payload) {
@@ -270,7 +275,7 @@ export async function fetchSmsBalance() {
     accountType: accountType || null,
   });
 
-  if (balance == null) {
+  if (!response.ok || payload?.success === false) {
     const error = new Error(
       extractProviderMessage(payload, 'Unable to retrieve Tabaarak SMS balance.')
     );
@@ -278,12 +283,10 @@ export async function fetchSmsBalance() {
     throw error;
   }
 
-  if (!response.ok || payload?.success === false) {
-    safeLog('GetSmsBalanceWarning', {
-      httpStatus: response.status,
-      success: payload?.success,
-      message: payload?.message || null,
-    });
+  if (balance == null) {
+    const error = new Error('Unable to retrieve Tabaarak SMS balance.');
+    error.code = 'SMS_BALANCE_FAILED';
+    throw error;
   }
 
   return {
@@ -294,15 +297,44 @@ export async function fetchSmsBalance() {
   };
 }
 
-export async function sendTabaarakSms(mobiles, message) {
-  const numbers = (Array.isArray(mobiles) ? mobiles : [mobiles])
-    .map((item) => formatMobileForTabaarak(item))
-    .filter((item) => {
-      const local = normalizeSomaliMobile(item);
-      return isValidSomaliMobile(local);
-    });
+async function postSendSms(numbers, message, token) {
+  const body = {
+    smsMessage: String(message).trim(),
+    mobile: numbers,
+  };
 
-  if (!numbers.length) {
+  let response;
+  try {
+    response = await authorizedRequest(SEND_URL, { method: 'POST', body, token });
+  } catch {
+    return {
+      response: null,
+      payload: null,
+      error: 'Tabaarak service unavailable.',
+    };
+  }
+
+  if (response.status === 401) {
+    cachedToken = null;
+    tokenExpiresAt = 0;
+    const retryToken = await getTabaarakAccessToken(true);
+    response = await authorizedRequest(SEND_URL, {
+      method: 'POST',
+      body,
+      token: retryToken,
+    });
+  }
+
+  const payload = await parseBody(response);
+  return { response, payload, error: '' };
+}
+
+export async function sendTabaarakSms(mobiles, message) {
+  const localNumbers = (Array.isArray(mobiles) ? mobiles : [mobiles])
+    .map((item) => normalizeSomaliMobile(item))
+    .filter((item) => isValidSomaliMobile(item));
+
+  if (!localNumbers.length) {
     return {
       success: false,
       acceptedForDelivery: false,
@@ -312,7 +344,16 @@ export async function sendTabaarakSms(mobiles, message) {
     };
   }
 
-  const { senderId } = getCredentials();
+  // Docs: ["61xxxxxxx"]. Also try international "25261xxxxxxx" if needed for routing.
+  const preferCountry =
+    String(process.env.TABAARAK_SMS_MOBILE_FORMAT || '').trim().toLowerCase() === '252';
+  const primary = preferCountry
+    ? localNumbers.map((n) => `252${n}`)
+    : localNumbers;
+  const fallback = preferCountry
+    ? localNumbers
+    : localNumbers.map((n) => `252${n}`);
+
   let token;
   try {
     token = await getTabaarakAccessToken();
@@ -326,41 +367,41 @@ export async function sendTabaarakSms(mobiles, message) {
     };
   }
 
-  const body = {
-    smsMessage: message,
-    mobile: numbers,
-    senderId,
-  };
-
-  let response;
-  try {
-    response = await authorizedRequest(SEND_URL, { method: 'POST', body, token });
-  } catch {
+  let { response, payload, error: networkError } = await postSendSms(primary, message, token);
+  if (networkError) {
     return {
       success: false,
       acceptedForDelivery: false,
       totalNumber: 0,
       providerRef: '',
-      error: 'Tabaarak service unavailable.',
+      error: networkError,
     };
   }
 
-  if (response.status === 401) {
-    cachedToken = null;
-    tokenExpiresAt = 0;
-    const retryToken = await getTabaarakAccessToken(true);
-    response = await authorizedRequest(SEND_URL, { method: 'POST', body, token: retryToken });
+  let acceptedForDelivery = payload?.data?.acceptedForDelivery === true;
+  let success = isSendSuccessful(payload, response?.ok);
+  let formatUsed = preferCountry ? '252' : 'local';
+
+  // If provider accepted but totalNumber is 0, retry alternate format once.
+  if ((!success || Number(payload?.data?.totalNumber) === 0) && fallback.length) {
+    const retry = await postSendSms(fallback, message, token);
+    if (!retry.error && retry.response) {
+      response = retry.response;
+      payload = retry.payload;
+      acceptedForDelivery = payload?.data?.acceptedForDelivery === true;
+      success = isSendSuccessful(payload, response?.ok);
+      formatUsed = preferCountry ? 'local' : '252';
+    }
   }
 
-  const payload = await parseBody(response);
-  const acceptedForDelivery = payload?.data?.acceptedForDelivery === true;
-  const success = isSendSuccessful(payload, response.ok);
   const totalNumber = Number(payload?.data?.totalNumber);
   safeLog('SendSMS', {
-    httpStatus: response.status,
+    httpStatus: response?.status,
     success: payload?.success === true,
     acceptedForDelivery,
     totalNumber: Number.isFinite(totalNumber) ? totalNumber : null,
+    mobileFormat: formatUsed,
+    sampleMobile: String(primary[0] || '').replace(/\d(?=\d{2})/g, '*'),
     keys: responseKeys(payload),
     dataKeys: responseKeys(payload?.data),
     providerMessage: String(payload?.message || payload?.data?.message || '').slice(0, 160) || null,
@@ -369,7 +410,7 @@ export async function sendTabaarakSms(mobiles, message) {
   return {
     success,
     acceptedForDelivery,
-    totalNumber: Number.isFinite(totalNumber) ? totalNumber : numbers.length,
+    totalNumber: Number.isFinite(totalNumber) ? totalNumber : localNumbers.length,
     providerRef: '',
     error: success
       ? ''
