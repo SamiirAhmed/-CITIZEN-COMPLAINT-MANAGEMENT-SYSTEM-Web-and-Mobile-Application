@@ -1,16 +1,33 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { resolveNotificationPath } from '../../navigation/adminNavigation';
 import {
   getNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from '../../services/notificationService';
 
-function formatRelative(value) {
+const FILTER_OPTIONS = [
+  { id: 'all', label: 'All' },
+  { id: 'unread', label: 'Unread' },
+];
+
+const DATE_OPTIONS = [
+  { id: '', label: 'All time' },
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
+  { id: 'last_7_days', label: 'Last 7 Days' },
+  { id: 'last_30_days', label: 'Last 30 Days' },
+];
+
+const SKELETON_ROWS = 6;
+
+function formatRelative(value, nowMs) {
   if (!value) return '';
   try {
     const date = new Date(value);
-    const diffMs = Date.now() - date.getTime();
+    const diffMs = nowMs - date.getTime();
     const minutes = Math.floor(diffMs / 60000);
     if (minutes < 1) return 'Just now';
     if (minutes < 60) return `${minutes}m ago`;
@@ -27,30 +44,17 @@ function formatRelative(value) {
   }
 }
 
-function formatAlertTime(value) {
-  if (!value) return '';
-  try {
-    return new Date(value).toLocaleString(undefined, {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return '';
-  }
-}
+/** Isolated relative-time tick — does not remount parent alert list. */
+const RelativeTime = memo(function RelativeTime({ value }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
-const FILTER_OPTIONS = [
-  { id: 'all', label: 'All' },
-  { id: 'unread', label: 'Unread' },
-];
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-const DATE_OPTIONS = [
-  { id: '', label: 'All time' },
-  { id: 'today', label: 'Today' },
-  { id: 'yesterday', label: 'Yesterday' },
-  { id: 'last_7_days', label: 'Last 7 Days' },
-  { id: 'last_30_days', label: 'Last 30 Days' },
-];
+  return <em className="alert-feed__time">{formatRelative(value, nowMs)}</em>;
+});
 
 function mapAlertType(alert) {
   const type = String(alert.type || alert.alertAction || '').toLowerCase();
@@ -61,6 +65,30 @@ function mapAlertType(alert) {
     return 'security';
   }
   return 'success';
+}
+
+function normalizeAlert(item) {
+  return {
+    id: item.id,
+    type: item.type || mapAlertType(item),
+    alertAction: item.alertAction || item.type,
+    status: item.status,
+    title: item.title,
+    detail: item.detail || item.message,
+    message: item.message || item.detail,
+    actorName: item.actorName,
+    actorRole: item.actorRole,
+    email: item.email,
+    failureReason: item.failureReason,
+    ipAddress: item.ipAddress,
+    accessSource: item.accessSource,
+    isRead: Boolean(item.isRead),
+    createdAt: item.createdAt,
+    linkPath: item.linkPath,
+    relatedUser: item.relatedUser,
+    relatedComplaint: item.relatedComplaint,
+    relatedOB: item.relatedOB,
+  };
 }
 
 function AlertStatusDot({ type }) {
@@ -77,72 +105,141 @@ function AlertStatusDot({ type }) {
   return <span className={className} aria-hidden="true" />;
 }
 
+const AlertRow = memo(function AlertRow({ alert, onOpen }) {
+  const type = mapAlertType(alert);
+  return (
+    <li
+      className={`alert-feed__item alert-feed__item--${type} ${
+        alert.isRead ? 'is-read' : 'is-unread'
+      }`}
+    >
+      <AlertStatusDot type={type} />
+      <button type="button" className="alert-feed__body" onClick={() => onOpen(alert)}>
+        <strong>{alert.title}</strong>
+        <p>{alert.detail || alert.message}</p>
+        <div className="alert-feed__meta">
+          {alert.actorName ? <span>{alert.actorName}</span> : null}
+          {alert.actorRole ? <span>{alert.actorRole}</span> : null}
+          {alert.email && !alert.actorName ? <span>{alert.email}</span> : null}
+          {alert.failureReason ? <span>{alert.failureReason}</span> : null}
+        </div>
+      </button>
+      <RelativeTime value={alert.createdAt} />
+    </li>
+  );
+});
+
+function AlertSkeleton() {
+  return (
+    <ul className="alert-feed alert-feed--skeleton" aria-hidden="true">
+      {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+        <li key={`skeleton-${index}`} className="alert-feed__item alert-feed__item--skeleton">
+          <span className="alert-feed__dot alert-feed__dot--skeleton" />
+          <div className="alert-feed__skeleton-body">
+            <span className="skel skel--title" />
+            <span className="skel skel--line" />
+            <span className="skel skel--meta" />
+          </div>
+          <span className="skel skel--time" />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function SystemAlerts({
   alerts: initialAlerts = [],
   unreadCount: initialUnread = 0,
-  loadFromApi = false,
+  loadFromApi = true,
   compact = true,
 }) {
-  const [alerts, setAlerts] = useState(initialAlerts);
-  const [unreadCount, setUnreadCount] = useState(initialUnread);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const listRef = useRef(null);
+  const requestIdRef = useRef(0);
+  const seededRef = useRef(false);
+
+  const [alerts, setAlerts] = useState(() =>
+    (initialAlerts || []).map(normalizeAlert)
+  );
+  const [unreadCount, setUnreadCount] = useState(initialUnread || 0);
   const [filter, setFilter] = useState('all');
   const [range, setRange] = useState('');
-  const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [loading, setLoading] = useState(Boolean(loadFromApi) && !(initialAlerts || []).length);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
-    if (!loadFromApi) return;
-    setLoading(true);
-    try {
-      const result = await getNotifications({
-        filter: filter === 'unread' ? 'unread' : '',
-        range,
-        search,
-        limit: compact ? 8 : 25,
-      });
-      setAlerts(
-        (result.notifications || []).map((item) => ({
-          id: item.id,
-          type: mapAlertType(item),
-          alertAction: item.alertAction,
-          status: item.status,
-          title: item.title,
-          detail: item.message,
-          actorName: item.actorName,
-          actorRole: item.actorRole,
-          email: item.email,
-          failureReason: item.failureReason,
-          ipAddress: item.ipAddress,
-          accessSource: item.accessSource,
-          isRead: item.isRead,
-          createdAt: item.createdAt,
-        }))
-      );
-      setUnreadCount(result.unreadCount || 0);
-    } catch {
-      // Keep existing alerts on failure.
-    } finally {
+
+  // Debounce search so keystrokes do not refetch / jump the list.
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Seed once from dashboard props without re-syncing on every parent render.
+  useEffect(() => {
+    if (loadFromApi || seededRef.current) return;
+    if ((initialAlerts || []).length) {
+      setAlerts(initialAlerts.map(normalizeAlert));
+      setUnreadCount(initialUnread || 0);
+      seededRef.current = true;
       setLoading(false);
     }
-  }, [compact, filter, loadFromApi, range, search]);
+  }, [initialAlerts, initialUnread, loadFromApi]);
+
+  const load = useCallback(
+    async ({ soft = false } = {}) => {
+      if (!loadFromApi) return;
+      const requestId = ++requestIdRef.current;
+      if (soft) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError('');
+      try {
+        const result = await getNotifications({
+          filter: filter === 'unread' ? 'unread' : '',
+          range,
+          search: debouncedSearch,
+          limit: compact ? 8 : 25,
+        });
+        if (requestId !== requestIdRef.current) return;
+
+        const next = (result.notifications || []).map(normalizeAlert);
+        const scrollTop = listRef.current?.scrollTop ?? 0;
+        setAlerts(next);
+        setUnreadCount(result.unreadCount || 0);
+
+        // Restore scroll after paint so soft refresh does not jump.
+        requestAnimationFrame(() => {
+          if (listRef.current) {
+            listRef.current.scrollTop = scrollTop;
+          }
+        });
+      } catch (err) {
+        if (requestId !== requestIdRef.current) return;
+        setError(err.message || 'Unable to load system alerts.');
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    },
+    [compact, debouncedSearch, filter, loadFromApi, range]
+  );
 
   useEffect(() => {
-    if (!loadFromApi) {
-      setAlerts(initialAlerts);
-      setUnreadCount(initialUnread);
-      return;
-    }
-    const timer = setTimeout(load, 250);
+    if (!loadFromApi) return undefined;
+    const hasRows = alerts.length > 0;
+    const timer = setTimeout(() => load({ soft: hasRows }), 0);
     return () => clearTimeout(timer);
-  }, [initialAlerts, initialUnread, load, loadFromApi]);
-
-  const visibleAlerts = useMemo(() => {
-    if (loadFromApi) return alerts;
-    return alerts.filter((alert) => {
-      if (filter === 'unread') return !alert.isRead;
-      return true;
-    });
-  }, [alerts, filter, loadFromApi]);
+    // Intentionally exclude alerts.length from deps — only refetch on filter/search/range.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load, loadFromApi]);
 
   const handleAlertOpen = async (alert) => {
     if (!alert.isRead && alert.id) {
@@ -158,34 +255,50 @@ export default function SystemAlerts({
         // Non-blocking.
       }
     }
+    const path = resolveNotificationPath(alert, user);
+    if (path) navigate(path);
   };
 
   const handleMarkAllRead = async () => {
+    if (!unreadCount) return;
+    const scrollTop = listRef.current?.scrollTop ?? 0;
     try {
       await markAllNotificationsRead();
       setAlerts((current) => current.map((item) => ({ ...item, isRead: true })));
       setUnreadCount(0);
+      requestAnimationFrame(() => {
+        if (listRef.current) listRef.current.scrollTop = scrollTop;
+      });
     } catch {
       // Non-blocking.
     }
   };
 
+  const showSkeleton = loading && !alerts.length;
+  const showEmpty = !loading && !error && !alerts.length;
+
   return (
     <article className="panel dash-panel system-alerts">
-      <div className="panel__header panel__header--spread">
-        <div>
+      <div className="panel__header panel__header--spread system-alerts__header">
+        <div className="system-alerts__heading">
           <h2>System Alerts</h2>
           <p className="muted">Important citizen, complaint, and OB events.</p>
         </div>
         <div className="system-alerts__meta">
-          {unreadCount > 0 ? (
-            <span className="system-alerts__count">{unreadCount} unread</span>
-          ) : null}
-          {unreadCount > 0 ? (
-            <button type="button" className="btn btn--ghost btn--small" onClick={handleMarkAllRead}>
-              Mark all read
-            </button>
-          ) : null}
+          <span
+            className={`system-alerts__count ${unreadCount ? '' : 'is-zero'}`}
+            aria-live="polite"
+          >
+            {unreadCount} unread
+          </span>
+          <button
+            type="button"
+            className="btn btn--ghost btn--small"
+            onClick={handleMarkAllRead}
+            disabled={!unreadCount}
+          >
+            Mark all read
+          </button>
           <Link to="/notifications" className="btn btn--ghost btn--small">
             View All
           </Link>
@@ -209,7 +322,11 @@ export default function SystemAlerts({
         </div>
         {loadFromApi ? (
           <div className="system-alerts__filter-row">
-            <select value={range} onChange={(event) => setRange(event.target.value)}>
+            <select
+              value={range}
+              onChange={(event) => setRange(event.target.value)}
+              aria-label="Alert date range"
+            >
               {DATE_OPTIONS.map((option) => (
                 <option key={option.id || 'all'} value={option.id}>
                   {option.label}
@@ -219,47 +336,48 @@ export default function SystemAlerts({
             <input
               type="search"
               placeholder="Search alerts…"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              aria-label="Search alerts"
             />
           </div>
         ) : null}
       </div>
 
-      {loading ? <p className="muted chart-empty">Loading alerts…</p> : null}
+      <div
+        className={`system-alerts__results ${refreshing ? 'is-refreshing' : ''}`}
+        ref={listRef}
+      >
+        {showSkeleton ? <AlertSkeleton /> : null}
 
-      {!loading && !visibleAlerts.length ? (
-        <p className="muted chart-empty">No system alerts for the selected filters.</p>
-      ) : (
-        <ul className="alert-feed">
-          {visibleAlerts.map((alert) => {
-            const type = mapAlertType(alert);
-            return (
-              <li
-                key={alert.id}
-                className={`alert-feed__item alert-feed__item--${type} ${alert.isRead ? 'is-read' : 'is-unread'}`}
-              >
-                <AlertStatusDot type={type} />
-                <button
-                  type="button"
-                  className="alert-feed__body"
-                  onClick={() => handleAlertOpen(alert)}
-                >
-                  <strong>{alert.title}</strong>
-                  <p>{alert.detail}</p>
-                  <div className="alert-feed__meta">
-                    {alert.actorName ? <span>{alert.actorName}</span> : null}
-                    {alert.actorRole ? <span>{alert.actorRole}</span> : null}
-                    {alert.email && !alert.actorName ? <span>{alert.email}</span> : null}
-                    {alert.failureReason ? <span>{alert.failureReason}</span> : null}
-                  </div>
-                </button>
-                <em>{formatRelative(alert.createdAt) || formatAlertTime(alert.createdAt)}</em>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+        {error && !showSkeleton ? (
+          <div className="system-alerts__state">
+            <p>Unable to load system alerts.</p>
+            <button
+              type="button"
+              className="btn btn--ghost btn--small"
+              onClick={() => load({ soft: Boolean(alerts.length) })}
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
+
+        {showEmpty ? (
+          <div className="system-alerts__state">
+            <strong>No system alerts</strong>
+            <p className="muted">There are currently no alerts to display.</p>
+          </div>
+        ) : null}
+
+        {!showSkeleton && !error && alerts.length ? (
+          <ul className="alert-feed">
+            {alerts.map((alert) => (
+              <AlertRow key={alert.id} alert={alert} onOpen={handleAlertOpen} />
+            ))}
+          </ul>
+        ) : null}
+      </div>
     </article>
   );
 }

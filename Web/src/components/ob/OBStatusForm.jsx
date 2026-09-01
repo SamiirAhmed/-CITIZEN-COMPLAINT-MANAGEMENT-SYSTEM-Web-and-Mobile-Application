@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 const STATUS_ACTIONS = [
   { value: 'resolve', label: 'Resolve' },
   { value: 'close', label: 'Close' },
-  { value: 'reopen', label: 'Reopen' },
 ];
 
 const INVESTIGATION_ACTIONS = [

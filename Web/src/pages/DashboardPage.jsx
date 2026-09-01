@@ -24,12 +24,30 @@ function formatDateTime(value) {
   return { date, time };
 }
 
+function DashboardDateTime() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const { date, time } = formatDateTime(now);
+
+  return (
+    <div className="dashboard-datetime" aria-live="polite">
+      <span className="dashboard-datetime__date">{date}</span>
+      <span className="dashboard-datetime__divider" aria-hidden="true" />
+      <span className="dashboard-datetime__time">{time}</span>
+    </div>
+  );
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [now, setNow] = useState(() => new Date());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,18 +66,12 @@ export default function DashboardPage() {
     load();
   }, [load]);
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   if (loading) return <LoadingState message="Loading dashboard…" />;
   if (error) return <ErrorState message={error} onRetry={load} />;
 
   const summary = data?.summary || {};
   const trends = data?.cardTrends || {};
   const displayName = user?.name || 'Admin';
-  const { date, time } = formatDateTime(now);
 
   return (
     <div className="page-stack dashboard-page">
@@ -69,11 +81,7 @@ export default function DashboardPage() {
           <p>Welcome back, {displayName}</p>
         </div>
         <div className="dashboard-intro__actions">
-          <div className="dashboard-datetime" aria-live="polite">
-            <span className="dashboard-datetime__date">{date}</span>
-            <span className="dashboard-datetime__divider" aria-hidden="true" />
-            <span className="dashboard-datetime__time">{time}</span>
-          </div>
+          <DashboardDateTime />
         </div>
       </header>
 
@@ -136,6 +144,8 @@ export default function DashboardPage() {
         <SystemAlerts
           alerts={data?.systemAlerts || []}
           unreadCount={data?.securityUnreadCount || 0}
+          loadFromApi
+          compact
         />
       </section>
     </div>

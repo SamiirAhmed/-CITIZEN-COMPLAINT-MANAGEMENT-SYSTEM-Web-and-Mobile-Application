@@ -4,6 +4,7 @@ import Modal from '../components/common/Modal';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
+import { SettingsShell } from '../components/layout/SettingsShell';
 import PoliceRegistrationForm from '../components/users/PoliceRegistrationForm';
 import UserDetails from '../components/users/UserDetails';
 import UserTable from '../components/users/UserTable';
@@ -127,19 +128,14 @@ export default function UsersPage() {
   };
 
   return (
-    <div className="page-stack">
-      <section className="panel">
-        <div className="panel__header panel__header--spread">
-          <div>
-            <h2>Users</h2>
-            <p className="muted">Manage admin and police staff accounts.</p>
-          </div>
-          <button type="button" className="btn btn--primary" onClick={() => setRegisterOpen(true)}>
-            Add User
-          </button>
-        </div>
-
-        <div className="toolbar">
+    <SettingsShell
+      actions={
+        <button type="button" className="btn btn--primary" onClick={() => setRegisterOpen(true)}>
+          Add User
+        </button>
+      }
+    >
+      <div className="toolbar">
           <input
             className="toolbar__search"
             type="search"
@@ -175,7 +171,6 @@ export default function UsersPage() {
             onToggleStatus={handleToggleStatus}
           />
         )}
-      </section>
 
       <Modal
         open={registerOpen}
@@ -208,6 +203,8 @@ export default function UsersPage() {
               station: editing.station || '',
               region: editing.region || '',
               district: editing.district || '',
+              village: editing.village || '',
+              area: editing.area || '',
             }}
             currentImage={editing.profileImage || ''}
             submitting={submitting}
@@ -241,6 +238,6 @@ export default function UsersPage() {
         onCancel={() => setConfirmTarget(null)}
         onConfirm={runStatusChange}
       />
-    </div>
+    </SettingsShell>
   );
 }

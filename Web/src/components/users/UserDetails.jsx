@@ -72,8 +72,18 @@ export default function UserDetails({ user }) {
             <strong>{user.district || '—'}</strong>
           </div>
           <div>
-            <span className="detail-label">Region</span>
-            <strong>{user.region || '—'}</strong>
+            <span className="detail-label">Village</span>
+            <strong>{user.village || '—'}</strong>
+          </div>
+          <div>
+            <span className="detail-label">Area</span>
+            <strong>{user.area || '—'}</strong>
+          </div>
+          <div>
+            <span className="detail-label">Location</span>
+            <strong>
+              {[user.district, user.village, user.area].filter(Boolean).join(' — ') || '—'}
+            </strong>
           </div>
           <div>
             <span className="detail-label">Role</span>

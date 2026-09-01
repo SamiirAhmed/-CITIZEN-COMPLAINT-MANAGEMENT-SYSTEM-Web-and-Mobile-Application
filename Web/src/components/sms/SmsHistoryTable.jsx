@@ -30,11 +30,24 @@ function formatDate(value) {
   });
 }
 
+function recipientTypeBadge(recipientType) {
+  return recipientType === 'citizen' ? 'Citizens' : 'Police';
+}
+
+function recipientTypeSummary(recipientType, count) {
+  if (recipientType === 'citizen') {
+    return count === 1 ? 'Citizen' : 'Citizens';
+  }
+  return count === 1 ? 'Police user' : 'Police users';
+}
+
 function recipientSummary(record) {
   const names = (record.recipients || []).map((item) => item.name).filter(Boolean);
+  const count = Number(record.recipientCount) || 0;
+  const typeLabel = recipientTypeSummary(record.recipientType, count);
+
   if (!names.length) {
-    const count = Number(record.recipientCount) || 0;
-    return count ? `${count} Police user${count === 1 ? '' : 's'}` : '—';
+    return count ? `${count} ${typeLabel}` : '—';
   }
   if (names.length <= 2) return names.join(', ');
   return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
@@ -71,6 +84,7 @@ export default function SmsHistoryTable({ records, loading }) {
           <tr>
             <th>Msg No</th>
             <th>Sender</th>
+            <th>Type</th>
             <th>Recipients</th>
             <th>Title</th>
             <th>Message</th>
@@ -89,13 +103,14 @@ export default function SmsHistoryTable({ records, loading }) {
                   {dash(record.displayNo || record.msgNo)}
                 </td>
                 <td className="cell-name">{dash(record.actorName)}</td>
+                <td>{recipientTypeBadge(record.recipientType)}</td>
                 <td className="sms-history-table__recipients">
                   <span className="sms-history-table__names" title={names.join(', ') || undefined}>
                     {recipientSummary(record)}
                   </span>
                   {count > 1 ? (
                     <span className="cell-muted">
-                      {count} Police users
+                      {count} {recipientTypeSummary(record.recipientType, count)}
                     </span>
                   ) : null}
                 </td>

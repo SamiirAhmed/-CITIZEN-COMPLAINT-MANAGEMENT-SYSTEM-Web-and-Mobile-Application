@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import PhoneInput from '../common/PhoneInput';
 import ProfileImageField from '../common/ProfileImageField';
+import PasswordField from '../common/PasswordField';
 import {
   validateCitizenEdit,
   validateCitizenRegistration,
 } from '../../validation/citizenValidation';
+import { EMAIL_PATTERN } from '../../validation/userValidation';
 
 const REGISTER_INITIAL = {
   name: '',
@@ -33,6 +35,7 @@ export default function CitizenForm({
   const [profileImageFile, setProfileImageFile] = useState(null);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
 
   useEffect(() => {
     if (isRegister) {
@@ -43,24 +46,51 @@ export default function CitizenForm({
     setProfileImageFile(null);
     setErrors({});
     setFormError('');
+    setEmailTouched(false);
   }, [initialValues, isRegister]);
+
+  const clearFieldError = (name) => {
+    setErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+  };
 
   const handleChange = (event) => {
     const { name, value } = event.target;
-    let next = value;
+    let nextValue = value;
 
     if (name === 'name') {
-      next = value.replace(/[^A-Za-z\s]/g, '').slice(0, 30);
+      nextValue = value.replace(/[^A-Za-z\s]/g, '').slice(0, 30);
     } else if (name === 'niraId') {
-      next = value.replace(/\D/g, '').slice(0, 11);
+      nextValue = value.replace(/\D/g, '').slice(0, 11);
     }
 
-    setValues((prev) => ({ ...prev, [name]: next }));
+    setValues((prev) => {
+      const next = { ...prev, [name]: nextValue };
+      if (name === 'password' || name === 'confirmPassword') {
+        if (
+          next.confirmPassword &&
+          next.password &&
+          next.password === next.confirmPassword
+        ) {
+          clearFieldError('confirmPassword');
+        }
+        if (name === 'password' && nextValue.length >= 8) {
+          clearFieldError('password');
+        }
+      }
+      return next;
+    });
+    if (name === 'email') clearFieldError('email');
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setFormError('');
+    setEmailTouched(true);
     const validation = isRegister
       ? validateCitizenRegistration(values, { profileImageFile })
       : validateCitizenEdit(values, { profileImageFile });
@@ -73,6 +103,13 @@ export default function CitizenForm({
       setFormError(error.message || 'Unable to save citizen.');
     }
   };
+
+  const showEmailError =
+    emailTouched &&
+    values.email.trim() &&
+    !EMAIL_PATTERN.test(values.email.trim().toLowerCase())
+      ? 'Please enter a valid email address.'
+      : errors.email || '';
 
   return (
     <form className="form-grid" onSubmit={handleSubmit} noValidate>
@@ -124,37 +161,36 @@ export default function CitizenForm({
 
       <label className="field">
         <span>Email</span>
-        <input name="email" type="email" value={values.email} onChange={handleChange} />
-        {errors.email ? <em className="field-error">{errors.email}</em> : null}
+        <input
+          name="email"
+          type="email"
+          value={values.email}
+          onChange={handleChange}
+          onBlur={() => setEmailTouched(true)}
+          className={showEmailError ? 'is-invalid' : undefined}
+          autoComplete="email"
+        />
+        {showEmailError ? <em className="field-error">{showEmailError}</em> : null}
       </label>
 
       {isRegister ? (
         <>
-          <label className="field">
-            <span>Password</span>
-            <input
-              name="password"
-              type="password"
-              value={values.password}
-              onChange={handleChange}
-              autoComplete="new-password"
-            />
-            {errors.password ? <em className="field-error">{errors.password}</em> : null}
-          </label>
-
-          <label className="field">
-            <span>Confirm Password</span>
-            <input
-              name="confirmPassword"
-              type="password"
-              value={values.confirmPassword}
-              onChange={handleChange}
-              autoComplete="new-password"
-            />
-            {errors.confirmPassword ? (
-              <em className="field-error">{errors.confirmPassword}</em>
-            ) : null}
-          </label>
+          <PasswordField
+            name="password"
+            label="Password"
+            value={values.password}
+            onChange={handleChange}
+            error={errors.password}
+            disabled={submitting}
+          />
+          <PasswordField
+            name="confirmPassword"
+            label="Confirm Password"
+            value={values.confirmPassword}
+            onChange={handleChange}
+            error={errors.confirmPassword}
+            disabled={submitting}
+          />
         </>
       ) : null}
 

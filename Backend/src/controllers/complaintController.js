@@ -248,7 +248,12 @@ export const getCitizenDashboard = asyncHandler(async (req, res) => {
 
   const [complaints, obRecords] = await Promise.all([
     Complaint.find({ citizen: citizenId }).sort({ updatedAt: -1 }),
-    OBRecord.find({ citizen: citizenId })
+    OBRecord.find({
+      $or: [
+        { citizen: citizenId },
+        { complaint: { $in: await Complaint.find({ citizen: citizenId }).distinct('_id') } },
+      ],
+    })
       .populate('complaint')
       .populate('assignedOfficer', 'name badgeNumber station')
       .sort({ updatedAt: -1 }),
@@ -271,6 +276,10 @@ export const getCitizenDashboard = asyncHandler(async (req, res) => {
     (ob) => !['Closed', 'Resolved'].includes(ob.status)
   );
 
+  const closedOBs = obRecords.filter((ob) =>
+    ['Closed', 'Resolved'].includes(ob.status)
+  );
+
   const latestComplaint = complaints[0] || null;
   const latestOB = obRecords[0] || null;
 
@@ -278,6 +287,7 @@ export const getCitizenDashboard = asyncHandler(async (req, res) => {
   if (latestOB) {
     latestStatus = {
       source: 'ob',
+      id: latestOB._id.toString(),
       label: latestOB.status,
       reference: latestOB.obNumber,
       updatedAt: latestOB.updatedAt,
@@ -285,6 +295,7 @@ export const getCitizenDashboard = asyncHandler(async (req, res) => {
   } else if (latestComplaint) {
     latestStatus = {
       source: 'complaint',
+      id: latestComplaint._id.toString(),
       label: latestComplaint.status,
       reference: latestComplaint.complaintNumber,
       updatedAt: latestComplaint.updatedAt,
@@ -332,8 +343,11 @@ export const getCitizenDashboard = asyncHandler(async (req, res) => {
     data: {
       summary: {
         totalComplaints: complaints.length,
+        totalOBRecords: obRecords.length,
         activeComplaints: activeComplaints.length,
         activeOBs: activeOBs.length,
+        activeCases: activeOBs.length,
+        closedCases: closedOBs.length,
         closedComplaints: complaints.filter((c) =>
           ['Closed', 'Resolved', 'Rejected'].includes(c.status)
         ).length,
@@ -343,6 +357,9 @@ export const getCitizenDashboard = asyncHandler(async (req, res) => {
         : null,
       activeOB: activeOBs[0]
         ? activeOBs[0].toCitizenObject(activeOBs[0].complaint)
+        : null,
+      recentOB: latestOB
+        ? latestOB.toCitizenObject(latestOB.complaint)
         : null,
       latestStatus,
       recentUpdates: recentUpdates.slice(0, 8),
@@ -584,6 +601,13 @@ export const adminUpdateComplaint = asyncHandler(async (req, res) => {
     return res.status(404).json({
       success: false,
       message: 'Complaint not found.',
+    });
+  }
+
+  if (complaint.status === 'Closed') {
+    return res.status(400).json({
+      success: false,
+      message: 'This record is closed and cannot be modified.',
     });
   }
 
@@ -1045,6 +1069,7 @@ export const adminCreateOB = asyncHandler(async (req, res) => {
     type: 'ob_created',
     relatedComplaint: complaint._id,
     relatedOB: ob._id,
+    linkPath: obPath(ob._id),
     ...actorFields(req.user),
   });
 

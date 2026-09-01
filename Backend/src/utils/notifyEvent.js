@@ -5,7 +5,6 @@ import { createNotification } from './helpers.js';
 const REPEATING_TYPES = new Set([
   'investigation_update',
   'investigation_update_admin',
-  'investigation_progress',
   'investigation_started_admin',
   'investigation_completed_admin',
   'evidence_added',

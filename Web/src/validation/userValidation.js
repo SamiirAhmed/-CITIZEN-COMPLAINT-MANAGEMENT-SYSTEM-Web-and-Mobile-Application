@@ -1,6 +1,9 @@
 import { validateProfileImageFile } from './imageValidation';
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Requires local@domain.tld — rejects admin@gmail */
+export const EMAIL_PATTERN =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
 const NAME_LETTERS_PATTERN = /^[A-Za-z\s]+$/;
 const DIGITS_ONLY_PATTERN = /^\d+$/;
 const NIRA_ID_PATTERN = /^\d{11}$/;
@@ -23,6 +26,8 @@ export function validateStaffRegistration(values, { profileImageFile } = {}) {
   const station = String(values.station ?? '').trim();
   const region = String(values.region ?? '').trim();
   const district = String(values.district ?? '').trim();
+  const village = String(values.village ?? '').trim();
+  const area = String(values.area ?? '').trim();
 
   if (!name) {
     errors.name = 'Name is required.';
@@ -59,12 +64,12 @@ export function validateStaffRegistration(values, { profileImageFile } = {}) {
     errors.role = 'Role must be Admin or Police.';
   }
 
-  if (!region) {
-    errors.region = 'Region is required.';
+  if (!district) {
+    errors.district = 'Please select a district.';
   }
 
-  if (!district) {
-    errors.district = 'District is required.';
+  if (area && !village) {
+    errors.village = 'Please select a village before selecting an area.';
   }
 
   const imageCheck = validateProfileImageFile(profileImageFile, { required: true });
@@ -85,6 +90,8 @@ export function validateStaffRegistration(values, { profileImageFile } = {}) {
       station,
       region,
       district,
+      village,
+      area,
       profileImageFile: profileImageFile || null,
     },
   };
@@ -102,6 +109,8 @@ export function validateStaffUserEdit(values, { profileImageFile } = {}) {
   const station = String(values.station ?? '').trim();
   const region = String(values.region ?? '').trim();
   const district = String(values.district ?? '').trim();
+  const village = String(values.village ?? '').trim();
+  const area = String(values.area ?? '').trim();
 
   if (!name) {
     errors.name = 'Name is required.';
@@ -126,8 +135,12 @@ export function validateStaffUserEdit(values, { profileImageFile } = {}) {
     errors.email = 'Please enter a valid email address.';
   }
 
-  if (region && !district) {
-    errors.district = 'District is required when region is selected.';
+  if (!district) {
+    errors.district = 'Please select a district.';
+  }
+
+  if (area && !village) {
+    errors.village = 'Please select a village before selecting an area.';
   }
 
   if (profileImageFile) {
@@ -148,6 +161,8 @@ export function validateStaffUserEdit(values, { profileImageFile } = {}) {
       station,
       region,
       district,
+      village,
+      area,
       profileImageFile: profileImageFile || null,
     },
   };

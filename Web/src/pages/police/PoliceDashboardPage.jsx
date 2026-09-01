@@ -23,14 +23,31 @@ function formatClock(value) {
   return { date, time };
 }
 
+function PoliceDashboardDateTime() {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const { date, time } = formatClock(now);
+
+  return (
+    <div className="dashboard-datetime" aria-live="polite">
+      <span className="dashboard-datetime__date">{date}</span>
+      <span className="dashboard-datetime__divider" aria-hidden="true" />
+      <span className="dashboard-datetime__time">{time}</span>
+    </div>
+  );
+}
+
 export default function PoliceDashboardPage() {
   const { user } = useAuth();
   const [records, setRecords] = useState([]);
-  const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [now, setNow] = useState(() => new Date());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,7 +58,6 @@ export default function PoliceDashboardPage() {
         getNotifications(),
       ]);
       setRecords(nextRecords);
-      setNotifications(nextNotes.notifications || []);
       setUnreadCount(nextNotes.unreadCount || 0);
     } catch (err) {
       setError(err.message || 'Unable to load dashboard.');
@@ -54,11 +70,6 @@ export default function PoliceDashboardPage() {
     load();
   }, [load]);
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   const stats = useMemo(() => {
     const assigned = records.length;
     const investigating = records.filter((item) => item.status === 'Under Investigation').length;
@@ -70,15 +81,7 @@ export default function PoliceDashboardPage() {
   }, [records, unreadCount]);
 
   const displayName = user?.name || 'Police Officer';
-  const { date, time } = formatClock(now);
   const recentRecords = records.slice(0, 6);
-  const alerts = notifications.slice(0, 5).map((item) => ({
-    id: item.id,
-    type: item.isRead ? 'complaint' : 'citizen',
-    title: item.title,
-    detail: item.message,
-    createdAt: item.createdAt,
-  }));
 
   if (loading) return <LoadingState message="Loading dashboard…" />;
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -91,11 +94,7 @@ export default function PoliceDashboardPage() {
           <p>Welcome back, {displayName}</p>
         </div>
         <div className="dashboard-intro__actions">
-          <div className="dashboard-datetime" aria-live="polite">
-            <span className="dashboard-datetime__date">{date}</span>
-            <span className="dashboard-datetime__divider" aria-hidden="true" />
-            <span className="dashboard-datetime__time">{time}</span>
-          </div>
+          <PoliceDashboardDateTime />
         </div>
       </header>
 
@@ -144,7 +143,7 @@ export default function PoliceDashboardPage() {
             emptyMessage="When a case is assigned to you, it will appear here."
           />
         </article>
-        <SystemAlerts alerts={alerts} />
+        <SystemAlerts loadFromApi compact unreadCount={unreadCount} />
       </section>
     </div>
   );

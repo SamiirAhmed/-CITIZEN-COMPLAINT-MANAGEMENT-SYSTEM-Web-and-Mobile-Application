@@ -71,39 +71,8 @@ export const adminNavigation = [
     label: 'Settings',
     path: '/settings',
     icon: 'settings',
-    expandable: true,
     moduleKey: 'settings',
     section: 'system',
-    children: [
-      {
-        id: 'users',
-        label: 'Users',
-        path: '/settings/users',
-        icon: 'users',
-        moduleKey: 'settings',
-      },
-      {
-        id: 'permissions',
-        label: 'Permissions',
-        path: '/settings/permissions',
-        icon: 'permissions',
-        moduleKey: 'settings',
-      },
-      {
-        id: 'categories',
-        label: 'Categories',
-        path: '/settings/categories',
-        icon: 'categories',
-        moduleKey: 'settings',
-      },
-      {
-        id: 'districts',
-        label: 'Districts',
-        path: '/settings/districts',
-        icon: 'districts',
-        moduleKey: 'settings',
-      },
-    ],
   },
   {
     id: 'profile',
@@ -141,11 +110,7 @@ export function getFirstAllowedPath(user) {
   if (user?.role !== 'admin') return getHomePath(user);
   const items = filterNavigationForUser(user);
   if (!items.length) return '/profile';
-  const first = items[0];
-  if (first.expandable && first.children?.length) {
-    return first.children[0].path;
-  }
-  return first.path;
+  return items[0].path;
 }
 
 export function resolveNotificationPath(notification, user) {

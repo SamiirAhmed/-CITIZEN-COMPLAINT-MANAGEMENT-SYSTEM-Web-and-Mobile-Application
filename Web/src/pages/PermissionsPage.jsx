@@ -4,6 +4,7 @@ import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
 import EmptyState from '../components/common/EmptyState';
 import ProfileAvatar from '../components/common/ProfileAvatar';
+import { SettingsShell } from '../components/layout/SettingsShell';
 import {
   getPoliceUsersForPermissions,
   getUserPermissions,
@@ -127,45 +128,42 @@ export default function PermissionsPage() {
   };
 
   if (loadingUsers) {
-    return <LoadingState message="Loading police users…" />;
+    return (
+      <SettingsShell>
+        <LoadingState message="Loading police users…" />
+      </SettingsShell>
+    );
   }
 
   if (error && !policeUsers.length) {
-    return <ErrorState message={error} />;
+    return (
+      <SettingsShell>
+        <ErrorState message={error} />
+      </SettingsShell>
+    );
   }
 
   return (
-    <div className="page-stack">
-      <section className="access-hero panel">
-        <div className="access-hero__copy">
-          <p className="settings-hub__eyebrow">Security</p>
-          <h1>User Access Control</h1>
-          <p className="muted">
-            Select a police user and choose which sidebar menus they can see in SPO. Admin accounts
-            always retain full access.
-          </p>
-        </div>
-      </section>
+    <SettingsShell
+      actions={
+        selectedUserId ? (
+          <button
+            type="button"
+            className="btn btn--primary"
+            onClick={handleSave}
+            disabled={saving || loadingPermissions}
+          >
+            {saving ? 'Saving…' : 'Save Permissions'}
+          </button>
+        ) : null
+      }
+    >
+      <p className="premium-section__lead muted">
+        Select a police user and choose which sidebar menus they can see. Admin accounts always
+        retain full access.
+      </p>
 
-      <section className="panel access-panel">
-        <div className="panel__header panel__header--spread">
-          <div>
-            <h2>Access Control Panel</h2>
-            <p className="muted">Assign menu permissions per police officer.</p>
-          </div>
-          {selectedUserId ? (
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={handleSave}
-              disabled={saving || loadingPermissions}
-            >
-              {saving ? 'Saving…' : 'Save Permissions'}
-            </button>
-          ) : null}
-        </div>
-
-        <div className="access-select-card">
+      <div className="access-select-card">
           <label className="field">
             <span>Select User</span>
             <select
@@ -273,7 +271,6 @@ export default function PermissionsPage() {
             })}
           </div>
         )}
-      </section>
-    </div>
+    </SettingsShell>
   );
 }

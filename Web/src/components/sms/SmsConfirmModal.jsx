@@ -1,14 +1,24 @@
 import Modal from '../common/Modal';
 
+function recipientTypeLabel(recipientType, count = 1) {
+  if (recipientType === 'citizen') {
+    return count === 1 ? 'Citizen' : 'Citizens';
+  }
+  return count === 1 ? 'Police user' : 'Police users';
+}
+
 export default function SmsConfirmModal({
   open,
   recipients,
   reachCount,
+  recipientType = 'police',
   message,
   sending,
   onCancel,
   onConfirm,
 }) {
+  const label = recipientTypeLabel(recipientType, reachCount);
+
   return (
     <Modal
       open={open}
@@ -30,7 +40,7 @@ export default function SmsConfirmModal({
         <div className="sms-confirm-modal__block">
           <strong>Recipients</strong>
           <p>
-            {reachCount} Police user{reachCount === 1 ? '' : 's'}
+            {reachCount} {label}
           </p>
           {recipients.length ? (
             <ul>
@@ -41,7 +51,7 @@ export default function SmsConfirmModal({
               ))}
             </ul>
           ) : (
-            <p className="muted">Select at least one Police user.</p>
+            <p className="muted">Select at least one {recipientTypeLabel(recipientType, 1)}.</p>
           )}
         </div>
         <div className="sms-confirm-modal__block">

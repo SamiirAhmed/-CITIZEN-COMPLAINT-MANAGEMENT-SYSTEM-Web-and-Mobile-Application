@@ -24,19 +24,94 @@ function buildMessagePreview(message = '') {
   return `${trimmed.slice(0, 77)}...`;
 }
 
-function toRecipientObject(user) {
-  return {
+function toRecipientObject(user, recipientType = 'police') {
+  const base = {
     id: user._id.toString(),
     name: user.name,
     phone: user.phone || '',
-    badgeNumber: user.badgeNumber || '',
-    station: user.station || '',
-    district: user.district || '',
     profileImage: user.profileImage || '',
     isActive: user.isActive !== false,
     role: user.role,
+    recipientType,
     hasValidPhone: isValidSomaliMobile(user.phone) || isValidSomaliMobile(user.tell),
   };
+
+  if (recipientType === 'citizen') {
+    return {
+      ...base,
+      niraId: user.niraId || '',
+      district: user.district || '',
+      region: user.region || '',
+    };
+  }
+
+  return {
+    ...base,
+    badgeNumber: user.badgeNumber || '',
+    station: user.station || '',
+    district: user.district || '',
+  };
+}
+
+function normalizeRecipientType(value = '') {
+  const type = String(value).trim().toLowerCase();
+  return type === 'citizen' ? 'citizen' : 'police';
+}
+
+function recipientRoleForType(recipientType) {
+  return recipientType === 'citizen' ? 'citizen' : 'police';
+}
+
+function recipientLabel(recipientType, count = 1) {
+  if (recipientType === 'citizen') {
+    return count === 1 ? 'Citizen' : 'Citizens';
+  }
+  return count === 1 ? 'Police user' : 'Police users';
+}
+
+function buildRecipientSearchFilter(recipientType, { name = '', phone = '', search = '' } = {}) {
+  const combinedSearch = String(search || '').trim();
+  const nameTerm = String(name || '').trim() || combinedSearch;
+  const phoneTerm = String(phone || '').trim() || combinedSearch;
+  const clauses = [];
+
+  if (combinedSearch) {
+    const regex = new RegExp(escapeRegex(combinedSearch), 'i');
+    const phoneRegex = new RegExp(escapeRegex(combinedSearch.replace(/\s+/g, '')), 'i');
+    if (recipientType === 'citizen') {
+      clauses.push({
+        $or: [
+          { name: regex },
+          { phone: phoneRegex },
+          { tell: phoneRegex },
+          { niraId: regex },
+          { email: regex },
+        ],
+      });
+    } else {
+      clauses.push({
+        $or: [
+          { name: regex },
+          { phone: phoneRegex },
+          { tell: phoneRegex },
+          { badgeNumber: regex },
+          { station: regex },
+        ],
+      });
+    }
+  } else {
+    if (nameTerm) {
+      clauses.push({ name: new RegExp(escapeRegex(nameTerm), 'i') });
+    }
+    if (phoneTerm) {
+      const phoneRegex = new RegExp(escapeRegex(phoneTerm.replace(/\s+/g, '')), 'i');
+      clauses.push({
+        $or: [{ phone: phoneRegex }, { tell: phoneRegex }],
+      });
+    }
+  }
+
+  return clauses;
 }
 
 export const getSmsStats = asyncHandler(async (_req, res) => {
@@ -107,40 +182,14 @@ export const listSmsRecipients = asyncHandler(async (req, res) => {
   const page = Math.max(1, Number(req.query.page) || 1);
   const limit = Math.min(200, Math.max(1, Number(req.query.limit) || 20));
   const skip = (page - 1) * limit;
+  const recipientType = normalizeRecipientType(req.query.recipientType);
   const { name = '', phone = '', search = '' } = req.query;
 
   const includeInactive = String(req.query.status || '') === 'all';
-  const filter = { role: 'police' };
+  const filter = { role: recipientRoleForType(recipientType) };
   if (!includeInactive) filter.isActive = true;
 
-  const clauses = [];
-  const combinedSearch = String(search || '').trim();
-  const nameTerm = String(name || '').trim() || combinedSearch;
-  const phoneTerm = String(phone || '').trim() || combinedSearch;
-
-  if (combinedSearch) {
-    const regex = new RegExp(escapeRegex(combinedSearch), 'i');
-    const phoneRegex = new RegExp(escapeRegex(combinedSearch.replace(/\s+/g, '')), 'i');
-    clauses.push({
-      $or: [
-        { name: regex },
-        { phone: phoneRegex },
-        { tell: phoneRegex },
-        { badgeNumber: regex },
-        { station: regex },
-      ],
-    });
-  } else {
-    if (nameTerm) {
-      clauses.push({ name: new RegExp(escapeRegex(nameTerm), 'i') });
-    }
-    if (phoneTerm) {
-      const phoneRegex = new RegExp(escapeRegex(phoneTerm.replace(/\s+/g, '')), 'i');
-      clauses.push({
-        $or: [{ phone: phoneRegex }, { tell: phoneRegex }],
-      });
-    }
-  }
+  const clauses = buildRecipientSearchFilter(recipientType, { name, phone, search });
 
   if (clauses.length === 1) {
     Object.assign(filter, clauses[0]);
@@ -156,7 +205,8 @@ export const listSmsRecipients = asyncHandler(async (req, res) => {
   return res.json({
     success: true,
     data: {
-      recipients: users.map(toRecipientObject),
+      recipientType,
+      recipients: users.map((user) => toRecipientObject(user, recipientType)),
       pagination: {
         page,
         limit,
@@ -171,6 +221,9 @@ export const sendSms = asyncHandler(async (req, res) => {
   const message = String(req.body?.message || '').trim();
   const title = String(req.body?.title || '').trim();
   const userIds = Array.isArray(req.body?.userIds) ? req.body.userIds : [];
+  const recipientType = normalizeRecipientType(req.body?.recipientType);
+  const role = recipientRoleForType(recipientType);
+  const recipientNoun = recipientLabel(recipientType, 2);
 
   if (!message) {
     return res.status(400).json({
@@ -189,24 +242,24 @@ export const sendSms = asyncHandler(async (req, res) => {
   if (!userIds.length) {
     return res.status(400).json({
       success: false,
-      message: 'Select at least one Police recipient.',
+      message: `Select at least one ${recipientLabel(recipientType, 1)} recipient.`,
     });
   }
 
   const uniqueIds = [...new Set(userIds.map((id) => String(id).trim()).filter(Boolean))];
-  const policeUsers = await User.find({
+  const recipients = await User.find({
     _id: { $in: uniqueIds },
-    role: 'police',
+    role,
     isActive: true,
   });
 
-  const foundIds = new Set(policeUsers.map((user) => user._id.toString()));
+  const foundIds = new Set(recipients.map((user) => user._id.toString()));
   const invalidIds = uniqueIds.filter((id) => !foundIds.has(id));
 
-  if (!policeUsers.length) {
+  if (!recipients.length) {
     return res.status(400).json({
       success: false,
-      message: 'No valid Police recipients were found.',
+      message: `No valid ${recipientNoun} were found.`,
     });
   }
 
@@ -215,8 +268,12 @@ export const sendSms = asyncHandler(async (req, res) => {
   let failedCount = 0;
   let skippedCount = 0;
   const sendable = [];
+  const invalidPhoneMessage =
+    recipientType === 'citizen'
+      ? 'This Citizen does not have a valid phone number.'
+      : 'This Police user does not have a valid phone number.';
 
-  for (const user of policeUsers) {
+  for (const user of recipients) {
     const phone = resolveUserPhone(user);
     if (!isValidSomaliMobile(phone)) {
       skippedCount += 1;
@@ -225,7 +282,7 @@ export const sendSms = asyncHandler(async (req, res) => {
         name: user.name,
         phoneMasked: maskPhone(phone),
         status: 'skipped',
-        error: 'This Police user does not have a valid phone number.',
+        error: invalidPhoneMessage,
         providerRef: '',
       });
       continue;
@@ -299,6 +356,7 @@ export const sendSms = asyncHandler(async (req, res) => {
     message,
     messagePreview: buildMessagePreview(message),
     status,
+    recipientType,
     recipientCount,
     successCount,
     failedCount,
@@ -323,7 +381,7 @@ export const sendSms = asyncHandler(async (req, res) => {
     recordId: smsLog._id.toString(),
     recordLabel: `${successCount}/${recipientCount} recipients`,
     newValue: status === 'success' ? 'Successful' : status === 'partial' ? 'Partial' : 'Failed',
-    details: `Recipients: ${recipientCount}, Successful: ${successCount}, Failed: ${failedCount + skippedCount}`,
+    details: `${recipientLabel(recipientType, recipientCount)} — Recipients: ${recipientCount}, Successful: ${successCount}, Failed: ${failedCount + skippedCount}`,
     ipAddress: getRequestIp(req),
     userAgent: requestContext.userAgent,
     device: requestContext.device,
@@ -381,6 +439,7 @@ export const sendSms = asyncHandler(async (req, res) => {
       failedCount: failedCount + skippedCount,
       skippedCount,
       invalidRecipientIds: invalidIds,
+      recipientType,
       recipients: recipientResults.map((item) => ({
         userId: item.user.toString(),
         name: item.name,

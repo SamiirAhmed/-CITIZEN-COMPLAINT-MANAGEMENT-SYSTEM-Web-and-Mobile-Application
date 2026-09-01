@@ -1,6 +1,12 @@
 import EmptyState from '../common/EmptyState';
 import StatusBadge from '../common/StatusBadge';
-import { formatDate, getRecordId } from '../../constants/domain';
+import {
+  canAssignOB,
+  canDeleteOB,
+  canUpdateOBWorkflow,
+  formatDate,
+  getRecordId,
+} from '../../constants/domain';
 
 function isRecordActive(record) {
   return record?.isActive !== false && record?.isActive !== 'false' && record?.isActive !== 0;
@@ -47,6 +53,9 @@ export default function OBTable({
             const busy = busyId === id;
             const active = isRecordActive(record);
             const statusActionLabel = active ? 'Deactivate' : 'Activate';
+            const showAssign = canAssign && active && canAssignOB(record);
+            const showStatus = canUpdateStatus && active && canUpdateOBWorkflow(record);
+            const showToggle = canToggleActive && canDeleteOB(record);
             return (
               <tr key={id}>
                 <td className="cell-name">{record.obNumber || '—'}</td>
@@ -65,7 +74,7 @@ export default function OBTable({
                     <button type="button" className="btn btn--table" onClick={() => onView(record)}>
                       View
                     </button>
-                    {canAssign && active ? (
+                    {showAssign ? (
                       <button
                         type="button"
                         className="btn btn--table"
@@ -75,17 +84,17 @@ export default function OBTable({
                         Assign
                       </button>
                     ) : null}
-                    {canUpdateStatus && active ? (
+                    {showStatus ? (
                       <button
                         type="button"
                         className="btn btn--table"
                         disabled={busy}
                         onClick={() => onUpdateStatus(record)}
                       >
-                        Status
+                        Update Status
                       </button>
                     ) : null}
-                    {canToggleActive ? (
+                    {showToggle ? (
                       <button
                         type="button"
                         className={`btn btn--table ${active ? 'btn--table-danger' : 'btn--table-success'}`}

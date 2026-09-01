@@ -24,7 +24,6 @@ export default function PoliceOBTable({
             <th>Complaint</th>
             <th>Citizen</th>
             <th>Status</th>
-            <th>Progress</th>
             <th>Assigned</th>
             <th>Actions</th>
           </tr>
@@ -41,7 +40,6 @@ export default function PoliceOBTable({
               <td>
                 <StatusBadge status={record.status} />
               </td>
-              <td>{Number(record.investigationProgress || 0)}%</td>
               <td className="cell-muted">{formatDate(record.assignedAt)}</td>
               <td>
                 <div className="action-row">

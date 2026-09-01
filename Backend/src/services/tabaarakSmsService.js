@@ -119,8 +119,24 @@ function extractToken(payload) {
 }
 
 function extractBalance(payload) {
+  if (typeof payload === 'number' && Number.isFinite(payload)) return payload;
+  if (typeof payload === 'string') {
+    const direct = toNumber(payload);
+    if (direct != null) return direct;
+  }
   const nested = payload?.data ?? payload;
-  const raw = nested?.balance ?? nested?.Balance ?? payload?.balance;
+  if (typeof nested === 'number' && Number.isFinite(nested)) return nested;
+  if (typeof nested === 'string') {
+    const direct = toNumber(nested);
+    if (direct != null) return direct;
+  }
+  const raw =
+    nested?.balance ??
+    nested?.Balance ??
+    nested?.smsBalance ??
+    nested?.remainingBalance ??
+    payload?.balance ??
+    payload?.Balance;
   if (typeof raw === 'string') {
     const match = raw.match(/-?\d+(?:\.\d+)?/);
     if (match) return Number(match[0]);

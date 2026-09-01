@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import EvidenceList from '../../components/common/EvidenceList';
 import ErrorState from '../../components/common/ErrorState';
 import LoadingState from '../../components/common/LoadingState';
 import StatusBadge from '../../components/common/StatusBadge';
-import { resolveMediaUrl } from '../../utils/mediaUrl';
 import {
   addInvestigationEvidence,
   getStaffOBById,
@@ -23,11 +23,6 @@ export default function PoliceOBDetailsPage() {
   const [completeOpen, setCompleteOpen] = useState(false);
 
   const [noteText, setNoteText] = useState('');
-  const [progressValue, setProgressValue] = useState(0);
-  const [progressNote, setProgressNote] = useState('');
-  const [updateTitle, setUpdateTitle] = useState('');
-  const [updateNote, setUpdateNote] = useState('');
-  const [updateVisible, setUpdateVisible] = useState(false);
   const [evidenceNote, setEvidenceNote] = useState('');
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceKey, setEvidenceKey] = useState(0);
@@ -38,7 +33,6 @@ export default function PoliceOBDetailsPage() {
     try {
       const next = await getStaffOBById(id);
       setRecord(next);
-      setProgressValue(Number(next?.investigationProgress || 0));
     } catch (err) {
       setError(err.message || 'Unable to load OB record.');
     } finally {
@@ -53,7 +47,6 @@ export default function PoliceOBDetailsPage() {
   const applyRecord = (next) => {
     if (!next) return;
     setRecord(next);
-    setProgressValue(Number(next.investigationProgress || 0));
   };
 
   const runAction = async (action, payload, successMessage) => {
@@ -76,34 +69,10 @@ export default function PoliceOBDetailsPage() {
   const handleStart = () =>
     runAction('start', {}, 'Investigation started.');
 
-  const handleProgress = async (event) => {
-    event.preventDefault();
-    const ok = await runAction(
-      'progress',
-      { progress: Number(progressValue), note: progressNote },
-      'Progress saved.'
-    );
-    if (ok) setProgressNote('');
-  };
-
   const handleNote = async (event) => {
     event.preventDefault();
     const ok = await runAction('note', { note: noteText }, 'Note added.');
     if (ok) setNoteText('');
-  };
-
-  const handleUpdate = async (event) => {
-    event.preventDefault();
-    const ok = await runAction(
-      'update',
-      { title: updateTitle, note: updateNote, visibleToCitizen: updateVisible },
-      'Update recorded.'
-    );
-    if (ok) {
-      setUpdateTitle('');
-      setUpdateNote('');
-      setUpdateVisible(false);
-    }
   };
 
   const handleEvidence = async (event) => {
@@ -151,7 +120,6 @@ export default function PoliceOBDetailsPage() {
   const officer = record.assignedOfficer || {};
   const canStart = ['Assigned', 'Opened', 'Reopened'].includes(record.status);
   const canWork = record.status === 'Under Investigation';
-  const progress = Number(record.investigationProgress || 0);
 
   return (
     <div className="page-stack">
@@ -318,51 +286,11 @@ export default function PoliceOBDetailsPage() {
             <span className="detail-label">Completed</span>
             <strong>{formatDateTime(record.investigationCompletedAt)}</strong>
           </div>
-          <div>
-            <span className="detail-label">Progress</span>
-            <strong>{progress}%</strong>
-          </div>
-        </div>
-        <div className="progress-track" aria-label={`Investigation progress ${progress}%`}>
-          <span style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
         </div>
         {canStart ? (
-          <p className="muted">Start the investigation to record progress, notes, evidence, and updates.</p>
+          <p className="muted">Start the investigation to add notes and evidence.</p>
         ) : null}
       </section>
-
-      {canWork ? (
-        <section className="panel">
-          <div className="panel__header">
-            <h2>Record progress</h2>
-          </div>
-          <form className="form-grid form-grid--single" onSubmit={handleProgress}>
-            <label className="field">
-              <span>Progress (%)</span>
-              <input
-                type="number"
-                min="0"
-                max="100"
-                value={progressValue}
-                onChange={(event) => setProgressValue(event.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>Progress note (optional)</span>
-              <textarea
-                rows="3"
-                value={progressNote}
-                onChange={(event) => setProgressNote(event.target.value)}
-              />
-            </label>
-            <div className="form-actions">
-              <button type="submit" className="btn btn--primary" disabled={Boolean(busy)}>
-                {busy === 'progress' ? 'Saving…' : 'Save progress'}
-              </button>
-            </div>
-          </form>
-        </section>
-      ) : null}
 
       <section className="panel">
         <div className="panel__header">
@@ -401,32 +329,14 @@ export default function PoliceOBDetailsPage() {
       </section>
 
       <section className="panel">
-        <div className="panel__header">
-          <h2>Evidence</h2>
+        <div className="panel__header panel__header--spread">
+          <h2>Evidence ({(record.evidence || []).length})</h2>
         </div>
-        {(record.evidence || []).length ? (
-          <ul className="evidence-list">
-            {(record.evidence || []).map((item, index) => {
-              const href = item.url ? resolveMediaUrl(item.url) : '';
-              return (
-                <li key={item.id || index} className="evidence-list__item">
-                  <div>
-                    <strong>{item.originalName || item.fileName || 'Evidence note'}</strong>
-                    <p>{item.note || 'No description'}</p>
-                    <em>{formatDateTime(item.createdAt)}</em>
-                  </div>
-                  {href ? (
-                    <a className="btn btn--table" href={href} target="_blank" rel="noreferrer">
-                      View
-                    </a>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <p className="muted">No investigation evidence attached yet.</p>
-        )}
+        <EvidenceList
+          items={record.evidence || []}
+          showHeading={false}
+          emptyMessage="No evidence has been uploaded for this case."
+        />
         {canWork ? (
           <form className="form-grid form-grid--single" onSubmit={handleEvidence}>
             <label className="field">
@@ -455,63 +365,10 @@ export default function PoliceOBDetailsPage() {
         ) : null}
       </section>
 
-      <section className="panel">
-        <div className="panel__header">
-          <h2>Updates</h2>
-        </div>
-        {(record.updates || []).length ? (
-          <ul className="timeline-list">
-            {[...(record.updates || [])].reverse().map((item, index) => (
-              <li key={`${item.title}-${item.createdAt}-${index}`}>
-                <strong>{item.title}</strong>
-                <p>{item.note || '—'}</p>
-                <em>{formatDateTime(item.createdAt)}</em>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="muted">No investigation updates yet.</p>
-        )}
-        {canWork ? (
-          <form className="form-grid form-grid--single" onSubmit={handleUpdate}>
-            <label className="field">
-              <span>Update title</span>
-              <input
-                value={updateTitle}
-                onChange={(event) => setUpdateTitle(event.target.value)}
-                placeholder="Investigation Update"
-              />
-            </label>
-            <label className="field">
-              <span>Update</span>
-              <textarea
-                rows="3"
-                value={updateNote}
-                onChange={(event) => setUpdateNote(event.target.value)}
-                required
-              />
-            </label>
-            <label className="field field--inline">
-              <input
-                type="checkbox"
-                checked={updateVisible}
-                onChange={(event) => setUpdateVisible(event.target.checked)}
-              />
-              <span>Visible to citizen</span>
-            </label>
-            <div className="form-actions">
-              <button type="submit" className="btn btn--primary" disabled={Boolean(busy)}>
-                {busy === 'update' ? 'Saving…' : 'Record update'}
-              </button>
-            </div>
-          </form>
-        ) : null}
-      </section>
-
       <ConfirmDialog
         open={completeOpen}
         title="Complete investigation"
-        message="Complete this investigation? This cannot be done again, and all notes, evidence, and updates will be kept."
+        message="Complete this investigation? This cannot be done again, and all notes and evidence will be kept."
         confirmLabel="Complete"
         cancelLabel="Cancel"
         tone="danger"

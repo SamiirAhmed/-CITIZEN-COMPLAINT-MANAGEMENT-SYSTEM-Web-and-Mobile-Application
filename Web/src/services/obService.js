@@ -42,7 +42,7 @@ export async function assignOfficer(id, officerId) {
     method: 'PATCH',
     body: { officerId },
   });
-  return response?.data?.ob;
+  return normalizeRecord(response?.data?.ob);
 }
 
 export async function updateOBStatus(id, payload) {
@@ -50,7 +50,20 @@ export async function updateOBStatus(id, payload) {
     method: 'PATCH',
     body: payload,
   });
-  return response?.data?.ob;
+  return normalizeRecord(response?.data?.ob) || response?.data?.ob;
+}
+
+export async function reopenClosedOB(id, note = '') {
+  const response = await apiRequest(`/ob/admin/${id}/status`, {
+    method: 'PATCH',
+    body: {
+      action: 'reopen',
+      note:
+        note ||
+        'This closed OBE case has been reopened and returned to Under Investigation.',
+    },
+  });
+  return normalizeRecord(response?.data?.ob) || response?.data?.ob;
 }
 
 export async function updateInvestigation(id, payload) {

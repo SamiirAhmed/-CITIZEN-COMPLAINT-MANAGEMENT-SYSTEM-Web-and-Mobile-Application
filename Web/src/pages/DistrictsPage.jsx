@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ErrorState from '../components/common/ErrorState';
 import LoadingState from '../components/common/LoadingState';
+import { SettingsShell } from '../components/layout/SettingsShell';
 import { listGeographyTable } from '../services/geographyService';
 
 export default function DistrictsPage() {
@@ -59,65 +60,58 @@ export default function DistrictsPage() {
   const banaadirCount = districtRows.filter((row) => row.region === 'Banaadir').length;
 
   return (
-    <div className="page-stack">
-      <section className="panel">
-        <div className="panel__header panel__header--spread">
-          <div>
-            <h2>Districts</h2>
-            <p className="muted">
-              Registered geographic districts from the Citizen Police Portal database.
-              {banaadirCount ? ` Banaadir currently has ${banaadirCount} districts.` : ''}
-            </p>
-          </div>
-        </div>
+    <SettingsShell>
+      <p className="muted" style={{ marginTop: 0 }}>
+        Registered geographic districts from the Citizen Police Portal database.
+        {banaadirCount ? ` Banaadir currently has ${banaadirCount} districts.` : ''}
+      </p>
 
-        <div className="toolbar">
-          <input
-            className="toolbar__search"
-            type="search"
-            placeholder="Search region, district, village, or area"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
-        </div>
+      <div className="toolbar">
+        <input
+          className="toolbar__search"
+          type="search"
+          placeholder="Search region, district, village, or area"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </div>
 
-        {loading ? (
-          <LoadingState message="Loading districts…" />
-        ) : error ? (
-          <ErrorState message={error} onRetry={load} />
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Region</th>
-                  <th>District</th>
-                  <th>Village</th>
-                  <th>Area</th>
-                </tr>
-              </thead>
-              <tbody>
-                {districtRows.length ? (
-                  districtRows.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.region}</td>
-                      <td>{row.district}</td>
-                      <td>{row.villages.length ? row.villages.join(', ') : '—'}</td>
-                      <td>{row.areas.length ? row.areas.join(', ') : '—'}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="table-empty">
-                      No district records found.
-                    </td>
+      {loading ? (
+        <LoadingState message="Loading districts…" />
+      ) : error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Region</th>
+                <th>District</th>
+                <th>Village</th>
+                <th>Area</th>
+              </tr>
+            </thead>
+            <tbody>
+              {districtRows.length ? (
+                districtRows.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.region}</td>
+                    <td>{row.district}</td>
+                    <td>{row.villages.length ? row.villages.join(', ') : '—'}</td>
+                    <td>{row.areas.length ? row.areas.join(', ') : '—'}</td>
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="table-empty">
+                    No district records found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </SettingsShell>
   );
 }
